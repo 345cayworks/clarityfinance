@@ -1,2 +1,5 @@
-import { redirect } from "next/navigation";
-export default function LegacyOnboarding() { redirect("/app/onboarding"); }
+import { ProfileEditor } from "@/components/ProfileEditor";
+
+export default function OnboardingPage() {
+  return <ProfileEditor title="Onboarding" />;
+}

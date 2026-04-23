@@ -1,26 +1,51 @@
 import { FinanceData } from "@/types";
 
-const STORAGE_KEY = "clarity-finance-data";
-const STORAGE_VERSION = 2;
+export const STORAGE_KEY = "clarity-finance-data";
+const STORAGE_VERSION = 3;
 
 export const defaultFinanceData: FinanceData = {
-  monthlyIncome: 0,
-  otherIncome: 0,
-  monthlyExpenses: 0,
-  savings: 0,
   countryOrMarket: "United States",
   preferredCurrency: "USD",
+  ageRange: "30-39",
   employmentType: "full_time",
+  householdStatus: "single",
   dependents: 0,
-  targetGoal: "buy_home",
-  monthlyHousingCost: 0,
+  creditScoreKnown: true,
   creditScoreRange: "670-739",
+
+  monthlyIncome: 0,
+  otherIncome: 0,
+  incomeFrequency: "monthly",
+  incomeStability: "stable",
+  rentalIncome: 0,
+  sideIncome: 0,
+
+  monthlyExpenses: 0,
+  monthlyHousingCost: 0,
+  utilities: 0,
+  transport: 0,
+  groceries: 0,
+  insurance: 0,
+  childcare: 0,
+  discretionarySpending: 0,
+
   housingStatus: "renting",
+  rentAmount: 0,
   mortgageBalance: 0,
   mortgageRate: 0,
   mortgagePayment: 0,
-  rentAmount: 0,
+  estimatedHomeValue: 0,
+  spareRoomAvailable: false,
   estimatedRoomRentalIncome: 0,
+
+  savings: 0,
+  targetGoal: "buy_home",
+  targetHomePrice: 0,
+  targetSavingsGoal: 0,
+  targetDebtReduction: 0,
+  targetMonthlyCashFlow: 0,
+  goalTimeframe: "12_months",
+
   debts: []
 };
 
@@ -34,68 +59,60 @@ export function isBrowser() {
 }
 
 function normalizeFinanceData(parsed: Partial<FinanceData>): FinanceData {
-  const merged = {
-    ...defaultFinanceData,
-    ...parsed,
-    debts: parsed.debts ?? []
-  };
-
-  const inferredHousingCost = merged.monthlyHousingCost || (merged.housingStatus === "homeowner" ? merged.mortgagePayment : merged.rentAmount);
+  const merged = { ...defaultFinanceData, ...parsed, debts: parsed.debts ?? [] };
   return {
     ...merged,
-    dependents: Number.isFinite(merged.dependents) ? Math.max(0, merged.dependents) : 0,
-    monthlyHousingCost: Math.max(0, inferredHousingCost)
+    monthlyIncome: Number(merged.monthlyIncome) || 0,
+    otherIncome: Number(merged.otherIncome) || 0,
+    dependents: Math.max(0, Number(merged.dependents) || 0)
   };
 }
 
-export function loadFinanceData(): FinanceData {
-  if (!isBrowser()) return defaultFinanceData;
+export function loadLegacyLocalFinanceData(): FinanceData | null {
+  if (!isBrowser()) return null;
 
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultFinanceData;
+    if (!raw) return null;
 
     const parsed = JSON.parse(raw) as StoredPayload | Partial<FinanceData>;
     const candidate = parsed && "data" in parsed && parsed.data ? parsed.data : (parsed as Partial<FinanceData>);
     return normalizeFinanceData(candidate ?? {});
   } catch {
-    return defaultFinanceData;
+    return null;
   }
 }
 
-export function saveFinanceData(data: FinanceData) {
+export function saveLegacyLocalFinanceData(data: FinanceData) {
   if (!isBrowser()) return;
   const payload: StoredPayload = { version: STORAGE_VERSION, data };
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
 
-export function clearFinanceData() {
+export function clearLegacyLocalFinanceData() {
   if (!isBrowser()) return;
   window.localStorage.removeItem(STORAGE_KEY);
 }
 
 export function getSampleData(): FinanceData {
   return {
+    ...defaultFinanceData,
     monthlyIncome: 6200,
     otherIncome: 400,
     monthlyExpenses: 3200,
     savings: 14000,
-    countryOrMarket: "United States",
-    preferredCurrency: "USD",
-    employmentType: "full_time",
-    dependents: 1,
-    targetGoal: "buy_home",
     monthlyHousingCost: 2150,
     creditScoreRange: "740-799",
     housingStatus: "homeowner",
     mortgageBalance: 295000,
     mortgageRate: 6.4,
     mortgagePayment: 2150,
-    rentAmount: 0,
     estimatedRoomRentalIncome: 750,
+    targetHomePrice: 450000,
+    targetSavingsGoal: 35000,
     debts: [
-      { id: crypto.randomUUID(), name: "Credit Card", balance: 5400, interestRate: 22.9, monthlyPayment: 210 },
-      { id: crypto.randomUUID(), name: "Car Loan", balance: 11800, interestRate: 6.1, monthlyPayment: 325 }
+      { id: crypto.randomUUID(), name: "Credit Card", type: "credit_card", balance: 5400, interestRate: 22.9, monthlyPayment: 210 },
+      { id: crypto.randomUUID(), name: "Car Loan", type: "auto", balance: 11800, interestRate: 6.1, monthlyPayment: 325 }
     ]
   };
 }

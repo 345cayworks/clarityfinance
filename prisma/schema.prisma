@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String    @id @default(cuid())
+  externalId String    @unique
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  profile Profile?
+  income  Income?
+  expense Expense?
+  housing Housing?
+  goal    Goal?
+  debts   Debt[]
+
+  @@map("users")
+}
+
+model Profile {
+  id                   String   @id @default(cuid())
+  userId               String   @unique @map("user_id")
+  countryOrMarket      String   @map("country_or_market")
+  preferredCurrency    String   @map("preferred_currency")
+  ageRange             String   @default("unspecified") @map("age_range")
+  employmentType       String   @map("employment_type")
+  householdStatus      String   @default("single") @map("household_status")
+  dependents           Int      @default(0)
+  creditScoreKnown     Boolean  @default(false) @map("credit_score_known")
+  creditScoreOrProfile String   @default("not_provided") @map("credit_score_or_profile")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Income {
+  id              String   @id @default(cuid())
+  userId          String   @unique @map("user_id")
+  monthlyIncome   Float    @default(0) @map("monthly_income")
+  otherIncome     Float    @default(0) @map("other_income")
+  incomeFrequency String   @default("monthly") @map("income_frequency")
+  incomeStability String   @default("stable") @map("income_stability")
+  rentalIncome    Float    @default(0) @map("rental_income")
+  sideIncome      Float    @default(0) @map("side_income")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("incomes")
+}
+
+model Expense {
+  id                    String   @id @default(cuid())
+  userId                String   @unique @map("user_id")
+  monthlyExpenses       Float    @default(0) @map("monthly_expenses")
+  monthlyHousingCost    Float    @default(0) @map("monthly_housing_cost")
+  utilities             Float    @default(0)
+  transport             Float    @default(0)
+  groceries             Float    @default(0)
+  insurance             Float    @default(0)
+  childcare             Float    @default(0)
+  discretionarySpending Float    @default(0) @map("discretionary_spending")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("expenses")
+}
+
+model Housing {
+  id                        String   @id @default(cuid())
+  userId                    String   @unique @map("user_id")
+  housingStatus             String   @default("renting") @map("housing_status")
+  rentAmount                Float    @default(0) @map("rent_amount")
+  mortgageBalance           Float    @default(0) @map("mortgage_balance")
+  mortgageRate              Float    @default(0) @map("mortgage_rate")
+  mortgagePayment           Float    @default(0) @map("mortgage_payment")
+  estimatedHomeValue        Float    @default(0) @map("estimated_home_value")
+  spareRoomAvailable        Boolean  @default(false) @map("spare_room_available")
+  estimatedRoomRentalIncome Float    @default(0) @map("estimated_room_rental_income")
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("housing")
+}
+
+model Debt {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  name           String
+  type           String   @default("other")
+  balance        Float    @default(0)
+  interestRate   Float    @default(0) @map("interest_rate")
+  monthlyPayment Float    @default(0) @map("monthly_payment")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("debts")
+}
+
+model Goal {
+  id                      String   @id @default(cuid())
+  userId                  String   @unique @map("user_id")
+  targetGoal              String   @default("buy_home") @map("target_goal")
+  targetHomePrice         Float    @default(0) @map("target_home_price")
+  targetSavingsGoal       Float    @default(0) @map("target_savings_goal")
+  targetDebtReduction     Float    @default(0) @map("target_debt_reduction")
+  targetMonthlyCashFlow   Float    @default(0) @map("target_monthly_cash_flow")
+  goalTimeframe           String   @default("12_months") @map("goal_timeframe")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("goals")
+}

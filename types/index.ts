@@ -9,29 +9,55 @@ export type TargetGoal = "buy_home" | "refinance_home" | "reduce_debt" | "grow_s
 export interface DebtItem {
   id: string;
   name: string;
+  type: string;
   balance: number;
   interestRate: number;
   monthlyPayment: number;
 }
 
 export interface FinanceData {
-  monthlyIncome: number;
-  otherIncome: number;
-  monthlyExpenses: number;
-  savings: number;
   countryOrMarket: CountryOrMarket;
   preferredCurrency: CurrencyCode;
+  ageRange: string;
   employmentType: EmploymentType;
+  householdStatus: string;
   dependents: number;
-  targetGoal: TargetGoal;
-  monthlyHousingCost: number;
+  creditScoreKnown: boolean;
   creditScoreRange: CreditProfile;
+
+  monthlyIncome: number;
+  otherIncome: number;
+  incomeFrequency: string;
+  incomeStability: string;
+  rentalIncome: number;
+  sideIncome: number;
+
+  monthlyExpenses: number;
+  monthlyHousingCost: number;
+  utilities: number;
+  transport: number;
+  groceries: number;
+  insurance: number;
+  childcare: number;
+  discretionarySpending: number;
+
   housingStatus: HousingStatus;
+  rentAmount: number;
   mortgageBalance: number;
   mortgageRate: number;
   mortgagePayment: number;
-  rentAmount: number;
+  estimatedHomeValue: number;
+  spareRoomAvailable: boolean;
   estimatedRoomRentalIncome: number;
+
+  savings: number;
+  targetGoal: TargetGoal;
+  targetHomePrice: number;
+  targetSavingsGoal: number;
+  targetDebtReduction: number;
+  targetMonthlyCashFlow: number;
+  goalTimeframe: string;
+
   debts: DebtItem[];
 }
 
