@@ -1,25 +1,11 @@
-let prismaInstance: any;
+import { PrismaClient } from "@prisma/client";
 
-function createMissingProxy() {
-  return new Proxy(
-    {},
-    {
-      get() {
-        throw new Error("@prisma/client is required. Run npm install and prisma generate before deployment.");
-      }
-    }
-  );
-}
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 export function getPrisma() {
-  if (prismaInstance) return prismaInstance;
-
-  try {
-    const PrismaClientCtor = eval("require")("@prisma/client").PrismaClient;
-    prismaInstance = new PrismaClientCtor();
-  } catch {
-    prismaInstance = createMissingProxy();
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = new PrismaClient();
   }
 
-  return prismaInstance;
+  return globalForPrisma.prisma;
 }
