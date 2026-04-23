@@ -1,5 +1,14 @@
 import { getPrisma } from "@/lib/db/prisma";
 import { defaultFinanceData } from "@/lib/storage";
+import {
+  getValidatedOrDefault,
+  isCountryOrMarket,
+  isCreditProfile,
+  isCurrencyCode,
+  isEmploymentType,
+  isHousingStatus,
+  isTargetGoal
+} from "@/lib/domain/financeGuards";
 import { FinanceData } from "@/types";
 
 const prisma = getPrisma();
@@ -16,10 +25,10 @@ export async function getFinanceDataByUserId(userId: string): Promise<FinanceDat
 
   return {
     ...defaultFinanceData,
-    countryOrMarket: profile?.countryOrMarket ?? defaultFinanceData.countryOrMarket,
-    preferredCurrency: (profile?.preferredCurrency as FinanceData["preferredCurrency"]) ?? defaultFinanceData.preferredCurrency,
+    countryOrMarket: getValidatedOrDefault(profile?.countryOrMarket, isCountryOrMarket, defaultFinanceData.countryOrMarket),
+    preferredCurrency: getValidatedOrDefault(profile?.preferredCurrency, isCurrencyCode, defaultFinanceData.preferredCurrency),
     ageRange: profile?.ageRange ?? defaultFinanceData.ageRange,
-    employmentType: (profile?.employmentType as FinanceData["employmentType"]) ?? defaultFinanceData.employmentType,
+    employmentType: getValidatedOrDefault(profile?.employmentType, isEmploymentType, defaultFinanceData.employmentType),
     householdStatus: profile?.householdStatus ?? defaultFinanceData.householdStatus,
     dependents: profile?.dependents ?? defaultFinanceData.dependents,
     creditScoreKnown: profile?.creditScoreKnown ?? defaultFinanceData.creditScoreKnown,
@@ -39,7 +48,7 @@ export async function getFinanceDataByUserId(userId: string): Promise<FinanceDat
     insurance: expense?.insurance ?? defaultFinanceData.insurance,
     childcare: expense?.childcare ?? defaultFinanceData.childcare,
     discretionarySpending: expense?.discretionarySpending ?? defaultFinanceData.discretionarySpending,
-    housingStatus: (housing?.housingStatus as FinanceData["housingStatus"]) ?? defaultFinanceData.housingStatus,
+    housingStatus: getValidatedOrDefault(housing?.housingStatus, isHousingStatus, defaultFinanceData.housingStatus),
     rentAmount: housing?.rentAmount ?? defaultFinanceData.rentAmount,
     mortgageBalance: housing?.mortgageBalance ?? defaultFinanceData.mortgageBalance,
     mortgageRate: housing?.mortgageRate ?? defaultFinanceData.mortgageRate,
@@ -47,7 +56,7 @@ export async function getFinanceDataByUserId(userId: string): Promise<FinanceDat
     estimatedHomeValue: housing?.estimatedHomeValue ?? defaultFinanceData.estimatedHomeValue,
     spareRoomAvailable: housing?.spareRoomAvailable ?? defaultFinanceData.spareRoomAvailable,
     estimatedRoomRentalIncome: housing?.estimatedRoomRentalIncome ?? defaultFinanceData.estimatedRoomRentalIncome,
-    targetGoal: (goal?.targetGoal as FinanceData["targetGoal"]) ?? defaultFinanceData.targetGoal,
+    targetGoal: getValidatedOrDefault(goal?.targetGoal, isTargetGoal, defaultFinanceData.targetGoal),
     targetHomePrice: goal?.targetHomePrice ?? defaultFinanceData.targetHomePrice,
     targetSavingsGoal: goal?.targetSavingsGoal ?? defaultFinanceData.targetSavingsGoal,
     targetDebtReduction: goal?.targetDebtReduction ?? defaultFinanceData.targetDebtReduction,
