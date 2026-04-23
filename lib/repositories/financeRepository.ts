@@ -32,7 +32,7 @@ export async function getFinanceDataByUserId(userId: string): Promise<FinanceDat
     householdStatus: profile?.householdStatus ?? defaultFinanceData.householdStatus,
     dependents: profile?.dependents ?? defaultFinanceData.dependents,
     creditScoreKnown: profile?.creditScoreKnown ?? defaultFinanceData.creditScoreKnown,
-    creditScoreRange: getValidatedOrDefault(profile?.creditScoreOrProfile, isCreditProfile, defaultFinanceData.creditScoreRange),
+    creditScoreRange: (profile?.creditScoreOrProfile as FinanceData["creditScoreRange"]) ?? defaultFinanceData.creditScoreRange,
     savings: profile?.savings ?? defaultFinanceData.savings,
     monthlyIncome: income?.monthlyIncome ?? defaultFinanceData.monthlyIncome,
     otherIncome: income?.otherIncome ?? defaultFinanceData.otherIncome,
