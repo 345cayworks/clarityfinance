@@ -1,3 +1,4 @@
+export type AppRole = "user" | "advisor" | "admin";
 export type CreditScoreRange = "300-579" | "580-669" | "670-739" | "740-799" | "800-850";
 export type CreditProfile = CreditScoreRange | "not_provided";
 export type HousingStatus = "renting" | "homeowner" | "living_with_family" | "other";
@@ -69,4 +70,21 @@ export interface ScenarioAdjustments {
   addRoomRentalIncome: number;
   savingsRateBoost: number;
   lowerHousingCost: number;
+}
+
+
+export interface SavedScenario {
+  id: string;
+  name: string;
+  adjustments: ScenarioAdjustments;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SavedPlan {
+  id: string;
+  name: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }

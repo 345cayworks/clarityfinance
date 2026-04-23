@@ -1,10 +1,14 @@
 "use client";
 
+import { signIn, signOut, useSession } from "next-auth/react";
+
 export function useAuth() {
+  const { data: session, status } = useSession();
+
   return {
-    supabase: null,
-    signIn: async () => ({ error: null }),
-    signUp: async () => ({ error: null }),
-    signOut: async () => ({ error: null })
+    session,
+    status,
+    signIn,
+    signOut
   };
 }

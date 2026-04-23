@@ -14,8 +14,8 @@ export default function LandingPage() {
         <h1 className="text-4xl font-bold text-slate-900 md:text-5xl">Know where you stand. Know what&apos;s next.</h1>
         <p className="mx-auto mt-5 max-w-2xl text-lg text-slate-600">A front-end-first finance planning workspace for cash flow, debt strategy, and home readiness.</p>
         <div className="mt-8 flex justify-center gap-3">
-          <Link className="btn-primary" href="/app/onboarding">Start onboarding</Link>
-          <Link className="btn-secondary" href="/app">View dashboard</Link>
+          <Link className="btn-primary" href="/signup">Get started</Link>
+          <Link className="btn-secondary" href="/login">Sign in</Link>
         </div>
       </section>
 
