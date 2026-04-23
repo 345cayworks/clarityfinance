@@ -1,12 +1,19 @@
 import { FinanceData } from "@/types";
 
 const STORAGE_KEY = "clarity-finance-data";
+const STORAGE_VERSION = 2;
 
 export const defaultFinanceData: FinanceData = {
   monthlyIncome: 0,
   otherIncome: 0,
   monthlyExpenses: 0,
   savings: 0,
+  countryOrMarket: "United States",
+  preferredCurrency: "USD",
+  employmentType: "full_time",
+  dependents: 0,
+  targetGoal: "buy_home",
+  monthlyHousingCost: 0,
   creditScoreRange: "670-739",
   housingStatus: "renting",
   mortgageBalance: 0,
@@ -17,8 +24,28 @@ export const defaultFinanceData: FinanceData = {
   debts: []
 };
 
+interface StoredPayload {
+  version?: number;
+  data?: Partial<FinanceData>;
+}
+
 export function isBrowser() {
   return typeof window !== "undefined";
+}
+
+function normalizeFinanceData(parsed: Partial<FinanceData>): FinanceData {
+  const merged = {
+    ...defaultFinanceData,
+    ...parsed,
+    debts: parsed.debts ?? []
+  };
+
+  const inferredHousingCost = merged.monthlyHousingCost || (merged.housingStatus === "homeowner" ? merged.mortgagePayment : merged.rentAmount);
+  return {
+    ...merged,
+    dependents: Number.isFinite(merged.dependents) ? Math.max(0, merged.dependents) : 0,
+    monthlyHousingCost: Math.max(0, inferredHousingCost)
+  };
 }
 
 export function loadFinanceData(): FinanceData {
@@ -27,12 +54,10 @@ export function loadFinanceData(): FinanceData {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultFinanceData;
-    const parsed = JSON.parse(raw) as Partial<FinanceData>;
-    return {
-      ...defaultFinanceData,
-      ...parsed,
-      debts: parsed.debts ?? []
-    };
+
+    const parsed = JSON.parse(raw) as StoredPayload | Partial<FinanceData>;
+    const candidate = parsed && "data" in parsed && parsed.data ? parsed.data : (parsed as Partial<FinanceData>);
+    return normalizeFinanceData(candidate ?? {});
   } catch {
     return defaultFinanceData;
   }
@@ -40,7 +65,8 @@ export function loadFinanceData(): FinanceData {
 
 export function saveFinanceData(data: FinanceData) {
   if (!isBrowser()) return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  const payload: StoredPayload = { version: STORAGE_VERSION, data };
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
 
 export function clearFinanceData() {
@@ -54,6 +80,12 @@ export function getSampleData(): FinanceData {
     otherIncome: 400,
     monthlyExpenses: 3200,
     savings: 14000,
+    countryOrMarket: "United States",
+    preferredCurrency: "USD",
+    employmentType: "full_time",
+    dependents: 1,
+    targetGoal: "buy_home",
+    monthlyHousingCost: 2150,
     creditScoreRange: "740-799",
     housingStatus: "homeowner",
     mortgageBalance: 295000,

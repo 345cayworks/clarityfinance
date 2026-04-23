@@ -17,11 +17,12 @@ export default function RentRoomPage() {
         <input className="input" type="number" value={data.estimatedRoomRentalIncome} onChange={(e) => update("estimatedRoomRentalIncome", Number(e.target.value))} />
       </div>
       <div className="card">
-        <p>Cash flow before: <strong>${baseCash.toFixed(0)}</strong></p>
-        <p>Cash flow after: <strong>${newCash.toFixed(0)}</strong></p>
+        <p>Cash flow before: <strong>{data.preferredCurrency} {baseCash.toFixed(0)}</strong></p>
+        <p>Cash flow after: <strong>{data.preferredCurrency} {newCash.toFixed(0)}</strong></p>
         <p>Stability/Clarity score improvement: <strong>{newScore - baseScore >= 0 ? "+" : ""}{newScore - baseScore}</strong></p>
+        {data.estimatedRoomRentalIncome === 0 ? <p className="mt-2 text-sm text-slate-500">Empty state: add a value to compare rent-a-room impact.</p> : null}
       </div>
-      <p className="text-sm text-slate-500">Assumptions used: rental income is treated as recurring gross monthly income and does not include vacancy or extra utility costs.</p>
+      <p className="text-sm text-slate-500">Assumptions used: rental income is treated as recurring gross monthly income and excludes vacancy, taxes, and extra utilities.</p>
     </div>
   );
 }
