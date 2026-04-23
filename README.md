@@ -1,59 +1,38 @@
-# Clarity Finance
+# Clarity Finance MVP (Front-end only)
 
-**Tagline:** Know where you stand. Know what’s next.
+A browser-only personal finance planner built with Next.js App Router, TypeScript, Tailwind CSS, and Recharts.
 
-Clarity Finance is a production-oriented fintech web application built with Next.js App Router, Supabase, Tailwind CSS, and Recharts.
+Tagline: **Know where you stand. Know what’s next.**
 
-## Features
-- Supabase Auth (email/password signup and login)
-- Onboarding flow with financial profile + debts persisted to Supabase
-- Dashboard metrics:
-  - Clarity Score
-  - Monthly Cash Flow
-  - Debt Pressure Index
-  - Home Readiness Score
-- Calculators:
-  - Mortgage affordability
-  - Refinance comparison
-  - Rent-a-room impact
-  - Debt payoff timeline
-- Scenario engine for what-if projections
-- Action plan (30-day, 90-day, 12-month)
-- Responsive sidebar-based layout post-login
+## What it includes
 
-## Tech Stack
-- Next.js 14 (App Router)
-- TypeScript
-- Supabase (Auth + Postgres)
-- Tailwind CSS
-- Recharts
+- Landing page (`/`)
+- Dashboard (`/app`)
+- Onboarding form with auto-save (`/app/onboarding`)
+- Mortgage affordability calculator (`/app/mortgage`)
+- Refinance calculator (`/app/refinance`)
+- Rent-a-room calculator (`/app/rent-room`)
+- Debt payoff planner (`/app/debt-plan`)
+- Scenario planner (`/app/scenarios`)
+- Personalized action plan (`/app/action-plan`)
 
-## Local Development
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Configure env:
-   ```bash
-   cp .env.example .env.local
-   ```
-3. Run dev server:
-   ```bash
-   npm run dev
-   ```
+## Persistence
 
-## Database Setup
-- Apply `supabase/migrations/001_init.sql` in Supabase SQL editor.
-- Ensure auth users are mirrored into `public.users` (trigger or app workflow) before inserting profile records.
+All user data is stored in `localStorage` under the key:
 
-## Deployment (Netlify)
-- This repo includes `netlify.toml` with the Next.js plugin.
-- Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in Netlify environment variables.
-- Deploy from your Git provider.
+- `clarity-finance-data`
 
-## Structure
-- `app/` routes and layouts
-- `components/` reusable UI components
-- `hooks/` reusable client hooks
-- `lib/` calculation logic and Supabase client
-- `supabase/migrations/` SQL schema + RLS
+## Commands
+
+```bash
+npm install
+npm run dev
+npm run build
+```
+
+## Notes
+
+- No authentication
+- No backend
+- No Supabase
+- No database

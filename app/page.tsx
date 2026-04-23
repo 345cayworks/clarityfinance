@@ -1,18 +1,32 @@
 import Link from "next/link";
-import { Logo } from "@/components/Logo";
 
-export default function HomePage() {
+const features = [
+  "Track your full monthly picture",
+  "Calculate mortgage, refinance, and debt scenarios",
+  "Generate a personalized 30-90-12 month action plan"
+];
+
+export default function LandingPage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center gap-8 px-6 text-center">
-      <Logo />
-      <h1 className="max-w-2xl text-4xl font-bold text-slate-900 md:text-5xl">Financial confidence starts with clarity.</h1>
-      <p className="max-w-2xl text-lg text-slate-600">
-        Build your profile, track score signals, test scenarios, and execute your action plan.
-      </p>
-      <div className="flex gap-3">
-        <Link href="/signup" className="btn-primary">Get Started</Link>
-        <Link href="/login" className="btn-secondary">Login</Link>
-      </div>
-    </main>
+    <div className="min-h-screen bg-slate-50">
+      <section className="mx-auto max-w-5xl px-6 py-20 text-center">
+        <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-brandTeal">Clarity Finance</p>
+        <h1 className="text-4xl font-bold text-slate-900 md:text-5xl">Know where you stand. Know what&apos;s next.</h1>
+        <p className="mx-auto mt-5 max-w-2xl text-lg text-slate-600">A front-end-first finance planning workspace for cash flow, debt strategy, and home readiness.</p>
+        <div className="mt-8 flex justify-center gap-3">
+          <Link className="btn-primary" href="/app/onboarding">Start onboarding</Link>
+          <Link className="btn-secondary" href="/app">View dashboard</Link>
+        </div>
+      </section>
+
+      <section className="mx-auto grid max-w-5xl gap-4 px-6 pb-16 md:grid-cols-3">
+        {features.map((feature) => (
+          <article key={feature} className="card">
+            <h3 className="text-base font-semibold text-slate-900">Feature</h3>
+            <p className="mt-2 text-sm text-slate-600">{feature}</p>
+          </article>
+        ))}
+      </section>
+    </div>
   );
 }
