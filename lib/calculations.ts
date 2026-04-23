@@ -1,119 +1,126 @@
-import { Debt, FinancialProfile, PlanStep, ScenarioInput } from "@/types";
+import { DebtItem, FinanceData, ScenarioAdjustments } from "@/types";
 
-const scoreMap: Record<FinancialProfile["creditScoreRange"], number> = {
-  "300-579": 20,
-  "580-669": 45,
-  "670-739": 65,
-  "740-799": 82,
+const creditScoreMap = {
+  "300-579": 25,
+  "580-669": 50,
+  "670-739": 70,
+  "740-799": 85,
   "800-850": 95
+} as const;
+
+export const totalDebtBalance = (debts: DebtItem[]) => debts.reduce((sum, debt) => sum + debt.balance, 0);
+export const totalDebtPayment = (debts: DebtItem[]) => debts.reduce((sum, debt) => sum + debt.monthlyPayment, 0);
+export const totalIncome = (data: FinanceData) => data.monthlyIncome + data.otherIncome + data.estimatedRoomRentalIncome;
+
+export const monthlyCashFlow = (data: FinanceData) =>
+  totalIncome(data) - data.monthlyExpenses - totalDebtPayment(data.debts) - (data.housingStatus === "homeowner" ? data.mortgagePayment : data.rentAmount);
+
+export const debtPressureIndex = (data: FinanceData) => {
+  const income = Math.max(totalIncome(data), 1);
+  return Math.min(100, Math.round((totalDebtPayment(data.debts) / income) * 100 + data.debts.length * 3));
 };
 
-export const totalDebtPayment = (debts: Debt[]) => debts.reduce((sum, d) => sum + d.monthlyPayment, 0);
-export const totalDebtBalance = (debts: Debt[]) => debts.reduce((sum, d) => sum + d.balance, 0);
-
-export const monthlyCashFlow = (profile: FinancialProfile, debts: Debt[]) =>
-  profile.monthlyIncome - profile.monthlyExpenses - totalDebtPayment(debts);
-
-export const debtToIncomeRatio = (profile: FinancialProfile, debts: Debt[]) => {
-  if (!profile.monthlyIncome) return 0;
-  return ((profile.monthlyExpenses + totalDebtPayment(debts)) / profile.monthlyIncome) * 100;
+export const homeReadinessScore = (data: FinanceData) => {
+  const income = Math.max(totalIncome(data), 1);
+  const housingRatio = ((data.housingStatus === "homeowner" ? data.mortgagePayment : data.rentAmount) / income) * 100;
+  const savingsMonths = data.monthlyExpenses > 0 ? data.savings / data.monthlyExpenses : 0;
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(creditScoreMap[data.creditScoreRange] * 0.4 + (100 - housingRatio) * 0.35 + Math.min(100, savingsMonths * 18) * 0.25)
+    )
+  );
 };
 
-export const debtPressureIndex = (profile: FinancialProfile, debts: Debt[]) => {
-  const dti = debtToIncomeRatio(profile, debts);
-  const pressure = Math.min(100, dti + debts.length * 4);
-  return Math.round(pressure);
+export const clarityScore = (data: FinanceData) => {
+  const cash = monthlyCashFlow(data);
+  const cashScore = Math.max(0, Math.min(100, 50 + cash / 60));
+  return Math.round(cashScore * 0.4 + (100 - debtPressureIndex(data)) * 0.3 + homeReadinessScore(data) * 0.3);
 };
 
-export const homeReadinessScore = (profile: FinancialProfile, debts: Debt[]) => {
-  const dtiScore = Math.max(0, 100 - debtToIncomeRatio(profile, debts));
-  const savingsMonths = profile.monthlyExpenses ? profile.savings / profile.monthlyExpenses : 0;
-  const savingsScore = Math.min(100, savingsMonths * 20);
-
-  return Math.round(scoreMap[profile.creditScoreRange] * 0.45 + dtiScore * 0.35 + savingsScore * 0.2);
-};
-
-export const clarityScore = (profile: FinancialProfile, debts: Debt[]) => {
-  const cash = monthlyCashFlow(profile, debts);
-  const cashScore = Math.max(0, Math.min(100, 50 + cash / 100));
-  const debtScore = 100 - debtPressureIndex(profile, debts);
-  const readiness = homeReadinessScore(profile, debts);
-  return Math.round(cashScore * 0.35 + debtScore * 0.25 + readiness * 0.4);
-};
-
-export const mortgageAffordability = (profile: FinancialProfile, debts: Debt[]) => {
+export const mortgageAffordability = (data: FinanceData) => {
   const maxDti = 0.43;
-  const availableMonthly = profile.monthlyIncome * maxDti - totalDebtPayment(debts);
-  const annualBudget = Math.max(0, availableMonthly) * 12;
+  const income = totalIncome(data);
+  const maxHousingPayment = Math.max(0, income * maxDti - totalDebtPayment(data.debts));
+  const estimatedRate = 0.0675 / 12;
+  const n = 360;
+  const loanAmount = estimatedRate === 0 ? maxHousingPayment * n : (maxHousingPayment * (1 - Math.pow(1 + estimatedRate, -n))) / estimatedRate;
   return {
-    maxMonthlyHousing: Math.max(0, availableMonthly),
-    estimatedHomePrice: annualBudget * 3.6
+    maxHousingPayment,
+    lowHomePrice: loanAmount * 0.9,
+    highHomePrice: loanAmount * 1.1
   };
 };
 
-export const refinanceComparison = (balance: number, currentRate: number, newRate: number, yearsLeft: number) => {
-  const r1 = currentRate / 100 / 12;
-  const r2 = newRate / 100 / 12;
+export const refinanceComparison = (balance: number, currentRate: number, newRate: number, yearsLeft: number, closingCosts: number) => {
   const n = yearsLeft * 12;
-  const currentPayment = r1 === 0 ? balance / n : (balance * r1) / (1 - Math.pow(1 + r1, -n));
-  const newPayment = r2 === 0 ? balance / n : (balance * r2) / (1 - Math.pow(1 + r2, -n));
+  const pmt = (principal: number, annualRate: number) => {
+    const r = annualRate / 100 / 12;
+    if (!principal || !n) return 0;
+    return r === 0 ? principal / n : (principal * r) / (1 - Math.pow(1 + r, -n));
+  };
+
+  const currentPayment = pmt(balance, currentRate);
+  const newPayment = pmt(balance, newRate);
+  const monthlySavings = currentPayment - newPayment;
 
   return {
     currentPayment,
     newPayment,
-    monthlySavings: currentPayment - newPayment
+    monthlySavings,
+    breakEvenMonths: monthlySavings > 0 ? Math.ceil(closingCosts / monthlySavings) : null
   };
 };
 
-export const debtPayoffMonths = (debts: Debt[]) => {
-  const weightedRate = debts.length
-    ? debts.reduce((sum, d) => sum + d.interestRate * d.balance, 0) / Math.max(1, totalDebtBalance(debts))
-    : 0;
-  const monthlyRate = weightedRate / 100 / 12;
-  const payment = totalDebtPayment(debts);
+export const debtPayoffEstimateMonths = (debts: DebtItem[]) => {
   const balance = totalDebtBalance(debts);
+  const payment = totalDebtPayment(debts);
+  const weightedApr = balance > 0 ? debts.reduce((sum, d) => sum + d.balance * d.interestRate, 0) / balance : 0;
+  const monthlyRate = weightedApr / 100 / 12;
 
-  if (!balance || !payment || payment <= balance * monthlyRate) return 0;
+  if (balance === 0 || payment <= 0) return 0;
+  if (monthlyRate === 0) return Math.ceil(balance / payment);
+  if (payment <= balance * monthlyRate) return Infinity;
+
   return Math.ceil(Math.log(payment / (payment - balance * monthlyRate)) / Math.log(1 + monthlyRate));
 };
 
-export const applyScenario = (profile: FinancialProfile, debts: Debt[], scenario: ScenarioInput) => {
-  const updatedDebts = debts.map((debt) => ({
-    ...debt,
-    balance: Math.max(0, debt.balance - scenario.debtReduction / Math.max(1, debts.length)),
-    interestRate: Math.max(0, debt.interestRate - scenario.interestRateReduction)
-  }));
-
-  const updatedProfile: FinancialProfile = {
-    ...profile,
-    monthlyIncome: profile.monthlyIncome + scenario.incomeDelta + scenario.rentalIncome
-  };
-
+export const applyScenario = (data: FinanceData, changes: ScenarioAdjustments): FinanceData => {
+  const debtCount = Math.max(1, data.debts.length);
   return {
-    profile: updatedProfile,
-    debts: updatedDebts
+    ...data,
+    monthlyIncome: data.monthlyIncome + changes.incomeIncrease,
+    monthlyExpenses: Math.max(0, data.monthlyExpenses - changes.expenseReduction),
+    mortgageRate: Math.max(0, data.mortgageRate - changes.lowerMortgageRateBy),
+    estimatedRoomRentalIncome: data.estimatedRoomRentalIncome + changes.addRoomRentalIncome,
+    debts: data.debts.map((debt) => ({
+      ...debt,
+      balance: Math.max(0, debt.balance - changes.debtPayoffAmount / debtCount)
+    }))
   };
 };
 
-export const generateActionPlan = (profile: FinancialProfile, debts: Debt[]): Record<string, PlanStep[]> => {
-  const cash = monthlyCashFlow(profile, debts);
-  const dti = debtToIncomeRatio(profile, debts);
+export function generateActionPlan(data: FinanceData) {
+  const highestInterestDebt = [...data.debts].sort((a, b) => b.interestRate - a.interestRate)[0];
+  const expenseReductionTarget = Math.round(data.monthlyExpenses * 0.08);
+  const monthlySaveTarget = Math.max(100, Math.round(totalIncome(data) * 0.1));
 
   return {
-    "30-day": [
-      { title: "Track spending", detail: "Categorize the last 60 days and cut one non-essential category by 10%." },
-      { title: "Automate savings", detail: `Move ${Math.max(50, Math.round(profile.monthlyIncome * 0.05))}/month to emergency savings.` },
-      { title: "Debt review", detail: "List each debt APR and request hardship or rate reductions where possible." }
+    shortTerm: [
+      `Reduce spending by about $${expenseReductionTarget}/month by trimming discretionary categories.`,
+      highestInterestDebt ? `Pay extra toward ${highestInterestDebt.name} first (highest APR at ${highestInterestDebt.interestRate}%).` : "Add at least one debt account to track your payoff plan.",
+      `Automate $${monthlySaveTarget}/month into savings.`
     ],
-    "90-day": [
-      { title: "Raise net cash flow", detail: `Target a monthly cash flow above ${Math.max(300, cash + 200).toFixed(0)}.` },
-      { title: "Lower DTI", detail: `Aim to reduce DTI from ${dti.toFixed(1)}% to below ${Math.max(30, dti - 5).toFixed(1)}%.` },
-      { title: "Credit optimization", detail: "Keep utilization under 30% and ensure all payments post on time." }
+    midTerm: [
+      "Improve debt-to-income ratio below 36% before major financing moves.",
+      data.estimatedRoomRentalIncome > 0 ? "Validate room rental demand and keep vacancy buffer in your plan." : "Test a room-rental strategy to increase monthly cushion.",
+      "Review credit usage and keep revolving utilization below 30%."
     ],
-    "12-month": [
-      { title: "Emergency fund milestone", detail: "Build 3-6 months of essential expenses in reserves." },
-      { title: "Debt reduction milestone", detail: "Allocate raises/bonuses to principal reduction for highest APR debt." },
-      { title: "Home readiness prep", detail: "Recheck affordability, improve credit, and build down payment runway." }
+    longTerm: [
+      "Build and maintain 3–6 months of essential expenses in emergency savings.",
+      "Re-check mortgage/refinance options once rates improve or credit rises.",
+      "Revisit your Clarity plan quarterly and update targets as income changes."
     ]
   };
-};
+}
