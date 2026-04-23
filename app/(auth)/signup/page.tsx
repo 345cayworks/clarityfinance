@@ -1,5 +1,11 @@
 import Link from "next/link";
+import { AuthForm } from "@/components/AuthForm";
 
 export default function SignupPage() {
-  return <div className="p-8"><p className="text-sm text-slate-600">No signup needed. Open <Link href="/app" className="text-brandBlue">Dashboard</Link>.</p></div>;
+  return (
+    <div className="p-6">
+      <AuthForm mode="signup" />
+      <p className="mt-4 text-center text-sm text-slate-600">Already have an account? <Link href="/login" className="text-brandBlue">Sign in</Link></p>
+    </div>
+  );
 }
