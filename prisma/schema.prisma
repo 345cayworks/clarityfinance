@@ -8,10 +8,12 @@ datasource db {
 }
 
 model User {
-  id         String    @id @default(cuid())
-  externalId String    @unique
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
+  id           String    @id @default(cuid())
+  externalId   String    @unique
+  email        String?   @unique
+  passwordHash String?   @map("password_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   profile Profile?
   income  Income?
@@ -114,16 +116,16 @@ model Debt {
 }
 
 model Goal {
-  id                      String   @id @default(cuid())
-  userId                  String   @unique @map("user_id")
-  targetGoal              String   @default("buy_home") @map("target_goal")
-  targetHomePrice         Float    @default(0) @map("target_home_price")
-  targetSavingsGoal       Float    @default(0) @map("target_savings_goal")
-  targetDebtReduction     Float    @default(0) @map("target_debt_reduction")
-  targetMonthlyCashFlow   Float    @default(0) @map("target_monthly_cash_flow")
-  goalTimeframe           String   @default("12_months") @map("goal_timeframe")
-  createdAt               DateTime @default(now()) @map("created_at")
-  updatedAt               DateTime @updatedAt @map("updated_at")
+  id                    String   @id @default(cuid())
+  userId                String   @unique @map("user_id")
+  targetGoal            String   @default("buy_home") @map("target_goal")
+  targetHomePrice       Float    @default(0) @map("target_home_price")
+  targetSavingsGoal     Float    @default(0) @map("target_savings_goal")
+  targetDebtReduction   Float    @default(0) @map("target_debt_reduction")
+  targetMonthlyCashFlow Float    @default(0) @map("target_monthly_cash_flow")
+  goalTimeframe         String   @default("12_months") @map("goal_timeframe")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

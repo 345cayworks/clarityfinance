@@ -1,6 +1,6 @@
 # Clarity Finance
 
-A stable Next.js personal finance app with Neon-backed persistence.
+A stable Next.js personal finance app with Neon-backed persistence and Auth.js credentials authentication.
 
 Tagline: **Know where you stand. Know what’s next.**
 
@@ -10,71 +10,54 @@ Tagline: **Know where you stand. Know what’s next.**
 - TypeScript + Tailwind
 - Prisma ORM
 - Neon Postgres
+- Auth.js / NextAuth credentials
 - Netlify-compatible deployment
 
-## Why Prisma (vs Drizzle)
+## Required Netlify environment variables
 
-Prisma is used here because this app benefits from a clean, explicit relational model across multiple profile sections (`profiles`, `incomes`, `expenses`, `housing`, `debts`, `goals`) and simple `upsert`-driven save flows. Prisma keeps the repository/service layer concise and maintainable for this migration.
+These are required for signup/signin to work in production:
 
-## Routes
+- `DATABASE_URL`  
+  Neon Postgres connection string used by Prisma (`datasource db.url`).
+- `AUTH_SECRET`  
+  High-entropy secret used by Auth.js to sign/encrypt tokens.
+- `AUTH_TRUST_HOST=true`  
+  Required behind Netlify proxy so Auth.js accepts forwarded host headers.
 
-- Landing (`/`)
-- Dashboard (`/app`)
-- Onboarding (`/app/onboarding`)
-- Profile (`/app/profile`)
-- Mortgage (`/app/mortgage`)
-- Refinance (`/app/refinance`)
-- Rent a Room (`/app/rent-room`)
-- Debt Plan (`/app/debt-plan`)
-- Scenarios (`/app/scenarios`)
-- Action Plan (`/app/action-plan`)
+Recommended:
 
-## Database schema
+- `AUTH_URL`  
+  Full public site URL, e.g. `https://your-site.netlify.app`.
 
-Prisma schema + SQL migration create these Neon tables:
+## Auth.js notes
 
-- `users`
-- `profiles`
-- `incomes`
-- `expenses`
-- `housing`
-- `debts`
-- `goals`
+- `auth.ts` uses `AUTH_SECRET` and enables `trustHost` when `AUTH_TRUST_HOST=true` (or on Netlify runtime).
+- Credentials auth is used for signup/signin.
+- Auth route handler is `app/api/auth/[...nextauth]/route.ts` and pinned to Node runtime.
 
-All include `id`, `user_id` (where applicable), `created_at`, `updated_at`.
-
-## Environment variables
-
-Required:
-
-- `DATABASE_URL` → Neon pooled Postgres connection string (Prisma datasource)
-
-Optional platform vars:
-
-- `NODE_ENV=production` in deploy contexts
-
-## Commands
+## Local setup
 
 ```bash
 npm install
 npm run prisma:generate
 npm run prisma:migrate:deploy
 npm run dev
-npm run build
 ```
 
-## Netlify + Neon setup
+## Netlify deploy steps
 
-1. Create a Neon project/database.
-2. Copy the pooled connection string into Netlify env var `DATABASE_URL`.
-3. Ensure Netlify runs:
-   - Build command: `npm run prisma:generate && npm run build`
-4. Run migrations before/at deploy:
-   - `npm run prisma:migrate:deploy`
+1. Set `DATABASE_URL`, `AUTH_SECRET`, `AUTH_TRUST_HOST=true`, and `AUTH_URL` in Netlify env vars.
+2. Trigger a clean deploy (clear cache + deploy site).
+3. Ensure Prisma client generation happens in build pipeline.
+4. Ensure latest migrations are deployed to Neon.
 
-## LocalStorage migration behavior
+## Troubleshooting “There is a problem with the server configuration”
 
-- Legacy local data key is still read: `clarity-finance-data`.
-- App now loads/saves from Neon as the source of truth.
-- If legacy local data exists, users see **Import local data into Neon** in onboarding/profile.
-- Data is never silently discarded.
+Most common causes:
+
+- Missing `AUTH_SECRET`
+- Missing `AUTH_TRUST_HOST=true` on Netlify
+- Invalid/missing `DATABASE_URL`
+- Prisma schema not migrated (missing auth columns)
+
+If this appears after signup/login, verify the env vars above and redeploy.
