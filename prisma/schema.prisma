@@ -15,20 +15,18 @@ enum UserRole {
 
 model User {
   id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  role         UserRole  @default(user)
+  externalId   String    @unique
+  email        String?   @unique
+  passwordHash String?   @map("password_hash")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  profile   Profile?
-  income    Income?
-  expense   Expense?
-  housing   Housing?
-  goal      Goal?
-  debts     Debt[]
-  scenarios Scenario[]
-  plans     Plan[]
+  profile Profile?
+  income  Income?
+  expense Expense?
+  housing Housing?
+  goal    Goal?
+  debts   Debt[]
 
   @@map("users")
 }

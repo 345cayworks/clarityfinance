@@ -5,13 +5,21 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 
 const prisma = getPrisma();
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+const authSecret = process.env.AUTH_SECRET ?? (process.env.NODE_ENV === "development" ? "dev-only-auth-secret-change-me" : undefined);
+if (!authSecret) {
+  throw new Error("Missing AUTH_SECRET. Set AUTH_SECRET in Netlify environment variables.");
+}
+
+const trustHost = process.env.AUTH_TRUST_HOST === "true" || Boolean(process.env.NETLIFY);
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: authSecret,
+  trustHost,
   session: { strategy: "jwt" },
-  pages: {
-    signIn: "/login"
-  },
+  pages: { signIn: "/login" },
   providers: [
     Credentials({
+      name: "Email",
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
@@ -22,46 +30,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const password = String(credentials?.password ?? "");
         const mode = String(credentials?.mode ?? "login");
 
-        if (!email || !password) {
-          throw new Error("Email and password are required.");
-        }
+        if (!email || !password) throw new Error("Email and password are required.");
 
-        const existing = await prisma.user.findUnique({ where: { email } });
+        const user = await prisma.user.findFirst({ where: { email } });
 
         if (mode === "signup") {
-          if (existing) {
-            throw new Error("An account already exists for this email.");
-          }
-
-          const user = await prisma.user.create({
+          if (user) throw new Error("An account already exists for this email.");
+          const created = await prisma.user.create({
             data: {
+              externalId: `acct:${crypto.randomUUID()}`,
               email,
               passwordHash: hashPassword(password)
             }
           });
 
-          return { id: user.id, email: user.email, role: user.role };
+          return { id: created.id, email: created.email ?? email };
         }
 
-        if (!existing || !verifyPassword(password, existing.passwordHash)) {
+        if (!user?.passwordHash || !verifyPassword(password, user.passwordHash)) {
           throw new Error("Invalid email or password.");
         }
 
-        return { id: existing.id, email: existing.email, role: existing.role };
+        return { id: user.id, email: user.email ?? email };
       }
     })
   ],
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = (user as { role?: string }).role ?? "user";
-      }
-      return token;
-    },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = String(token.sub ?? "");
-        session.user.role = String(token.role ?? "user");
       }
       return session;
     }
