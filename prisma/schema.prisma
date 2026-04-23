@@ -27,6 +27,8 @@ model User {
   housing Housing?
   goal    Goal?
   debts   Debt[]
+  plans     Plan[]
+  scenarios Scenario[]
 
   @@map("users")
 }
