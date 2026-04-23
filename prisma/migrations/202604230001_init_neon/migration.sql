@@ -1,14 +1,19 @@
+-- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('user', 'advisor', 'admin');
+
 -- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
-    "external_id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "password_hash" TEXT NOT NULL,
+    "role" "UserRole" NOT NULL DEFAULT 'user',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "users_external_id_key" ON "users"("external_id");
-
+-- CreateTable
 CREATE TABLE "profiles" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
@@ -20,13 +25,14 @@ CREATE TABLE "profiles" (
     "dependents" INTEGER NOT NULL DEFAULT 0,
     "credit_score_known" BOOLEAN NOT NULL DEFAULT false,
     "credit_score_or_profile" TEXT NOT NULL DEFAULT 'not_provided',
+    "savings" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "profiles_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE UNIQUE INDEX "profiles_user_id_key" ON "profiles"("user_id");
 
+    CONSTRAINT "profiles_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "incomes" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
@@ -38,11 +44,11 @@ CREATE TABLE "incomes" (
     "side_income" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "incomes_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "incomes_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE UNIQUE INDEX "incomes_user_id_key" ON "incomes"("user_id");
 
+    CONSTRAINT "incomes_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "expenses" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
@@ -56,11 +62,11 @@ CREATE TABLE "expenses" (
     "discretionary_spending" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "expenses_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "expenses_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE UNIQUE INDEX "expenses_user_id_key" ON "expenses"("user_id");
 
+    CONSTRAINT "expenses_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "housing" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
@@ -74,11 +80,11 @@ CREATE TABLE "housing" (
     "estimated_room_rental_income" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "housing_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "housing_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE UNIQUE INDEX "housing_user_id_key" ON "housing"("user_id");
 
+    CONSTRAINT "housing_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "debts" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
@@ -89,10 +95,11 @@ CREATE TABLE "debts" (
     "monthly_payment" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "debts_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "debts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
+
+    CONSTRAINT "debts_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
 CREATE TABLE "goals" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
@@ -104,7 +111,72 @@ CREATE TABLE "goals" (
     "goal_timeframe" TEXT NOT NULL DEFAULT '12_months',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "goals_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "goals_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE
+
+    CONSTRAINT "goals_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateTable
+CREATE TABLE "scenarios" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "adjustments" JSONB NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "scenarios_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "plans" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "payload" JSONB NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "plans_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "profiles_user_id_key" ON "profiles"("user_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "incomes_user_id_key" ON "incomes"("user_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "expenses_user_id_key" ON "expenses"("user_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "housing_user_id_key" ON "housing"("user_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "goals_user_id_key" ON "goals"("user_id");
+
+-- AddForeignKey
+ALTER TABLE "profiles" ADD CONSTRAINT "profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "incomes" ADD CONSTRAINT "incomes_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "expenses" ADD CONSTRAINT "expenses_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "housing" ADD CONSTRAINT "housing_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "debts" ADD CONSTRAINT "debts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "goals" ADD CONSTRAINT "goals_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "scenarios" ADD CONSTRAINT "scenarios_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "plans" ADD CONSTRAINT "plans_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

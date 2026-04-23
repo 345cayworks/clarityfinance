@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
 
 const links = [
   ["/app", "Dashboard"],
@@ -17,13 +18,18 @@ const links = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
           <Link href="/" className="text-lg font-semibold text-brandBlue">Clarity Finance</Link>
-          <p className="text-sm text-slate-500">Know where you stand. Know what&apos;s next.</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm text-slate-500">Know where you stand. Know what&apos;s next.</p>
+            {session?.user?.email ? <p className="text-xs text-slate-500">{session.user.email}</p> : null}
+            <button className="btn-secondary" onClick={() => signOut({ callbackUrl: "/login" })}>Sign out</button>
+          </div>
         </div>
       </header>
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 md:grid-cols-[220px_1fr]">

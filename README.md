@@ -8,6 +8,7 @@ Tagline: **Know where you stand. Know what’s next.**
 
 - Next.js (App Router)
 - TypeScript + Tailwind
+- **Auth.js (NextAuth v5 beta) with Credentials provider**
 - Prisma ORM
 - Neon Postgres
 - Auth.js / NextAuth credentials

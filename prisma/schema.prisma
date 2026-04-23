@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  user
+  advisor
+  admin
+}
+
 model User {
   id           String    @id @default(cuid())
   externalId   String    @unique
@@ -36,6 +42,7 @@ model Profile {
   dependents           Int      @default(0)
   creditScoreKnown     Boolean  @default(false) @map("credit_score_known")
   creditScoreOrProfile String   @default("not_provided") @map("credit_score_or_profile")
+  savings              Float    @default(0)
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
@@ -130,4 +137,30 @@ model Goal {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("goals")
+}
+
+model Scenario {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  name        String
+  adjustments Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("scenarios")
+}
+
+model Plan {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  name      String
+  payload   Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("plans")
 }
