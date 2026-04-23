@@ -18,6 +18,10 @@ body {
   @apply text-sm font-medium text-slate-700;
 }
 
+.helper {
+  @apply mt-1 text-xs text-slate-500;
+}
+
 .card {
   @apply rounded-xl border border-slate-200 bg-white p-5 shadow-card;
 }
