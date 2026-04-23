@@ -14,7 +14,7 @@ const targetGoals: TargetGoal[] = ["buy_home", "refinance_home", "reduce_debt", 
 const titleCase = (value: string) => value.replaceAll("_", " ");
 
 export function ProfileEditor({ title = "Profile" }: { title?: string }) {
-  const { data, hydrated, update, fillSample, reset, hasLegacyData, importLegacyData } = useFinanceData();
+  const { data, hydrated, update, fillSample, reset, hasLegacyData, importLegacyData, isSignedIn } = useFinanceData();
   const [openSection, setOpenSection] = useState("identity");
 
   if (!hydrated) return <div className="card">Loading profile...</div>;
@@ -29,7 +29,7 @@ export function ProfileEditor({ title = "Profile" }: { title?: string }) {
       <div className="card flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">{title}</h1>
         <div className="flex flex-wrap gap-2">
-          {hasLegacyData ? <button className="btn-secondary" onClick={importLegacyData}>Import local data into Neon</button> : null}
+          {isSignedIn && hasLegacyData ? <button className="btn-secondary" onClick={importLegacyData}>Import local data into Neon</button> : null}
           <button className="btn-secondary" onClick={fillSample}>Sample data</button>
           <button className="rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => reset()}>Clear my data</button>
         </div>
@@ -53,6 +53,7 @@ export function ProfileEditor({ title = "Profile" }: { title?: string }) {
         <div><label className="label">Household status</label><input className="input" value={data.householdStatus} onChange={(e) => update("householdStatus", e.target.value)} /></div>
         <div><label className="label">Dependents</label><input className="input" type="number" min={0} value={data.dependents} onChange={(e) => update("dependents", Number(e.target.value))} /></div>
         <div><label className="label">Target goal</label><select className="input" value={data.targetGoal} onChange={(e) => update("targetGoal", e.target.value as TargetGoal)}>{targetGoals.map((option) => <option key={option} value={option}>{titleCase(option)}</option>)}</select></div>
+        <div><label className="label">Current savings</label><input className="input" type="number" value={data.savings} onChange={(e) => update("savings", Number(e.target.value))} /></div>
         <div><label className="label">Credit Score / Credit Profile {isUS ? "(recommended)" : "(optional)"}</label><select className="input" value={data.creditScoreRange} onChange={(e) => update("creditScoreRange", e.target.value as CreditProfile)}>{creditOptions.map((option) => <option key={option} value={option}>{option === "not_provided" ? "Not provided" : option}</option>)}</select>{!isUS ? <p className="helper">Optional for non-U.S. users. Lending criteria vary by country.</p> : null}</div>
       </section> : null}
 
