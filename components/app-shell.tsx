@@ -13,7 +13,7 @@ const nav = [
   ["Action Plan", "/app/action-plan"],
   ["Reports", "/app/reports"],
   ["Settings", "/app/settings"]
-];
+] satisfies ReadonlyArray<readonly [string, Route]>;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
