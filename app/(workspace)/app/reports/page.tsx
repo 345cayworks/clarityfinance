@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getIdentityToken } from "@/lib/auth/netlify-identity";
 
 export default function ReportsPage() {
   const [message, setMessage] = useState<string | null>(null);
@@ -11,9 +12,18 @@ export default function ReportsPage() {
     setGenerating(true);
     setError(null);
     setMessage(null);
+    const token = await getIdentityToken();
+
+    if (!token) {
+      setGenerating(false);
+      setError("Your session has expired. Please sign in again.");
+      return;
+    }
+
     const response = await fetch("/.netlify/functions/report-create", {
       method: "POST",
-      credentials: "same-origin"
+      credentials: "same-origin",
+      headers: { Authorization: `Bearer ${token}` }
     });
     setGenerating(false);
     if (!response.ok) {

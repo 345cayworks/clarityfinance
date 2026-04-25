@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
-import { describeAuthError, getUser } from "@/lib/auth/netlify-identity";
+import { describeAuthError, getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
 
 type OnboardingPayload = Record<string, FormDataEntryValue | boolean>;
 type OnboardingField = {
@@ -11,27 +11,6 @@ type OnboardingField = {
   type?: "number" | "text";
   placeholder?: string;
   options?: readonly string[];
-};
-
-const getCookieValue = (name: string) => {
-  if (typeof document === "undefined") return null;
-  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = document.cookie.match(new RegExp(`(?:^|; )${escapedName}=([^;]*)`));
-  if (!match) return null;
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return match[1];
-  }
-};
-
-const getIdentityToken = async (user: unknown) => {
-  if (user && typeof user === "object" && "jwt" in user && typeof user.jwt === "function") {
-    const token = await user.jwt();
-    return typeof token === "string" && token.trim() ? token : null;
-  }
-
-  return getCookieValue("nf_jwt");
 };
 
 const sections = [

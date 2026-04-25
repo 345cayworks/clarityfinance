@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getIdentityToken } from "@/lib/auth/netlify-identity";
 
 export default function AdminPage() {
   const [role, setRole] = useState<string>("user");
@@ -8,8 +9,20 @@ export default function AdminPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/.netlify/functions/me", { credentials: "same-origin" })
-      .then(async (res) => (res.ok ? res.json() : null))
+
+    async function loadUser() {
+      const token = await getIdentityToken();
+      if (!token) return null;
+
+      const response = await fetch("/.netlify/functions/me", {
+        credentials: "same-origin",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      return response.ok ? response.json() : null;
+    }
+
+    loadUser()
       .then((data: { user?: { role?: string } } | null) => {
         if (cancelled) return;
         setRole(data?.user?.role ?? "user");

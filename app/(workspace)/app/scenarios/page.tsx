@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useState } from "react";
+import { getIdentityToken } from "@/lib/auth/netlify-identity";
 
 export default function ScenariosPage() {
   const [message, setMessage] = useState<string | null>(null);
@@ -13,11 +14,21 @@ export default function ScenariosPage() {
     setError(null);
     setMessage(null);
     const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
+    const token = await getIdentityToken();
+
+    if (!token) {
+      setSaving(false);
+      setError("Your session has expired. Please sign in again.");
+      return;
+    }
 
     const response = await fetch("/.netlify/functions/scenario-save", {
       method: "POST",
       credentials: "same-origin",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
       body: JSON.stringify(payload)
     });
     setSaving(false);
