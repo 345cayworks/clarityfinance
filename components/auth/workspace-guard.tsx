@@ -1,55 +1,90 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { getCurrentUser, initIdentity, onIdentityEvent } from "@/lib/auth/netlify-identity";
+import { Suspense, createContext, useContext, useEffect, useState } from "react";
+import { getUser, onAuthChange, type IdentityUser } from "@/lib/auth/netlify-identity";
+
+type WorkspaceContextValue = {
+  user: IdentityUser | null;
+  refresh: () => Promise<void>;
+};
+
+const WorkspaceContext = createContext<WorkspaceContextValue>({
+  user: null,
+  refresh: async () => undefined
+});
+
+export function useWorkspaceUser() {
+  return useContext(WorkspaceContext);
+}
+
+function WorkspaceLoader() {
+  return (
+    <div className="grid min-h-screen place-items-center bg-slate-50 text-sm text-slate-500">
+      <div className="flex items-center gap-3">
+        <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500" />
+        Loading your workspace…
+      </div>
+    </div>
+  );
+}
 
 export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<WorkspaceLoader />}>
+      <WorkspaceGuardInner>{children}</WorkspaceGuardInner>
+    </Suspense>
+  );
+}
+
+function WorkspaceGuardInner({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [checking, setChecking] = useState(true);
+  const [user, setUser] = useState<IdentityUser | null>(null);
 
   useEffect(() => {
     let mounted = true;
     const currentPath = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
-    const checkAuth = async () => {
-      setChecking(true);
-      await initIdentity();
-
-      const user = getCurrentUser();
+    const refresh = async () => {
+      const current = await getUser();
       if (!mounted) return;
-
-      if (user) {
-        setChecking(false);
+      setUser(current);
+      if (!current) {
+        router.replace(`/login?callbackUrl=${encodeURIComponent(currentPath)}`);
         return;
       }
-
-      router.replace(`/login?callbackUrl=${encodeURIComponent(currentPath)}`);
+      setChecking(false);
     };
 
-    let cleanup: (() => void) | undefined;
+    refresh();
 
-    checkAuth();
-
-    onIdentityEvent("login", () => {
-      if (mounted) {
-        setChecking(false);
+    const unsubscribe = onAuthChange((event, nextUser) => {
+      if (!mounted) return;
+      if (event === "logout" || !nextUser) {
+        setUser(null);
+        router.replace(`/login?callbackUrl=${encodeURIComponent(currentPath)}`);
+        return;
       }
-    }).then((offLogin) => {
-      cleanup = offLogin;
+      setUser(nextUser);
+      setChecking(false);
     });
 
     return () => {
       mounted = false;
-      cleanup?.();
+      unsubscribe();
     };
   }, [pathname, router, searchParams]);
 
   if (checking) {
-    return <div className="min-h-screen bg-slate-50" />;
+    return <WorkspaceLoader />;
   }
 
-  return <>{children}</>;
+  return (
+    <WorkspaceContext.Provider value={{ user, refresh: async () => setUser(await getUser()) }}>
+      {children}
+    </WorkspaceContext.Provider>
+  );
 }

@@ -3,88 +3,167 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { Logo } from "@/components/logo";
-import { initIdentity, onIdentityEvent, openSignup } from "@/lib/auth/netlify-identity";
+import { type FormEvent, Suspense, useEffect, useMemo, useState } from "react";
+import { AuthLayout } from "@/components/auth/auth-layout";
+import { PasswordField } from "@/components/auth/password-field";
+import { TextField } from "@/components/auth/text-field";
+import { describeAuthError, getUser, signupWithEmail } from "@/lib/auth/netlify-identity";
 
 const DEFAULT_REDIRECT: Route = "/app/onboarding";
 
-type SafeAppRoute = Route;
-
-function getSafeCallbackUrl(callbackUrl: string | null): SafeAppRoute {
+function getSafeCallbackUrl(callbackUrl: string | null): Route {
   if (!callbackUrl || !callbackUrl.startsWith("/app/")) return DEFAULT_REDIRECT;
-  return callbackUrl as SafeAppRoute;
+  return callbackUrl as Route;
 }
 
 export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupPageInner />
+    </Suspense>
+  );
+}
+
+function SignupPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
 
-  const redirectOnSuccess = useMemo(() => getSafeCallbackUrl(searchParams.get("callbackUrl")), [searchParams]);
+  const redirectOnSuccess = useMemo(
+    () => getSafeCallbackUrl(searchParams.get("callbackUrl")),
+    [searchParams]
+  );
 
   useEffect(() => {
-    let mounted = true;
-
-    const setup = async () => {
-      const widget = await initIdentity();
-      if (!widget || !mounted) return;
-
-      const existingUser = widget.currentUser();
-      if (existingUser) {
-        router.replace(redirectOnSuccess);
-        return;
-      }
-
-      const offSignup = await onIdentityEvent("signup", () => {
-        router.replace(redirectOnSuccess);
-      });
-      const offLogin = await onIdentityEvent("login", () => {
-        router.replace(redirectOnSuccess);
-      });
-
-      return () => {
-        offSignup();
-        offLogin();
-      };
-    };
-
-    let cleanup: (() => void) | undefined;
-    setup().then((fn) => {
-      cleanup = fn;
-    });
-
+    let cancelled = false;
+    getUser()
+      .then((user) => {
+        if (!cancelled && user) router.replace(redirectOnSuccess);
+      })
+      .catch(() => undefined);
     return () => {
-      mounted = false;
-      cleanup?.();
+      cancelled = true;
     };
   }, [redirectOnSuccess, router]);
 
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setConfirmationMessage(null);
+    setLoading(true);
+
+    const formData = new FormData(event.currentTarget);
+    const name = String(formData.get("name") ?? "").trim();
+    const email = String(formData.get("email") ?? "");
+    const password = String(formData.get("password") ?? "");
+    const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+    if (password.length < 8) {
+      setError("Choose a password with at least 8 characters.");
+      setLoading(false);
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const user = await signupWithEmail(email, password, name);
+      if (user.confirmedAt) {
+        router.replace(redirectOnSuccess);
+        return;
+      }
+      setConfirmationMessage(
+        "Account created. Please check your email to confirm your address — then sign in to continue."
+      );
+      setLoading(false);
+    } catch (err) {
+      setError(describeAuthError(err));
+      setLoading(false);
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-14">
-      <div className="mx-auto max-w-md card">
-        <Logo />
-        <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-blue-700">Clarity Finance</p>
-        <h1 className="mt-2 text-2xl font-semibold text-[#0A2540]">Create your account</h1>
-        <p className="mt-1 text-sm text-slate-600">Know where you stand. Know what&apos;s next.</p>
-
-        <button
-          className="mt-5 w-full rounded-lg bg-blue-600 p-2.5 font-medium text-white"
-          disabled={loading}
-          onClick={async () => {
-            setLoading(true);
-            await openSignup();
-            setLoading(false);
-          }}
-        >
-          {loading ? "Opening signup..." : "Sign up with Netlify Identity"}
-        </button>
-
-        <p className="mt-4 text-sm text-slate-600">
+    <AuthLayout
+      title="Create your account"
+      subtitle="It only takes a minute. We'll guide you through onboarding next."
+      side={{
+        eyebrow: "Clarity Finance",
+        heading: "Your money picture, simplified.",
+        body: "Build your profile once and unlock a live dashboard, calculators, scenarios and a guided plan.",
+        bullets: [
+          "Connected onboarding wizard",
+          "Mortgage, refinance and debt tools",
+          "Save scenarios and reports"
+        ]
+      }}
+      footer={
+        <>
           Already have an account?{" "}
-          <Link href={`/login?callbackUrl=${encodeURIComponent(redirectOnSuccess)}`} className="font-medium text-blue-600 hover:underline">Login</Link>
+          <Link
+            href={`/login?callbackUrl=${encodeURIComponent(redirectOnSuccess)}`}
+            className="font-semibold text-blue-700 hover:underline"
+          >
+            Sign in
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <TextField
+          name="name"
+          autoComplete="name"
+          required
+          label="Full name"
+          placeholder="Jane Doe"
+        />
+        <TextField
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          label="Email"
+          placeholder="you@example.com"
+        />
+        <PasswordField
+          name="password"
+          autoComplete="new-password"
+          required
+          minLength={8}
+          label="Password"
+          placeholder="At least 8 characters"
+        />
+        <PasswordField
+          name="confirmPassword"
+          autoComplete="new-password"
+          required
+          minLength={8}
+          label="Confirm password"
+          placeholder="Re-enter password"
+        />
+        {error ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{error}</div>
+        ) : null}
+        {confirmationMessage ? (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            {confirmationMessage}
+          </div>
+        ) : null}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-lg bg-[#0A2540] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0e3160] disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {loading ? "Creating account…" : "Create account"}
+        </button>
+        <p className="text-center text-xs text-slate-500">
+          By creating an account you agree to our terms of service and privacy policy.
         </p>
-      </div>
-    </div>
+      </form>
+    </AuthLayout>
   );
 }
