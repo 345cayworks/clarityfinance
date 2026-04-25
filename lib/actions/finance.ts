@@ -2,6 +2,7 @@
 
 import crypto from "crypto";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { isRedirectError } from "next/dist/client/components/redirect";
 import { AuthError } from "next-auth";
 import { auth, signIn, signOut } from "@/auth";
