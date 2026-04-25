@@ -23,9 +23,8 @@ export default function LoginPage({ searchParams }: { searchParams?: { error?: s
           <button className="w-full rounded-lg bg-blue-600 p-2.5 font-medium text-white">Login</button>
         </form>
         <p className="mt-3 text-sm text-slate-600">
-          Forgot your password?{" "}
           <Link href="/forgot-password" className="font-medium text-blue-600 hover:underline">
-            Reset it
+            Forgot password?
           </Link>
         </p>
 
