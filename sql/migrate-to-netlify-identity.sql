@@ -1,17 +1,13 @@
 BEGIN;
 
-ALTER TABLE users
-  ALTER COLUMN password_hash DROP NOT NULL;
-
-ALTER TABLE users
-  DROP COLUMN IF EXISTS password_hash;
-
-ALTER TABLE users
-  ALTER COLUMN email DROP NOT NULL;
-
-ALTER TABLE users
-  ALTER COLUMN role SET DEFAULT 'user';
-
+ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+ALTER TABLE users DROP COLUMN IF EXISTS password_hash;
 DROP TABLE IF EXISTS password_reset_tokens;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role text DEFAULT 'user';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at timestamp DEFAULT now();
+ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at timestamp DEFAULT now();
 
 COMMIT;
