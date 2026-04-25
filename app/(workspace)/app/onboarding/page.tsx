@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
+type OnboardingPayload = Record<string, FormDataEntryValue | boolean>;
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -14,7 +16,7 @@ export default function OnboardingPage() {
     setSaving(true);
     setError(null);
     const formData = new FormData(event.currentTarget);
-    const payload = Object.fromEntries(formData.entries());
+    const payload: OnboardingPayload = Object.fromEntries(formData.entries());
     payload.creditScoreKnown = formData.get("creditScoreKnown") === "on";
     payload.spareRoomAvailable = formData.get("spareRoomAvailable") === "on";
 
