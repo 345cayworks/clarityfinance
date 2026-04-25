@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { AuthError } from "next-auth";
 import { auth, signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 
@@ -11,29 +12,53 @@ async function requireUserId() {
   return userId;
 }
 
+function formatAuthError(error: unknown): string {
+  if (error instanceof AuthError && error.cause?.err instanceof Error) {
+    return error.cause.err.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Something went wrong. Please try again.";
+}
+
 export async function loginAction(formData: FormData) {
-  await signIn("credentials", {
-    email: String(formData.get("email") ?? ""),
-    password: String(formData.get("password") ?? ""),
-    mode: "login",
-    redirectTo: "/app/dashboard"
-  });
+  try {
+    await signIn("credentials", {
+      email: String(formData.get("email") ?? ""),
+      password: String(formData.get("password") ?? ""),
+      mode: "login",
+      redirectTo: "/app/dashboard"
+    });
+  } catch (error) {
+    const message = encodeURIComponent(formatAuthError(error));
+    redirect(`/login?error=${message}`);
+  }
 }
 
 export async function signupAction(formData: FormData) {
-  await signIn("credentials", {
-    name: String(formData.get("name") ?? ""),
-    email: String(formData.get("email") ?? ""),
-    password: String(formData.get("password") ?? ""),
-    mode: "signup",
-    redirectTo: "/app/onboarding"
-  });
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 8) {
+    redirect("/signup?error=Password%20must%20be%20at%20least%208%20characters%20long.");
+  }
+
+  try {
+    await signIn("credentials", {
+      name: String(formData.get("name") ?? ""),
+      email: String(formData.get("email") ?? ""),
+      password,
+      mode: "signup",
+      redirectTo: "/app/onboarding"
+    });
+  } catch (error) {
+    const message = encodeURIComponent(formatAuthError(error));
+    redirect(`/signup?error=${message}`);
+  }
 }
 
 export async function logoutAction() {
   await signOut({ redirectTo: "/" });
 }
-
 export async function saveOnboardingAction(formData: FormData) {
   const userId = await requireUserId();
 

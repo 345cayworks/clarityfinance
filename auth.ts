@@ -25,12 +25,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const mode = String(credentials?.mode ?? "login");
         const name = String(credentials?.name ?? "").trim();
 
-        if (!email || !password) throw new Error("Email and password are required");
+        if (!email || !password) throw new Error("Please enter both email and password.");
 
         const existing = await prisma.user.findUnique({ where: { email } });
 
         if (mode === "signup") {
-          if (existing) throw new Error("Account already exists");
+          if (password.length < 8) throw new Error("Password must be at least 8 characters long.");
+          if (existing) throw new Error("An account already exists for this email.");
           const created = await prisma.user.create({
             data: { email, name: name || null, passwordHash: hashPassword(password), role: "user" }
           });
@@ -38,7 +39,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         if (!existing || !verifyPassword(password, existing.passwordHash)) {
-          throw new Error("Invalid credentials");
+          throw new Error("We couldn't sign you in. Check your email and password and try again.");
         }
 
         return { id: existing.id, email: existing.email, name: existing.name, role: existing.role };
