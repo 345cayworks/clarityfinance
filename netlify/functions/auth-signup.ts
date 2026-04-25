@@ -5,6 +5,7 @@ import { sql } from "../../lib/db/neon";
 import { json, parseJsonBody } from "./_utils";
 
 type SignupBody = { name?: string; email?: string; password?: string; confirmPassword?: string };
+type ExistingUser = { id: string };
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -19,7 +20,10 @@ export const handler: Handler = async (event) => {
     return json(400, { error: "Please provide a valid name, email, and matching 8+ char password." });
   }
 
-  const existing = await sql<{ id: string }[]>`SELECT id FROM users WHERE email = ${email} LIMIT 1`;
+  const existing = await sql`
+    SELECT id FROM users WHERE email = ${email} LIMIT 1
+  ` as ExistingUser[];
+
   if (existing.length > 0) {
     return json(409, { error: "An account already exists for this email." });
   }
