@@ -175,7 +175,14 @@ export default function OnboardingPage() {
 
     await initIdentity();
     const user = getCurrentUser();
-    const token = user && typeof user.jwt === "function" ? await user.jwt().catch(() => null) : null;
+
+    if (!user || typeof user.jwt !== "function") {
+      setSaving(false);
+      setError("Your session is active, but we could not verify it. Please sign in again.");
+      return;
+    }
+
+    const token = await user.jwt().catch(() => null);
 
     if (!token) {
       setSaving(false);
