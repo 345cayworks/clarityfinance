@@ -1,10 +1,14 @@
 "use server";
 
+import crypto from "crypto";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { isRedirectError } from "next/dist/client/components/redirect";
 import { AuthError } from "next-auth";
 import { auth, signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
+import { hashPassword } from "@/lib/auth/password";
+import { sendPasswordResetEmail } from "@/lib/email/send-password-reset";
 
 async function requireUserId() {
   const session = await auth();
@@ -42,14 +46,27 @@ export async function loginAction(formData: FormData) {
 
 export async function signupAction(formData: FormData) {
   const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+
+  if (!name) {
+    redirect("/signup?error=Please%20enter%20your%20full%20name.");
+  }
+  if (!email) {
+    redirect("/signup?error=Please%20enter%20your%20email.");
+  }
   if (password.length < 8) {
     redirect("/signup?error=Password%20must%20be%20at%20least%208%20characters%20long.");
+  }
+  if (password !== confirmPassword) {
+    redirect("/signup?error=Passwords%20do%20not%20match.");
   }
 
   try {
     await signIn("credentials", {
-      name: String(formData.get("name") ?? ""),
-      email: String(formData.get("email") ?? ""),
+      name,
+      email,
       password,
       mode: "signup",
       redirectTo: "/app/onboarding"
@@ -66,6 +83,93 @@ export async function signupAction(formData: FormData) {
 export async function logoutAction() {
   await signOut({ redirectTo: "/" });
 }
+
+function hashResetToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function getBaseUrl(): string {
+  const appUrl = process.env.APP_URL ?? process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
+  if (appUrl) return appUrl;
+
+  const requestHeaders = headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
+  if (!host) {
+    return "http://localhost:3000";
+  }
+  return `${protocol}://${host}`;
+}
+
+export async function requestPasswordResetAction(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const successMessage = encodeURIComponent("If that email is registered, we'll send password reset instructions.");
+
+  if (email) {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+
+    if (existingUser) {
+      const token = crypto.randomBytes(32).toString("hex");
+      const tokenHash = hashResetToken(token);
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      const baseUrl = getBaseUrl();
+      const resetLink = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
+
+      await prisma.passwordResetToken.create({
+        data: {
+          userId: existingUser.id,
+          tokenHash,
+          expiresAt
+        }
+      });
+
+      await sendPasswordResetEmail({ to: email, resetLink });
+    }
+  }
+
+  redirect(`/forgot-password?success=${successMessage}`);
+}
+
+export async function resetPasswordAction(formData: FormData) {
+  const token = String(formData.get("token") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  const encodedToken = encodeURIComponent(token);
+
+  if (!token) {
+    redirect("/reset-password?error=Missing%20password%20reset%20token.");
+  }
+
+  if (password.length < 8) {
+    redirect(`/reset-password?token=${encodedToken}&error=Password%20must%20be%20at%20least%208%20characters%20long.`);
+  }
+
+  if (password !== confirmPassword) {
+    redirect(`/reset-password?token=${encodedToken}&error=Passwords%20do%20not%20match.`);
+  }
+
+  const tokenHash = hashResetToken(token);
+  const resetToken = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+  const now = new Date();
+
+  if (!resetToken || resetToken.usedAt || resetToken.expiresAt <= now) {
+    redirect(`/reset-password?token=${encodedToken}&error=This%20reset%20link%20is%20invalid%20or%20has%20expired.`);
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: resetToken.userId },
+      data: { passwordHash: hashPassword(password) }
+    }),
+    prisma.passwordResetToken.update({
+      where: { id: resetToken.id },
+      data: { usedAt: now }
+    })
+  ]);
+
+  redirect("/login?success=Password%20reset%20successful");
+}
+
 export async function saveOnboardingAction(formData: FormData) {
   const userId = await requireUserId();
 
