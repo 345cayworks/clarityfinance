@@ -1,16 +1,19 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Logo } from "@/components/logo";
 import { initIdentity, onIdentityEvent, openLogin } from "@/lib/auth/netlify-identity";
 
-const DEFAULT_CALLBACK_URL = "/app/dashboard";
+const DEFAULT_CALLBACK_URL: Route = "/app/dashboard";
 
-function getSafeCallbackUrl(callbackUrl: string | null) {
+type SafeAppRoute = Route;
+
+function getSafeCallbackUrl(callbackUrl: string | null): SafeAppRoute {
   if (!callbackUrl || !callbackUrl.startsWith("/app/")) return DEFAULT_CALLBACK_URL;
-  return callbackUrl;
+  return callbackUrl as SafeAppRoute;
 }
 
 export default function LoginPage() {
