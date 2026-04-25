@@ -1,12 +1,18 @@
-import { createHash, timingSafeEqual } from "crypto";
+import crypto from "crypto";
 
-export function hashPassword(password: string) {
-  return createHash("sha256").update(password).digest("hex");
+const ITERATIONS = 310000;
+const KEYLEN = 32;
+const DIGEST = "sha256";
+
+export function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.pbkdf2Sync(password, salt, ITERATIONS, KEYLEN, DIGEST).toString("hex");
+  return `${salt}:${hash}`;
 }
 
-export function verifyPassword(password: string, hash: string) {
-  const input = Buffer.from(hashPassword(password));
-  const stored = Buffer.from(hash);
-  if (input.length !== stored.length) return false;
-  return timingSafeEqual(input, stored);
+export function verifyPassword(password: string, stored: string): boolean {
+  const [salt, expectedHash] = stored.split(":");
+  if (!salt || !expectedHash) return false;
+  const hash = crypto.pbkdf2Sync(password, salt, ITERATIONS, KEYLEN, DIGEST).toString("hex");
+  return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(expectedHash, "hex"));
 }

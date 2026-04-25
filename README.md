@@ -1,64 +1,98 @@
-# Clarity Finance
+# Clarity Finance (Ground-Up Rebuild)
 
-A stable Next.js personal finance app with Neon-backed persistence and Auth.js credentials authentication.
+Clarity Finance is a production-minded fintech web app that helps users understand their finances and choose practical next steps.
 
-Tagline: **Know where you stand. Know what’s next.**
+**Tagline:** _Know where you stand. Know what's next._
 
 ## Stack
+- Next.js App Router + TypeScript + Tailwind CSS
+- Neon Postgres + Prisma ORM
+- NextAuth (Credentials) authentication
+- Server Actions for secure data operations
+- Recharts for dashboard charts
 
-- Next.js (App Router)
-- TypeScript + Tailwind
-- **Auth.js (NextAuth v5 beta) with Credentials provider**
-- Prisma ORM
-- Neon Postgres
-- Auth.js / NextAuth credentials
-- Netlify-compatible deployment
+### Why Prisma (vs Drizzle)
+Prisma was chosen for this rebuild because the schema is broad and relational (11 user-scoped models), and Prisma provides a clean migration workflow, typed client ergonomics, and low-friction integration with Next.js server actions.
 
-## Required Netlify environment variables
+## Quick Start
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Configure environment variables (see `.env.example` section below).
+3. Generate Prisma client:
+   ```bash
+   npm run prisma:generate
+   ```
+4. Run migrations:
+   ```bash
+   npm run prisma:migrate:deploy
+   ```
+5. Start dev server:
+   ```bash
+   npm run dev
+   ```
 
-These are required for signup/signin to work in production:
+## Environment Variables
+Set these in `.env.local` (local) and Netlify site settings (prod):
 
-- `DATABASE_URL`  
-  Neon Postgres connection string used by Prisma (`datasource db.url`).
-- `AUTH_SECRET`  
-  High-entropy secret used by Auth.js to sign/encrypt tokens.
-- `AUTH_TRUST_HOST=true`  
-  Required behind Netlify proxy so Auth.js accepts forwarded host headers.
+- `DATABASE_URL` - Neon Postgres connection string
+- `AUTH_SECRET` - random long secret used by NextAuth JWT/session signing
+- `AUTH_TRUST_HOST` - set to `true` for Netlify and trusted hosts
+- `AUTH_URL` or `NEXTAUTH_URL` - canonical auth base URL (for production callbacks)
 
-Recommended:
+## Database and Migrations
+- Prisma schema: `prisma/schema.prisma`
+- Rebuild migration: `prisma/migrations/202604250001_ground_up_rebuild/migration.sql`
 
-- `AUTH_URL`  
-  Full public site URL, e.g. `https://your-site.netlify.app`.
-
-## Auth.js notes
-
-- `auth.ts` uses `AUTH_SECRET` and enables `trustHost` when `AUTH_TRUST_HOST=true` (or on Netlify runtime).
-- Credentials auth is used for signup/signin.
-- Auth route handler is `app/api/auth/[...nextauth]/route.ts` and pinned to Node runtime.
-
-## Local setup
-
+Run in CI/CD or before deployment:
 ```bash
-npm install
 npm run prisma:generate
 npm run prisma:migrate:deploy
-npm run dev
 ```
 
-## Netlify deploy steps
+## Route Map
+### Public
+- `/`
+- `/features`
+- `/pricing`
+- `/about`
+- `/login`
+- `/signup`
 
-1. Set `DATABASE_URL`, `AUTH_SECRET`, `AUTH_TRUST_HOST=true`, and `AUTH_URL` in Netlify env vars.
-2. Trigger a clean deploy (clear cache + deploy site).
-3. Ensure Prisma client generation happens in build pipeline.
-4. Ensure latest migrations are deployed to Neon.
+### Authenticated App
+- `/app`
+- `/app/onboarding`
+- `/app/profile`
+- `/app/dashboard`
+- `/app/tools/mortgage`
+- `/app/tools/refinance`
+- `/app/tools/rent-room`
+- `/app/tools/debt-plan`
+- `/app/scenarios`
+- `/app/action-plan`
+- `/app/reports`
+- `/app/settings`
 
-## Troubleshooting “There is a problem with the server configuration”
+### Future-ready stubs
+- `/app/advisor`
+- `/app/admin`
 
-Most common causes:
+## Security Notes
+- Middleware is Edge-safe and does not import Prisma.
+- Prisma access only occurs in server runtime code (auth, server actions, data services).
+- All user-owned records are scoped by `userId` and queried per authenticated user.
 
-- Missing `AUTH_SECRET`
-- Missing `AUTH_TRUST_HOST=true` on Netlify
-- Invalid/missing `DATABASE_URL`
-- Prisma schema not migrated (missing auth columns)
+## Netlify Deploy
+1. Add env vars in Netlify UI (`DATABASE_URL`, `AUTH_SECRET`, `AUTH_TRUST_HOST`, `AUTH_URL`/`NEXTAUTH_URL`).
+2. Build command:
+   ```bash
+   npm run prisma:generate && npm run prisma:migrate:deploy && npm run build
+   ```
+3. Publish directory: `.next`
+4. Ensure `@netlify/plugin-nextjs` is enabled (already configured in `netlify.toml`).
 
-If this appears after signup/login, verify the env vars above and redeploy.
+## Current Limitations
+- Pricing/billing and advisor/admin workflows are intentionally minimal.
+- Report export is currently a placeholder and stores report JSON only.
+- Tools are production scaffolded and can be further extended with advanced assumptions and localization.
