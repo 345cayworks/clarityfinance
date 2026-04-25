@@ -14,21 +14,24 @@ enum UserRole {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  externalId   String    @unique
-  email        String?   @unique
-  passwordHash String?   @map("password_hash")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(user)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  profile Profile?
-  income  Income?
-  expense Expense?
-  housing Housing?
-  goal    Goal?
-  debts   Debt[]
-  plans     Plan[]
-  scenarios Scenario[]
+  profile       Profile?
+  incomeSources IncomeSource[]
+  expenseProfile ExpenseProfile?
+  debts         Debt[]
+  housingProfile HousingProfile?
+  savingsProfile SavingsProfile?
+  goal          Goal?
+  scenarios     Scenario[]
+  actionPlans   ActionPlan[]
+  reports       Report[]
 
   @@map("users")
 }
@@ -36,83 +39,65 @@ model User {
 model Profile {
   id                   String   @id @default(cuid())
   userId               String   @unique @map("user_id")
-  countryOrMarket      String   @map("country_or_market")
-  preferredCurrency    String   @map("preferred_currency")
-  ageRange             String   @default("unspecified") @map("age_range")
-  employmentType       String   @map("employment_type")
-  householdStatus      String   @default("single") @map("household_status")
-  dependents           Int      @default(0)
-  creditScoreKnown     Boolean  @default(false) @map("credit_score_known")
-  creditScoreOrProfile String   @default("not_provided") @map("credit_score_or_profile")
-  savings              Float    @default(0)
+  countryOrMarket      String?  @map("country_or_market")
+  preferredCurrency    String?  @map("preferred_currency")
+  ageRange             String?  @map("age_range")
+  employmentType       String?  @map("employment_type")
+  householdStatus      String?  @map("household_status")
+  dependents           Int?     
+  creditScoreKnown     Boolean? @map("credit_score_known")
+  creditScoreOrProfile String?  @map("credit_score_or_profile")
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("profiles")
 }
 
-model Income {
-  id              String   @id @default(cuid())
-  userId          String   @unique @map("user_id")
-  monthlyIncome   Float    @default(0) @map("monthly_income")
-  otherIncome     Float    @default(0) @map("other_income")
-  incomeFrequency String   @default("monthly") @map("income_frequency")
-  incomeStability String   @default("stable") @map("income_stability")
-  rentalIncome    Float    @default(0) @map("rental_income")
-  sideIncome      Float    @default(0) @map("side_income")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+model IncomeSource {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  type          String
+  label         String
+  monthlyAmount Float    @default(0) @map("monthly_amount")
+  frequency     String   @default("monthly")
+  stability     String?  
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("incomes")
+  @@index([userId])
+  @@map("income_sources")
 }
 
-model Expense {
-  id                    String   @id @default(cuid())
-  userId                String   @unique @map("user_id")
-  monthlyExpenses       Float    @default(0) @map("monthly_expenses")
-  monthlyHousingCost    Float    @default(0) @map("monthly_housing_cost")
-  utilities             Float    @default(0)
-  transport             Float    @default(0)
-  groceries             Float    @default(0)
-  insurance             Float    @default(0)
-  childcare             Float    @default(0)
-  discretionarySpending Float    @default(0) @map("discretionary_spending")
-  createdAt             DateTime @default(now()) @map("created_at")
-  updatedAt             DateTime @updatedAt @map("updated_at")
+model ExpenseProfile {
+  id            String   @id @default(cuid())
+  userId        String   @unique @map("user_id")
+  housing       Float    @default(0)
+  utilities     Float    @default(0)
+  transport     Float    @default(0)
+  groceries     Float    @default(0)
+  insurance     Float    @default(0)
+  childcare     Float    @default(0)
+  discretionary Float    @default(0)
+  other         Float    @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("expenses")
-}
-
-model Housing {
-  id                        String   @id @default(cuid())
-  userId                    String   @unique @map("user_id")
-  housingStatus             String   @default("renting") @map("housing_status")
-  rentAmount                Float    @default(0) @map("rent_amount")
-  mortgageBalance           Float    @default(0) @map("mortgage_balance")
-  mortgageRate              Float    @default(0) @map("mortgage_rate")
-  mortgagePayment           Float    @default(0) @map("mortgage_payment")
-  estimatedHomeValue        Float    @default(0) @map("estimated_home_value")
-  spareRoomAvailable        Boolean  @default(false) @map("spare_room_available")
-  estimatedRoomRentalIncome Float    @default(0) @map("estimated_room_rental_income")
-  createdAt                 DateTime @default(now()) @map("created_at")
-  updatedAt                 DateTime @updatedAt @map("updated_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("housing")
+  @@index([userId])
+  @@map("expense_profiles")
 }
 
 model Debt {
   id             String   @id @default(cuid())
   userId         String   @map("user_id")
   name           String
-  type           String   @default("other")
+  type           String
   balance        Float    @default(0)
   interestRate   Float    @default(0) @map("interest_rate")
   monthlyPayment Float    @default(0) @map("monthly_payment")
@@ -121,48 +106,105 @@ model Debt {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("debts")
+}
+
+model HousingProfile {
+  id                        String   @id @default(cuid())
+  userId                    String   @unique @map("user_id")
+  housingStatus             String?  @map("housing_status")
+  rentAmount                Float?   @map("rent_amount")
+  mortgageBalance           Float?   @map("mortgage_balance")
+  mortgageRate              Float?   @map("mortgage_rate")
+  mortgagePayment           Float?   @map("mortgage_payment")
+  estimatedHomeValue        Float?   @map("estimated_home_value")
+  spareRoomAvailable        Boolean? @map("spare_room_available")
+  estimatedRoomRentalIncome Float?   @map("estimated_room_rental_income")
+  createdAt                 DateTime @default(now()) @map("created_at")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("housing_profiles")
+}
+
+model SavingsProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique @map("user_id")
+  cashSavings        Float    @default(0) @map("cash_savings")
+  emergencyFund      Float    @default(0) @map("emergency_fund")
+  investments        Float    @default(0)
+  retirementSavings  Float    @default(0) @map("retirement_savings")
+  downPaymentSavings Float    @default(0) @map("down_payment_savings")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("savings_profiles")
 }
 
 model Goal {
   id                    String   @id @default(cuid())
   userId                String   @unique @map("user_id")
-  targetGoal            String   @default("buy_home") @map("target_goal")
-  targetHomePrice       Float    @default(0) @map("target_home_price")
-  targetSavingsGoal     Float    @default(0) @map("target_savings_goal")
-  targetDebtReduction   Float    @default(0) @map("target_debt_reduction")
-  targetMonthlyCashFlow Float    @default(0) @map("target_monthly_cash_flow")
-  goalTimeframe         String   @default("12_months") @map("goal_timeframe")
+  targetGoal            String?  @map("target_goal")
+  targetHomePrice       Float?   @map("target_home_price")
+  targetSavingsGoal     Float?   @map("target_savings_goal")
+  targetDebtReduction   Float?   @map("target_debt_reduction")
+  targetMonthlyCashFlow Float?   @map("target_monthly_cash_flow")
+  goalTimeframe         String?  @map("goal_timeframe")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("goals")
 }
 
 model Scenario {
-  id          String   @id @default(cuid())
-  userId      String   @map("user_id")
-  name        String
-  adjustments Json
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  name            String
+  adjustmentsJson Json     @map("adjustments_json")
+  resultJson      Json     @map("result_json")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("scenarios")
 }
 
-model Plan {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  name      String
-  payload   Json
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+model ActionPlan {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  name           String
+  thirtyDayJson  Json     @map("thirty_day_json")
+  ninetyDayJson  Json     @map("ninety_day_json")
+  twelveMonthJson Json    @map("twelve_month_json")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("plans")
+  @@index([userId])
+  @@map("action_plans")
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  title      String
+  reportJson Json     @map("report_json")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("reports")
 }
