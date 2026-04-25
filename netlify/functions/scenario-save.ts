@@ -1,12 +1,12 @@
 import type { Handler } from "@netlify/functions";
-import { randomId } from "../../lib/auth/session";
 import { sql } from "../../lib/db/neon";
-import { json, parseJsonBody, requireSession } from "./_utils";
+import { getIdentityUser } from "./_identity";
+import { json, parseJsonBody, randomId } from "./_utils";
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
-  const session = await requireSession(event);
-  if (!session) return json(401, { error: "Unauthorized" });
+  const identityUser = getIdentityUser(event);
+  if (!identityUser) return json(401, { error: "Unauthorized" });
 
   const body = parseJsonBody<Record<string, unknown>>(event) ?? {};
   const adjustments = {
@@ -20,7 +20,7 @@ export const handler: Handler = async (event) => {
 
   await sql`
     INSERT INTO scenarios (id, user_id, name, adjustments_json, result_json)
-    VALUES (${randomId("scn")}, ${session.sub}, ${String(body.name ?? "Scenario")}, ${JSON.stringify(adjustments)}::jsonb, ${JSON.stringify(adjustments)}::jsonb)
+    VALUES (${randomId("scn")}, ${identityUser.id}, ${String(body.name ?? "Scenario")}, ${JSON.stringify(adjustments)}::jsonb, ${JSON.stringify(adjustments)}::jsonb)
   `;
 
   return json(200, { success: true });

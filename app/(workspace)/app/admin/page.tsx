@@ -1,15 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getIdentityToken, initIdentity } from "@/lib/auth/netlify-identity";
 
 export default function AdminPage() {
   const [role, setRole] = useState<string>("user");
 
   useEffect(() => {
-    fetch("/.netlify/functions/me", { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => setRole(data?.user?.role ?? "user"))
-      .catch(() => setRole("user"));
+    const load = async () => {
+      await initIdentity();
+      const token = await getIdentityToken();
+      if (!token) {
+        setRole("user");
+        return;
+      }
+
+      fetch("/.netlify/functions/me", { headers: { Authorization: `Bearer ${token}` } })
+        .then((res) => res.json())
+        .then((data) => setRole(data?.user?.role ?? "user"))
+        .catch(() => setRole("user"));
+    };
+
+    load();
   }, []);
 
   if (role !== "admin") {

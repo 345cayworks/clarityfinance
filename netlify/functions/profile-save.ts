@@ -1,7 +1,7 @@
 import type { Handler } from "@netlify/functions";
-import { randomId } from "../../lib/auth/session";
 import { sql } from "../../lib/db/neon";
-import { json, parseJsonBody, requireSession } from "./_utils";
+import { getIdentityUser } from "./_identity";
+import { json, parseJsonBody, randomId } from "./_utils";
 
 type AnyRecord = Record<string, unknown>;
 
@@ -12,11 +12,20 @@ const n = (value: unknown) => {
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
-  const session = await requireSession(event);
-  if (!session) return json(401, { error: "Unauthorized" });
+  const identityUser = getIdentityUser(event);
+  if (!identityUser) return json(401, { error: "Unauthorized" });
 
   const body = (parseJsonBody<AnyRecord>(event) ?? {}) as AnyRecord;
-  const userId = session.sub;
+  const userId = identityUser.id;
+
+  await sql`
+    INSERT INTO users (id, email, name)
+    VALUES (${userId}, ${identityUser.email}, ${identityUser.name})
+    ON CONFLICT (id) DO UPDATE SET
+      email = EXCLUDED.email,
+      name = COALESCE(EXCLUDED.name, users.name),
+      updated_at = NOW()
+  `;
 
   await sql`
     INSERT INTO profiles (id, user_id, country_or_market, preferred_currency, age_range, employment_type, household_status, dependents, credit_score_known, credit_score_or_profile)

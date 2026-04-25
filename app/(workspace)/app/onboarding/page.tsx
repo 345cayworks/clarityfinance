@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { getIdentityToken, initIdentity } from "@/lib/auth/netlify-identity";
 
 type OnboardingPayload = Record<string, FormDataEntryValue | boolean>;
 
@@ -20,9 +21,22 @@ export default function OnboardingPage() {
     payload.creditScoreKnown = formData.get("creditScoreKnown") === "on";
     payload.spareRoomAvailable = formData.get("spareRoomAvailable") === "on";
 
+    await initIdentity();
+    const token = await getIdentityToken();
+
+    if (!token) {
+      setSaving(false);
+      setError("Please log in again.");
+      router.replace("/login?callbackUrl=%2Fapp%2Fonboarding");
+      return;
+    }
+
     const response = await fetch("/.netlify/functions/profile-save", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
       body: JSON.stringify(payload)
     });
     const result = await response.json().catch(() => ({}));
