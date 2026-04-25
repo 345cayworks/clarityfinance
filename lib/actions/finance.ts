@@ -130,7 +130,8 @@ export async function requestPasswordResetAction(formData: FormData) {
       try {
         await sendPasswordResetEmail({ to: email, resetLink });
       } catch (error) {
-        console.error("Failed to send password reset email:", error);
+        const message = error instanceof Error ? error.message : "unknown error";
+        console.error(`Failed to send password reset email: ${message}`);
       }
     }
   }
@@ -169,8 +170,8 @@ export async function resetPasswordAction(formData: FormData) {
       where: { id: resetToken.userId },
       data: { passwordHash: hashPassword(password) }
     }),
-    prisma.passwordResetToken.update({
-      where: { id: resetToken.id },
+    prisma.passwordResetToken.updateMany({
+      where: { userId: resetToken.userId, usedAt: null },
       data: { usedAt: now }
     })
   ]);

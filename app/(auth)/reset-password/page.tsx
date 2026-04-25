@@ -19,10 +19,10 @@ export default function ResetPasswordPage({ searchParams }: { searchParams?: { t
         <p className="mt-1 text-sm text-slate-600">Choose a new password for your Clarity Finance account.</p>
 
         {error ? <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{error}</div> : null}
-        {success ? <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{success}</div> : null}
+        {success && hasToken ? <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{success}</div> : null}
         {!hasToken ? (
           <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Missing or invalid password reset token. Please request a new reset link from the forgot password page.
+            This reset link is invalid or incomplete. Please request a new reset link from the forgot password page.
           </div>
         ) : null}
 
