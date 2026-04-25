@@ -36,8 +36,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             className="mt-4 w-full rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
             onClick={async () => {
-              await fetch("/.netlify/functions/auth-logout", { method: "POST" });
-              router.push("/login");
+              await fetch("/.netlify/functions/auth-logout", {
+                method: "POST",
+                credentials: "include"
+              });
+              router.replace("/login");
             }}
           >
             Logout
