@@ -5,6 +5,7 @@ import { sql } from "../../lib/db/neon";
 import { json, parseJsonBody } from "./_utils";
 
 type LoginBody = { email?: string; password?: string };
+type LoginUser = { id: string; email: string; name: string | null; role: string; password_hash: string };
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -15,9 +16,9 @@ export const handler: Handler = async (event) => {
 
   if (!email || !password) return json(400, { error: "Email and password are required." });
 
-  const users = await sql<{ id: string; email: string; name: string | null; role: string; password_hash: string }[]>`
+  const users = await sql`
     SELECT id, email, name, role, password_hash FROM users WHERE email = ${email} LIMIT 1
-  `;
+  ` as LoginUser[];
   const user = users[0];
 
   if (!user || !verifyPassword(password, user.password_hash)) {
