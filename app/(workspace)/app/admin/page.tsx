@@ -1,14 +1,18 @@
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
+"use client";
 
-export default async function AdminPage() {
-  const session = await auth();
+import { useEffect, useState } from "react";
 
-  if (!session?.user?.id) {
-    redirect("/login?error=Please%20sign%20in%20to%20continue.");
-  }
+export default function AdminPage() {
+  const [role, setRole] = useState<string>("user");
 
-  if (session.user.role !== "admin") {
+  useEffect(() => {
+    fetch("/.netlify/functions/me", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => setRole(data?.user?.role ?? "user"))
+      .catch(() => setRole("user"));
+  }, []);
+
+  if (role !== "admin") {
     return (
       <div className="card">
         <h1 className="text-2xl font-semibold">Unauthorized</h1>
