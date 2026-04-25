@@ -1,16 +1,19 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Logo } from "@/components/logo";
 import { initIdentity, onIdentityEvent, openSignup } from "@/lib/auth/netlify-identity";
 
-const DEFAULT_REDIRECT = "/app/onboarding";
+const DEFAULT_REDIRECT: Route = "/app/onboarding";
 
-function getSafeCallbackUrl(callbackUrl: string | null) {
+type SafeAppRoute = Route;
+
+function getSafeCallbackUrl(callbackUrl: string | null): SafeAppRoute {
   if (!callbackUrl || !callbackUrl.startsWith("/app/")) return DEFAULT_REDIRECT;
-  return callbackUrl;
+  return callbackUrl as SafeAppRoute;
 }
 
 export default function SignupPage() {
