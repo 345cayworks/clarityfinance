@@ -3,19 +3,23 @@ import { resetPasswordAction } from "@/lib/actions/finance";
 import { Logo } from "@/components/logo";
 import { PasswordField } from "@/components/auth/password-field";
 
-export default function ResetPasswordPage({ searchParams }: { searchParams?: { token?: string; error?: string } }) {
+export default function ResetPasswordPage({ searchParams }: { searchParams?: { token?: string; error?: string; success?: string } }) {
   const token = searchParams?.token ?? "";
   const error = searchParams?.error ? decodeURIComponent(searchParams.error) : null;
+  const success = searchParams?.success ? decodeURIComponent(searchParams.success) : null;
   const hasToken = Boolean(token);
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-14">
       <div className="mx-auto max-w-md card">
         <Logo />
+        <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-blue-700">Clarity Finance</p>
         <h1 className="mt-6 text-2xl font-semibold text-[#0A2540]">Reset your password</h1>
+        <p className="mt-1 text-sm text-slate-600">Know where you stand. Know what&apos;s next.</p>
         <p className="mt-1 text-sm text-slate-600">Choose a new password for your Clarity Finance account.</p>
 
         {error ? <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{error}</div> : null}
+        {success ? <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{success}</div> : null}
         {!hasToken ? (
           <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
             Missing password reset token. Please request a new reset link.

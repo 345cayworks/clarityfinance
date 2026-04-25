@@ -89,21 +89,19 @@ function hashResetToken(token: string): string {
 }
 
 function getBaseUrl(): string {
-  const appUrl = process.env.APP_URL ?? process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
-  if (appUrl) return appUrl;
-
-  const requestHeaders = headers();
-  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
-  const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
-  if (!host) {
+  const appUrl = process.env.APP_URL?.trim();
+  if (appUrl) {
+    return appUrl.replace(/\/+$/, "");
+  }
+  if (process.env.NODE_ENV === "development") {
     return "http://localhost:3000";
   }
-  return `${protocol}://${host}`;
+  throw new Error("Missing APP_URL environment variable for password reset links.");
 }
 
 export async function requestPasswordResetAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const successMessage = encodeURIComponent("If that email is registered, we'll send password reset instructions.");
+  const successMessage = encodeURIComponent("Check your email");
 
   if (email) {
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -115,15 +113,25 @@ export async function requestPasswordResetAction(formData: FormData) {
       const baseUrl = getBaseUrl();
       const resetLink = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
-      await prisma.passwordResetToken.create({
-        data: {
-          userId: existingUser.id,
-          tokenHash,
-          expiresAt
-        }
+      await prisma.$transaction(async (tx) => {
+        await tx.passwordResetToken.deleteMany({
+          where: { userId: existingUser.id, usedAt: null }
+        });
+
+        await tx.passwordResetToken.create({
+          data: {
+            userId: existingUser.id,
+            tokenHash,
+            expiresAt
+          }
+        });
       });
 
-      await sendPasswordResetEmail({ to: email, resetLink });
+      try {
+        await sendPasswordResetEmail({ to: email, resetLink });
+      } catch (error) {
+        console.error("Failed to send password reset email:", error);
+      }
     }
   }
 
