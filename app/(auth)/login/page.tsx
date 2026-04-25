@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { loginAction } from "@/lib/actions/finance";
 import { Logo } from "@/components/logo";
+import { PasswordField } from "@/components/auth/password-field";
 
-export default function LoginPage({ searchParams }: { searchParams?: { error?: string } }) {
+export default function LoginPage({ searchParams }: { searchParams?: { error?: string; success?: string } }) {
   const error = searchParams?.error ? decodeURIComponent(searchParams.error) : null;
+  const success = searchParams?.success ? decodeURIComponent(searchParams.success) : null;
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-14">
@@ -13,12 +15,19 @@ export default function LoginPage({ searchParams }: { searchParams?: { error?: s
         <p className="mt-1 text-sm text-slate-600">Know where you stand. Know what&apos;s next.</p>
 
         {error ? <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{error}</div> : null}
+        {success ? <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{success}</div> : null}
 
         <form action={loginAction} className="mt-5 space-y-3">
           <input name="email" type="email" required placeholder="Email" className="w-full rounded-lg border border-slate-300 p-2.5" />
-          <input name="password" type="password" required placeholder="Password" className="w-full rounded-lg border border-slate-300 p-2.5" />
+          <PasswordField name="password" required placeholder="Password" autoComplete="current-password" />
           <button className="w-full rounded-lg bg-blue-600 p-2.5 font-medium text-white">Login</button>
         </form>
+        <p className="mt-3 text-sm text-slate-600">
+          Forgot your password?{" "}
+          <Link href="/forgot-password" className="font-medium text-blue-600 hover:underline">
+            Reset it
+          </Link>
+        </p>
 
         <p className="mt-4 text-sm text-slate-600">
           Don&apos;t have an account?{" "}
