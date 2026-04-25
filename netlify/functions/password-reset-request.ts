@@ -6,6 +6,7 @@ import { sendPasswordResetEmail } from "../../lib/email/send-password-reset";
 import { json, parseJsonBody } from "./_utils";
 
 type Body = { email?: string };
+type PasswordResetUser = { id: string };
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -13,7 +14,9 @@ export const handler: Handler = async (event) => {
   const email = String(body?.email ?? "").trim().toLowerCase();
 
   if (email) {
-    const users = await sql<{ id: string }[]>`SELECT id FROM users WHERE email = ${email} LIMIT 1`;
+    const users = await sql`
+      SELECT id FROM users WHERE email = ${email} LIMIT 1
+    ` as PasswordResetUser[];
     const user = users[0];
 
     if (user) {
