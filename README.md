@@ -1,109 +1,61 @@
-# Clarity Finance (Ground-Up Rebuild)
+# Clarity Finance
 
-Clarity Finance is a production-minded fintech web app that helps users understand their finances and choose practical next steps.
-
-**Tagline:** _Know where you stand. Know what's next._
+Clarity Finance is a Next.js personal finance planner focused on profile-driven dashboards, calculators, scenarios, action plans, and guided recommendations.
 
 ## Stack
-- Next.js App Router + TypeScript + Tailwind CSS
-- Neon Postgres + Prisma ORM
-- NextAuth (Credentials) authentication
-- Server Actions for secure data operations
-- Recharts for dashboard charts
-
-### Why Prisma (vs Drizzle)
-Prisma was chosen for this rebuild because the schema is broad and relational (11 user-scoped models), and Prisma provides a clean migration workflow, typed client ergonomics, and low-friction integration with Next.js server actions.
-
-## Quick Start
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Configure environment variables (see `.env.example` section below).
-3. Generate Prisma client:
-   ```bash
-   npm run prisma:generate
-   ```
-4. Run migrations:
-   ```bash
-   npm run prisma:migrate:deploy
-   ```
-5. Start dev server:
-   ```bash
-   npm run dev
-   ```
+- Next.js + TypeScript + Tailwind CSS
+- Netlify Serverless Functions
+- Neon Postgres (`@neondatabase/serverless`)
+- Recharts
+- Resend (password reset email delivery)
 
 ## Environment Variables
-Set these in `.env.local` (local) and Netlify site settings (prod):
+Configure these in Netlify and your local `.env`:
 
-- `DATABASE_URL` - Neon Postgres connection string
-- `AUTH_SECRET` - random long secret used by NextAuth JWT/session signing
-- `AUTH_TRUST_HOST` - set to `true` for Netlify and trusted hosts
-- `AUTH_URL` or `NEXTAUTH_URL` - canonical auth base URL (for production callbacks)
-- `APP_URL` - canonical app base URL used in password reset links
-- `EMAIL_FROM` - sender email address for password reset emails
-- `RESEND_API_KEY` - Resend API key for production password reset email delivery
+- `DATABASE_URL` - Neon Postgres connection string.
+- `AUTH_SECRET` - secret used to sign JWT session cookies.
+- `APP_URL` - app base URL for reset links (for example `https://your-site.netlify.app`).
+- `RESEND_API_KEY` - Resend API key (required in production for password reset emails).
+- `EMAIL_FROM` - from address/domain configured in Resend.
 
-## Database and Migrations
-- Prisma schema: `prisma/schema.prisma`
-- Rebuild migration: `prisma/migrations/202604250001_ground_up_rebuild/migration.sql`
-- Password reset migration: `prisma/migrations/202604250002_add_password_reset_tokens/migration.sql`
+## Database setup (Neon)
+1. Create a Neon project/database.
+2. Open the Neon SQL Editor.
+3. Run `sql/schema.sql` manually to create all tables and indexes.
+4. Verify tables are present (`users`, `profiles`, `income_sources`, `expense_profiles`, `debts`, `housing_profiles`, `savings_profiles`, `goals`, `password_reset_tokens`, `scenarios`, `action_plans`, `reports`).
 
-If you have a failed legacy migration named `add-password-reset-tokens` in your Prisma migration history, resolve it with:
+## Local development
 ```bash
-npx prisma migrate resolve --rolled-back "add-password-reset-tokens"
+npm install
+npm run dev
 ```
 
-Run in CI/CD or before deployment:
-```bash
-npm run prisma:generate
-npm run prisma:migrate:deploy
+## Netlify deployment
+`netlify.toml` uses:
+```toml
+[build]
+  command = "npm run build"
+  publish = ".next"
 ```
 
-## Route Map
-### Public
-- `/`
-- `/features`
-- `/pricing`
-- `/about`
-- `/login`
-- `/signup`
-- `/forgot-password`
-- `/reset-password`
+No Prisma runtime or migrate command is required, so the Neon P3009 migration blocker is removed from deployment.
 
-### Authenticated App
-- `/app`
-- `/app/onboarding`
-- `/app/profile`
-- `/app/dashboard`
-- `/app/tools/mortgage`
-- `/app/tools/refinance`
-- `/app/tools/rent-room`
-- `/app/tools/debt-plan`
-- `/app/scenarios`
-- `/app/action-plan`
-- `/app/reports`
-- `/app/settings`
+## Auth + profile endpoints
+Implemented Netlify functions:
+- `/.netlify/functions/auth-signup`
+- `/.netlify/functions/auth-login`
+- `/.netlify/functions/auth-logout`
+- `/.netlify/functions/me`
+- `/.netlify/functions/password-reset-request`
+- `/.netlify/functions/password-reset-confirm`
+- `/.netlify/functions/profile-get`
+- `/.netlify/functions/profile-save`
+- `/.netlify/functions/scenario-save`
+- `/.netlify/functions/action-plan-generate`
+- `/.netlify/functions/report-create`
 
-### Future-ready stubs
-- `/app/advisor`
-- `/app/admin`
-
-## Security Notes
-- Middleware is Edge-safe and does not import Prisma.
-- Prisma access only occurs in server runtime code (auth, server actions, data services).
-- All user-owned records are scoped by `userId` and queried per authenticated user.
-
-## Netlify Deploy
-1. Add env vars in Netlify UI (`DATABASE_URL`, `AUTH_SECRET`, `AUTH_TRUST_HOST`, `AUTH_URL`/`NEXTAUTH_URL`).
-2. Build command:
-   ```bash
-   npm run prisma:generate && npm run prisma:migrate:deploy && npm run build
-   ```
-3. Publish directory: `.next`
-4. Ensure `@netlify/plugin-nextjs` is enabled (already configured in `netlify.toml`).
-
-## Current Limitations
-- Pricing/billing and advisor/admin workflows are intentionally minimal.
-- Report export is currently a placeholder and stores report JSON only.
-- Tools are production scaffolded and can be further extended with advanced assumptions and localization.
+## Security notes
+- Passwords are hashed via PBKDF2 (`crypto.pbkdf2Sync`).
+- Session cookie is `httpOnly`, `sameSite=lax`, and `secure` in production.
+- Password reset tokens are hashed with SHA-256 before storage.
+- Reset requests always return generic success messaging.

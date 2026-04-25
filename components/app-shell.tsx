@@ -1,6 +1,8 @@
+"use client";
+
 import type { Route } from "next";
 import Link from "next/link";
-import { logoutAction } from "@/lib/actions/finance";
+import { useRouter } from "next/navigation";
 
 const nav = [
   ["Dashboard", "/app/dashboard"],
@@ -17,6 +19,8 @@ const nav = [
 ] satisfies ReadonlyArray<readonly [string, Route]>;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto grid max-w-7xl gap-4 p-4 md:grid-cols-[240px_1fr]">
@@ -29,9 +33,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
           </div>
-          <form action={logoutAction} className="mt-4">
-            <button className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm text-white">Logout</button>
-          </form>
+          <button
+            className="mt-4 w-full rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
+            onClick={async () => {
+              await fetch("/.netlify/functions/auth-logout", { method: "POST" });
+              router.push("/login");
+            }}
+          >
+            Logout
+          </button>
         </aside>
         <main>{children}</main>
       </div>
