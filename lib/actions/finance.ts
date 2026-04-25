@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect";
 import { AuthError } from "next-auth";
 import { auth, signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
@@ -31,6 +32,9 @@ export async function loginAction(formData: FormData) {
       redirectTo: "/app/dashboard"
     });
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
     const message = encodeURIComponent(formatAuthError(error));
     redirect(`/login?error=${message}`);
   }
@@ -51,6 +55,9 @@ export async function signupAction(formData: FormData) {
       redirectTo: "/app/onboarding"
     });
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
     const message = encodeURIComponent(formatAuthError(error));
     redirect(`/signup?error=${message}`);
   }
