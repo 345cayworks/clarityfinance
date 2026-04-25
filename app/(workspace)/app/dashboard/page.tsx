@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { IncomeExpenseChart, DebtBreakdownChart } from "@/components/charts";
+import { getIdentityToken, initIdentity } from "@/lib/auth/netlify-identity";
 import { clarityScore, debtPayoffEstimates, debtToIncomeRatio, financialStabilityScore, homeReadinessScore, monthlyCashFlow, savingsRunway, totalExpenses, totalIncome } from "@/lib/calculations/finance";
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -12,10 +13,21 @@ export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    fetch("/.netlify/functions/profile-get", { credentials: "include" })
-      .then((res) => res.json())
-      .then(setData)
-      .catch(() => setData(null));
+    const load = async () => {
+      await initIdentity();
+      const token = await getIdentityToken();
+      if (!token) {
+        setData(null);
+        return;
+      }
+
+      fetch("/.netlify/functions/profile-get", { headers: { Authorization: `Bearer ${token}` } })
+        .then((res) => res.json())
+        .then(setData)
+        .catch(() => setData(null));
+    };
+
+    load();
   }, []);
 
   const incomes = data?.incomeSources ?? [];

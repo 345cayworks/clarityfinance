@@ -1,8 +1,7 @@
 CREATE TABLE IF NOT EXISTS users (
   id text PRIMARY KEY,
-  email text UNIQUE NOT NULL,
+  email text UNIQUE,
   name text,
-  password_hash text NOT NULL,
   role text DEFAULT 'user',
   created_at timestamp DEFAULT now(),
   updated_at timestamp DEFAULT now()
@@ -102,15 +101,6 @@ CREATE TABLE IF NOT EXISTS goals (
   updated_at timestamp DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS password_reset_tokens (
-  id text PRIMARY KEY,
-  user_id text REFERENCES users(id) ON DELETE CASCADE,
-  token_hash text UNIQUE NOT NULL,
-  expires_at timestamp NOT NULL,
-  used_at timestamp,
-  created_at timestamp DEFAULT now()
-);
-
 CREATE TABLE IF NOT EXISTS scenarios (
   id text PRIMARY KEY,
   user_id text REFERENCES users(id) ON DELETE CASCADE,
@@ -147,7 +137,6 @@ CREATE INDEX IF NOT EXISTS idx_debts_user_id ON debts(user_id);
 CREATE INDEX IF NOT EXISTS idx_housing_profiles_user_id ON housing_profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_savings_profiles_user_id ON savings_profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id);
-CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_scenarios_user_id ON scenarios(user_id);
 CREATE INDEX IF NOT EXISTS idx_action_plans_user_id ON action_plans(user_id);
 CREATE INDEX IF NOT EXISTS idx_reports_user_id ON reports(user_id);

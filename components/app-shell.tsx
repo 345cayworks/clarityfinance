@@ -3,6 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { logoutIdentity } from "@/lib/auth/netlify-identity";
 
 const nav = [
   ["Dashboard", "/app/dashboard"],
@@ -36,10 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             className="mt-4 w-full rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
             onClick={async () => {
-              await fetch("/.netlify/functions/auth-logout", {
-                method: "POST",
-                credentials: "include"
-              });
+              await logoutIdentity();
               router.replace("/login");
             }}
           >

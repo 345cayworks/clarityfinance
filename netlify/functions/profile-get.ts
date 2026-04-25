@@ -1,6 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
-import { json, requireSession } from "./_utils";
+import { getIdentityUser } from "./_identity";
+import { json } from "./_utils";
 
 type ProfileRow = Record<string, unknown>;
 type IncomeSourceRow = Record<string, unknown>;
@@ -12,10 +13,10 @@ type GoalRow = Record<string, unknown>;
 type ActionPlanRow = Record<string, unknown>;
 
 export const handler: Handler = async (event) => {
-  const session = await requireSession(event);
-  if (!session) return json(401, { error: "Unauthorized" });
+  const identityUser = getIdentityUser(event);
+  if (!identityUser) return json(401, { error: "Unauthorized" });
 
-  const userId = session.sub;
+  const userId = identityUser.id;
   const [profiles, income, expenses, debts, housing, savings, goals, plans] = await Promise.all([
     sql`SELECT * FROM profiles WHERE user_id = ${userId} LIMIT 1` as ProfileRow[],
     sql`SELECT * FROM income_sources WHERE user_id = ${userId} ORDER BY created_at DESC` as IncomeSourceRow[],

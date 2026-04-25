@@ -2,54 +2,54 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { getCurrentUser, initIdentity, onIdentityEvent } from "@/lib/auth/netlify-identity";
 
 export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const search = searchParams.toString();
   const [checking, setChecking] = useState(true);
-  const [authenticated, setAuthenticated] = useState(false);
 
   useEffect(() => {
-    let active = true;
-    const currentPath = `${pathname}${search ? `?${search}` : ""}`;
+    let mounted = true;
+    const currentPath = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
-    setChecking(true);
-    setAuthenticated(false);
+    const checkAuth = async () => {
+      setChecking(true);
+      await initIdentity();
 
-    fetch("/.netlify/functions/me", { credentials: "include" })
-      .then(async (response) => {
-        if (!active) return;
+      const user = getCurrentUser();
+      if (!mounted) return;
 
-        if (response.ok) {
-          setAuthenticated(true);
-          setChecking(false);
-          return;
-        }
-
-        setAuthenticated(false);
+      if (user) {
         setChecking(false);
-        router.replace(`/login?callbackUrl=${encodeURIComponent(currentPath)}`);
-      })
-      .catch(() => {
-        if (!active) return;
+        return;
+      }
 
-        setAuthenticated(false);
+      router.replace(`/login?callbackUrl=${encodeURIComponent(currentPath)}`);
+    };
+
+    let cleanup = () => undefined;
+
+    checkAuth();
+
+    onIdentityEvent("login", () => {
+      if (mounted) {
         setChecking(false);
-        router.replace(`/login?callbackUrl=${encodeURIComponent(currentPath)}`);
-      });
+      }
+    }).then((offLogin) => {
+      cleanup = offLogin;
+    });
 
     return () => {
-      active = false;
+      mounted = false;
+      cleanup();
     };
-  }, [pathname, router, search]);
+  }, [pathname, router, searchParams]);
 
   if (checking) {
-    return <p className="p-6 text-sm text-slate-600">Checking your session...</p>;
+    return <div className="min-h-screen bg-slate-50" />;
   }
-
-  if (!authenticated) return null;
 
   return <>{children}</>;
 }

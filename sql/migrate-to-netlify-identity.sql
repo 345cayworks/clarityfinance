@@ -1,0 +1,17 @@
+BEGIN;
+
+ALTER TABLE users
+  ALTER COLUMN password_hash DROP NOT NULL;
+
+ALTER TABLE users
+  DROP COLUMN IF EXISTS password_hash;
+
+ALTER TABLE users
+  ALTER COLUMN email DROP NOT NULL;
+
+ALTER TABLE users
+  ALTER COLUMN role SET DEFAULT 'user';
+
+DROP TABLE IF EXISTS password_reset_tokens;
+
+COMMIT;

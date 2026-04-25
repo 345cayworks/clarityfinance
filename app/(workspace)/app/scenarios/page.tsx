@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { getIdentityToken, initIdentity } from "@/lib/auth/netlify-identity";
 
 export default function ScenariosPage() {
   const [message, setMessage] = useState<string>("");
@@ -8,9 +9,20 @@ export default function ScenariosPage() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
+
+    await initIdentity();
+    const token = await getIdentityToken();
+    if (!token) {
+      setMessage("Please log in again.");
+      return;
+    }
+
     const response = await fetch("/.netlify/functions/scenario-save", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
       body: JSON.stringify(payload)
     });
     setMessage(response.ok ? "Scenario saved." : "Failed to save scenario.");
