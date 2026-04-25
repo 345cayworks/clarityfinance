@@ -22,34 +22,45 @@ export default function ResetPasswordPage({ searchParams }: { searchParams?: { t
         {success ? <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{success}</div> : null}
         {!hasToken ? (
           <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Missing password reset token. Please request a new reset link.
+            Missing or invalid password reset token. Please request a new reset link from the forgot password page.
           </div>
         ) : null}
 
-        <form action={resetPasswordAction} className="mt-5 space-y-3">
-          <input type="hidden" name="token" value={token} />
-          <PasswordField
-            name="password"
-            required
-            minLength={8}
-            label="New password"
-            autoComplete="new-password"
-            placeholder="At least 8 characters"
-          />
-          <PasswordField
-            name="confirmPassword"
-            required
-            minLength={8}
-            label="Confirm new password"
-            autoComplete="new-password"
-            placeholder="Re-enter new password"
-          />
-          <button disabled={!hasToken} className="w-full rounded-lg bg-blue-600 p-2.5 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60">
-            Reset password
-          </button>
-        </form>
+        {hasToken ? (
+          <form action={resetPasswordAction} className="mt-5 space-y-3">
+            <input type="hidden" name="token" value={token} />
+            <PasswordField
+              name="password"
+              required
+              minLength={8}
+              label="New password"
+              autoComplete="new-password"
+              placeholder="At least 8 characters"
+            />
+            <PasswordField
+              name="confirmPassword"
+              required
+              minLength={8}
+              label="Confirm new password"
+              autoComplete="new-password"
+              placeholder="Re-enter new password"
+            />
+            <button className="w-full rounded-lg bg-blue-600 p-2.5 font-medium text-white">
+              Reset password
+            </button>
+          </form>
+        ) : null}
 
         <p className="mt-4 text-sm text-slate-600">
+          {!hasToken ? (
+            <>
+              Request a new link{" "}
+              <Link href="/forgot-password" className="font-medium text-blue-600 hover:underline">
+                here
+              </Link>
+              .{" "}
+            </>
+          ) : null}
           Back to{" "}
           <Link href="/login" className="font-medium text-blue-600 hover:underline">
             login

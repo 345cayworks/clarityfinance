@@ -37,8 +37,8 @@ export async function sendPasswordResetEmail({ to, resetLink }: SendPasswordRese
             Reset password
           </a>
         </p>
-        <p style="margin:16px 0;">This reset link expires in 1 hour.</p>
-        <p style="margin:16px 0;">If you did not request a password reset, you can safely ignore this email.</p>
+        <p style="margin:16px 0;">This link expires in 1 hour.</p>
+        <p style="margin:16px 0;">If you did not request this, you can ignore this email.</p>
       </div>
     `
   });

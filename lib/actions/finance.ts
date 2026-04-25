@@ -2,7 +2,6 @@
 
 import crypto from "crypto";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { isRedirectError } from "next/dist/client/components/redirect";
 import { AuthError } from "next-auth";
 import { auth, signIn, signOut } from "@/auth";
@@ -114,8 +113,9 @@ export async function requestPasswordResetAction(formData: FormData) {
       const resetLink = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
       await prisma.$transaction(async (tx) => {
-        await tx.passwordResetToken.deleteMany({
-          where: { userId: existingUser.id, usedAt: null }
+        await tx.passwordResetToken.updateMany({
+          where: { userId: existingUser.id, usedAt: null },
+          data: { usedAt: new Date() }
         });
 
         await tx.passwordResetToken.create({
