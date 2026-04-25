@@ -47,7 +47,12 @@ Set these in `.env.local` (local) and Netlify site settings (prod):
 ## Database and Migrations
 - Prisma schema: `prisma/schema.prisma`
 - Rebuild migration: `prisma/migrations/202604250001_ground_up_rebuild/migration.sql`
-- Password reset migration: `prisma/migrations/add-password-reset-tokens/migration.sql`
+- Password reset migration: `prisma/migrations/202604250002_add_password_reset_tokens/migration.sql`
+
+If you have a failed legacy migration named `add-password-reset-tokens` in your Prisma migration history, resolve it with:
+```bash
+npx prisma migrate resolve --rolled-back "add-password-reset-tokens"
+```
 
 Run in CI/CD or before deployment:
 ```bash
