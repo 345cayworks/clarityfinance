@@ -26,15 +26,25 @@ const toBoolean = (value: unknown) => {
   return false;
 };
 
+const logSaveError = (error: unknown) => {
+  const safeError =
+    error instanceof Error
+      ? { name: error.name, message: error.message }
+      : { message: "Unknown profile-save error" };
+
+  console.error("profile-save database write failed", safeError);
+};
+
 export const handler: Handler = async (event) => {
-  if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
-  const identityUser = getIdentityUser(event);
-  if (!identityUser) return json(401, { error: "Unauthorized" });
+  try {
+    if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
+    const identityUser = getIdentityUser(event);
+    if (!identityUser) return json(401, { error: "Unauthorized: missing or invalid Identity token." });
 
-  const body = (parseJsonBody<AnyRecord>(event) ?? {}) as AnyRecord;
-  const userId = identityUser.id;
+    const body = (parseJsonBody<AnyRecord>(event) ?? {}) as AnyRecord;
+    const userId = identityUser.id;
 
-  await sql`
+    await sql`
     INSERT INTO users (id, email, name, role)
     VALUES (${userId}, ${identityUser.email}, ${identityUser.name}, ${identityUser.role})
     ON CONFLICT (id) DO UPDATE SET
@@ -44,7 +54,7 @@ export const handler: Handler = async (event) => {
       updated_at = NOW()
   `;
 
-  await sql`
+    await sql`
     INSERT INTO profiles (id, user_id, country_or_market, preferred_currency, age_range, employment_type, household_status, dependents, credit_score_known, credit_score_or_profile)
     VALUES (${randomId("pro")}, ${userId}, ${String(body.countryOrMarket ?? "")}, ${String(body.preferredCurrency ?? "")}, ${String(body.ageRange ?? "")}, ${String(body.employmentType ?? "")}, ${String(body.householdStatus ?? "")}, ${toNumber(body.dependents)}, ${toBoolean(body.creditScoreKnown)}, ${String(body.creditScoreOrProfile ?? "") || null})
     ON CONFLICT (user_id) DO UPDATE SET
@@ -59,7 +69,7 @@ export const handler: Handler = async (event) => {
       updated_at = NOW()
   `;
 
-  await sql`
+    await sql`
     INSERT INTO expense_profiles (id, user_id, housing, utilities, transport, groceries, insurance, childcare, discretionary, other)
     VALUES (${randomId("exp")}, ${userId}, ${toNumber(body.expenseHousing)}, ${toNumber(body.expenseUtilities)}, ${toNumber(body.expenseTransport)}, ${toNumber(body.expenseGroceries)}, ${toNumber(body.expenseInsurance)}, ${toNumber(body.expenseChildcare)}, ${toNumber(body.expenseDiscretionary)}, ${toNumber(body.expenseOther)})
     ON CONFLICT (user_id) DO UPDATE SET
@@ -74,7 +84,7 @@ export const handler: Handler = async (event) => {
       updated_at = NOW()
   `;
 
-  await sql`
+    await sql`
     INSERT INTO housing_profiles (id, user_id, housing_status, rent_amount, mortgage_balance, mortgage_rate, mortgage_payment, estimated_home_value, spare_room_available, estimated_room_rental_income)
     VALUES (${randomId("hou")}, ${userId}, ${String(body.housingStatus ?? "")}, ${toNumber(body.rentAmount)}, ${toNumber(body.mortgageBalance)}, ${toNumber(body.mortgageRate)}, ${toNumber(body.mortgagePayment)}, ${toNumber(body.estimatedHomeValue)}, ${toBoolean(body.spareRoomAvailable)}, ${toNumber(body.estimatedRoomRentalIncome)})
     ON CONFLICT (user_id) DO UPDATE SET
@@ -89,7 +99,7 @@ export const handler: Handler = async (event) => {
       updated_at = NOW()
   `;
 
-  await sql`
+    await sql`
     INSERT INTO savings_profiles (id, user_id, cash_savings, emergency_fund, investments, retirement_savings, down_payment_savings)
     VALUES (${randomId("sav")}, ${userId}, ${toNumber(body.cashSavings)}, ${toNumber(body.emergencyFund)}, ${toNumber(body.investments)}, ${toNumber(body.retirementSavings)}, ${toNumber(body.downPaymentSavings)})
     ON CONFLICT (user_id) DO UPDATE SET
@@ -101,7 +111,7 @@ export const handler: Handler = async (event) => {
       updated_at = NOW()
   `;
 
-  await sql`
+    await sql`
     INSERT INTO goals (id, user_id, target_goal, target_home_price, target_savings_goal, target_debt_reduction, target_monthly_cash_flow, goal_timeframe)
     VALUES (${randomId("gol")}, ${userId}, ${String(body.targetGoal ?? "")}, ${toNumber(body.targetHomePrice)}, ${toNumber(body.targetSavingsGoal)}, ${toNumber(body.targetDebtReduction)}, ${toNumber(body.targetMonthlyCashFlow)}, ${String(body.goalTimeframe ?? "")})
     ON CONFLICT (user_id) DO UPDATE SET
@@ -114,21 +124,25 @@ export const handler: Handler = async (event) => {
       updated_at = NOW()
   `;
 
-  await sql`DELETE FROM income_sources WHERE user_id = ${userId}`;
-  if (toNumber(body.incomeMonthlyAmount) > 0) {
-    await sql`
+    await sql`DELETE FROM income_sources WHERE user_id = ${userId}`;
+    if (toNumber(body.incomeMonthlyAmount) > 0) {
+      await sql`
       INSERT INTO income_sources (id, user_id, type, label, monthly_amount, frequency, stability)
       VALUES (${randomId("inc")}, ${userId}, ${String(body.incomeType ?? "salary")}, ${String(body.incomeLabel ?? "Primary Income")}, ${toNumber(body.incomeMonthlyAmount)}, ${String(body.incomeFrequency ?? "monthly")}, ${String(body.incomeStability ?? "stable")})
     `;
-  }
+    }
 
-  await sql`DELETE FROM debts WHERE user_id = ${userId}`;
-  if (String(body.debtName ?? "").trim()) {
-    await sql`
+    await sql`DELETE FROM debts WHERE user_id = ${userId}`;
+    if (String(body.debtName ?? "").trim()) {
+      await sql`
       INSERT INTO debts (id, user_id, name, type, balance, interest_rate, monthly_payment)
       VALUES (${randomId("deb")}, ${userId}, ${String(body.debtName ?? "")}, ${String(body.debtType ?? "other")}, ${toNumber(body.debtBalance)}, ${toNumber(body.debtInterestRate)}, ${toNumber(body.debtMonthlyPayment)})
     `;
-  }
+    }
 
-  return json(200, { success: true, redirectTo: "/app/dashboard" });
+    return json(200, { success: true, redirectTo: "/app/dashboard" });
+  } catch (error) {
+    logSaveError(error);
+    return json(500, { error: "Profile could not be saved. Please try again." });
+  }
 };

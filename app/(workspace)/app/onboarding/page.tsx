@@ -5,17 +5,67 @@ import { type FormEvent, useState } from "react";
 import { describeAuthError, getUser } from "@/lib/auth/netlify-identity";
 
 type OnboardingPayload = Record<string, FormDataEntryValue | boolean>;
+type OnboardingField = {
+  name: string;
+  label: string;
+  type?: "number" | "text";
+  placeholder?: string;
+  options?: readonly string[];
+};
+
+const getCookieValue = (name: string) => {
+  if (typeof document === "undefined") return null;
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escapedName}=([^;]*)`));
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+};
+
+const getIdentityToken = async (user: unknown) => {
+  if (user && typeof user === "object" && "jwt" in user && typeof user.jwt === "function") {
+    const token = await user.jwt();
+    return typeof token === "string" && token.trim() ? token : null;
+  }
+
+  return getCookieValue("nf_jwt");
+};
 
 const sections = [
   {
     title: "Market & basics",
     description: "Where you live and a few quick personal details. Helps us tailor calculators and benchmarks.",
     fields: [
-      { name: "countryOrMarket", label: "Country or market", placeholder: "United States" },
-      { name: "preferredCurrency", label: "Preferred currency", placeholder: "USD" },
-      { name: "ageRange", label: "Age range", placeholder: "30–39" },
-      { name: "employmentType", label: "Employment type", placeholder: "Full-time" },
-      { name: "householdStatus", label: "Household status", placeholder: "Single / Couple / Family" },
+      {
+        name: "countryOrMarket",
+        label: "Country or market",
+        options: ["Cayman Islands", "United States", "Jamaica", "Dominican Republic", "Canada", "United Kingdom", "Other"]
+      },
+      { name: "preferredCurrency", label: "Preferred currency", options: ["KYD", "USD", "JMD", "DOP", "CAD", "GBP", "Other"] },
+      { name: "ageRange", label: "Age range", options: ["Under 25", "25–34", "35–44", "45–54", "55–64", "65+"] },
+      {
+        name: "employmentType",
+        label: "Employment type",
+        options: [
+          "Full-time employed",
+          "Part-time employed",
+          "Self-employed",
+          "Business owner",
+          "Contractor / freelancer",
+          "Retired",
+          "Student",
+          "Unemployed",
+          "Other"
+        ]
+      },
+      {
+        name: "householdStatus",
+        label: "Household status",
+        options: ["Single", "Couple", "Family with children", "Single parent", "Multi-generational household", "Shared housing", "Other"]
+      },
       { name: "dependents", label: "Dependents", type: "number", placeholder: "0" }
     ]
   },
@@ -24,10 +74,18 @@ const sections = [
     description: "Add your primary income source. You can add more later.",
     fields: [
       { name: "incomeLabel", label: "Income label", placeholder: "Primary salary" },
-      { name: "incomeType", label: "Income type", placeholder: "Salary" },
+      {
+        name: "incomeType",
+        label: "Income type",
+        options: ["Salary", "Hourly wages", "Business income", "Self-employed income", "Rental income", "Pension / retirement", "Investment income", "Other"]
+      },
       { name: "incomeMonthlyAmount", label: "Monthly amount", type: "number", placeholder: "5000" },
-      { name: "incomeFrequency", label: "Frequency", placeholder: "Monthly" },
-      { name: "incomeStability", label: "Stability", placeholder: "Stable / Variable" }
+      {
+        name: "incomeFrequency",
+        label: "Frequency",
+        options: ["Weekly", "Bi-weekly", "Semi-monthly", "Monthly", "Quarterly", "Annually"]
+      },
+      { name: "incomeStability", label: "Stability", options: ["Stable", "Somewhat stable", "Variable", "Seasonal", "Uncertain"] }
     ]
   },
   {
@@ -49,7 +107,11 @@ const sections = [
     description: "Your largest debt, if any. We'll add more in the Debt Plan tool.",
     fields: [
       { name: "debtName", label: "Debt name", placeholder: "Card A" },
-      { name: "debtType", label: "Debt type", placeholder: "Credit card" },
+      {
+        name: "debtType",
+        label: "Debt type",
+        options: ["Credit card", "Personal loan", "Auto loan", "Student loan", "Mortgage", "Medical debt", "Family/friend loan", "Other"]
+      },
       { name: "debtBalance", label: "Balance", type: "number" },
       { name: "debtInterestRate", label: "Interest rate %", type: "number" },
       { name: "debtMonthlyPayment", label: "Monthly payment", type: "number" }
@@ -59,7 +121,11 @@ const sections = [
     title: "Housing",
     description: "Renting, owning, or somewhere in between.",
     fields: [
-      { name: "housingStatus", label: "Housing status", placeholder: "Renting / Owning" },
+      {
+        name: "housingStatus",
+        label: "Housing status",
+        options: ["Renting", "Own with mortgage", "Own mortgage-free", "Living with family", "Shared housing", "Employer-provided housing", "Other"]
+      },
       { name: "rentAmount", label: "Rent amount", type: "number" },
       { name: "mortgageBalance", label: "Mortgage balance", type: "number" },
       { name: "mortgageRate", label: "Mortgage rate %", type: "number" },
@@ -83,15 +149,30 @@ const sections = [
     title: "Goals",
     description: "Where you're headed in the next few years.",
     fields: [
-      { name: "targetGoal", label: "Top goal", placeholder: "Buy a home" },
+      {
+        name: "targetGoal",
+        label: "Top goal",
+        options: [
+          "Build emergency fund",
+          "Reduce debt",
+          "Improve monthly cash flow",
+          "Save for home purchase",
+          "Prepare for mortgage",
+          "Refinance mortgage",
+          "Invest more consistently",
+          "Rent out a room",
+          "Financial stability",
+          "Other"
+        ]
+      },
       { name: "targetHomePrice", label: "Target home price", type: "number" },
       { name: "targetSavingsGoal", label: "Target savings", type: "number" },
       { name: "targetDebtReduction", label: "Target debt reduction", type: "number" },
       { name: "targetMonthlyCashFlow", label: "Target monthly cash flow", type: "number" },
-      { name: "goalTimeframe", label: "Timeframe", placeholder: "12 months" }
+      { name: "goalTimeframe", label: "Timeframe", options: ["30 days", "90 days", "6 months", "12 months", "2 years", "3–5 years"] }
     ]
   }
-] as const;
+] satisfies ReadonlyArray<{ title: string; description: string; fields: readonly OnboardingField[] }>;
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -116,10 +197,20 @@ export default function OnboardingPage() {
         return;
       }
 
+      const token = await getIdentityToken(user);
+      if (!token) {
+        setSaving(false);
+        setError("Your session is active, but we could not verify it. Please sign in again.");
+        return;
+      }
+
       const response = await fetch("/.netlify/functions/profile-save", {
         method: "POST",
         credentials: "same-origin",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
         body: JSON.stringify(payload)
       });
       const result = await response.json().catch(() => ({}));
@@ -162,12 +253,27 @@ export default function OnboardingPage() {
               {section.fields.map((field) => (
                 <label key={field.name} className="block text-sm">
                   <span className="mb-1.5 block font-medium text-slate-700">{field.label}</span>
-                  <input
-                    name={field.name}
-                    type={"type" in field && field.type ? field.type : "text"}
-                    placeholder={"placeholder" in field ? field.placeholder : undefined}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
+                  {field.options ? (
+                    <select
+                      name={field.name}
+                      defaultValue=""
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    >
+                      <option value="">Select...</option>
+                      {field.options.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      name={field.name}
+                      type={field.type ?? "text"}
+                      placeholder={field.placeholder}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    />
+                  )}
                 </label>
               ))}
               {section.title === "Housing" ? (
