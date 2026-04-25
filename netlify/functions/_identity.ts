@@ -3,45 +3,38 @@ import { decodeJwt } from "jose";
 
 export type IdentityUser = {
   id: string;
-  email: string | null;
+  email: string;
   name: string | null;
-  userMetadata: Record<string, unknown> | null;
+  role: string;
 };
 
-function getBearerToken(authorizationHeader?: string | null) {
-  if (!authorizationHeader) return null;
-  const [scheme, token] = authorizationHeader.split(" ");
-  if (!scheme || scheme.toLowerCase() !== "bearer" || !token) return null;
-  return token;
-}
-
 export function getIdentityUser(event: HandlerEvent): IdentityUser | null {
-  const token = getBearerToken(event.headers.authorization ?? event.headers.Authorization ?? null);
-  if (!token) return null;
+  const header = event.headers.authorization ?? event.headers.Authorization;
+  if (!header || !header.startsWith("Bearer ")) return null;
+
+  const token = header.slice("Bearer ".length);
 
   try {
+    // TODO: Verify JWT signature against Netlify JWKS in production.
     const payload = decodeJwt(token);
-    const id = typeof payload.sub === "string" ? payload.sub : null;
+    const metadata = payload.user_metadata as Record<string, unknown> | undefined;
+    const appMetadata = payload.app_metadata as Record<string, unknown> | undefined;
 
-    if (!id) return null;
+    const id = typeof payload.sub === "string" ? payload.sub : "";
+    const email = typeof payload.email === "string" ? payload.email : "";
+    const name =
+      typeof metadata?.full_name === "string"
+        ? metadata.full_name
+        : typeof metadata?.name === "string"
+          ? metadata.name
+          : email || null;
 
-    const appMetadata = typeof payload.app_metadata === "object" && payload.app_metadata ? payload.app_metadata : null;
-    const userMetadata = typeof payload.user_metadata === "object" && payload.user_metadata ? payload.user_metadata : null;
+    const roles = appMetadata?.roles;
+    const role = Array.isArray(roles) && typeof roles[0] === "string" ? roles[0] : "user";
 
-    const metadataName = userMetadata && typeof userMetadata.full_name === "string"
-      ? userMetadata.full_name
-      : userMetadata && typeof userMetadata.name === "string"
-        ? userMetadata.name
-        : null;
+    if (!id || !email) return null;
 
-    const appMetadataName = appMetadata && typeof appMetadata.name === "string" ? appMetadata.name : null;
-
-    return {
-      id,
-      email: typeof payload.email === "string" ? payload.email : null,
-      name: metadataName ?? appMetadataName,
-      userMetadata
-    };
+    return { id, email, name, role };
   } catch {
     return null;
   }

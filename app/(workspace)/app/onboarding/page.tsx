@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { getIdentityToken, initIdentity } from "@/lib/auth/netlify-identity";
+import { getCurrentUser, initIdentity } from "@/lib/auth/netlify-identity";
 
 type OnboardingPayload = Record<string, FormDataEntryValue | boolean>;
 
@@ -22,7 +22,8 @@ export default function OnboardingPage() {
     payload.spareRoomAvailable = formData.get("spareRoomAvailable") === "on";
 
     await initIdentity();
-    const token = await getIdentityToken();
+    const user = getCurrentUser();
+    const token = user ? await user.jwt().catch(() => null) : null;
 
     if (!token) {
       setSaving(false);
