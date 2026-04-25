@@ -113,8 +113,9 @@ export async function requestPasswordResetAction(formData: FormData) {
       const resetLink = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
       await prisma.$transaction(async (tx) => {
-        await tx.passwordResetToken.deleteMany({
-          where: { userId: existingUser.id, usedAt: null }
+        await tx.passwordResetToken.updateMany({
+          where: { userId: existingUser.id, usedAt: null },
+          data: { usedAt: new Date() }
         });
 
         await tx.passwordResetToken.create({

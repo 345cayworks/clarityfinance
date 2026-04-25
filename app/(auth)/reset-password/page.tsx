@@ -22,7 +22,7 @@ export default function ResetPasswordPage({ searchParams }: { searchParams?: { t
         {success ? <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{success}</div> : null}
         {!hasToken ? (
           <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Missing password reset token. Please request a new reset link.
+            Missing or invalid password reset token. Please request a new reset link from the forgot password page.
           </div>
         ) : null}
 
@@ -52,6 +52,15 @@ export default function ResetPasswordPage({ searchParams }: { searchParams?: { t
         ) : null}
 
         <p className="mt-4 text-sm text-slate-600">
+          {!hasToken ? (
+            <>
+              Request a new link{" "}
+              <Link href="/forgot-password" className="font-medium text-blue-600 hover:underline">
+                here
+              </Link>
+              .{" "}
+            </>
+          ) : null}
           Back to{" "}
           <Link href="/login" className="font-medium text-blue-600 hover:underline">
             login
