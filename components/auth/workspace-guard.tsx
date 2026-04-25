@@ -29,7 +29,7 @@ export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
       router.replace(`/login?callbackUrl=${encodeURIComponent(currentPath)}`);
     };
 
-    let cleanup = () => undefined;
+    let cleanup: (() => void) | undefined;
 
     checkAuth();
 
@@ -43,7 +43,7 @@ export function WorkspaceGuard({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false;
-      cleanup();
+      cleanup?.();
     };
   }, [pathname, router, searchParams]);
 
