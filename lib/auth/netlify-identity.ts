@@ -1,96 +1,94 @@
 "use client";
 
-type IdentityUser = {
-  jwt: () => Promise<string>;
+import {
+  AuthError,
+  MissingIdentityError,
+  getUser,
+  handleAuthCallback,
+  login as identityLogin,
+  logout as identityLogout,
+  onAuthChange,
+  requestPasswordRecovery,
+  signup as identitySignup,
+  updateUser,
+  type CallbackResult,
+  type User
+} from "@netlify/identity";
+
+export type IdentityUser = User;
+export type AuthCallbackResult = CallbackResult;
+
+export {
+  AuthError,
+  MissingIdentityError,
+  getUser,
+  handleAuthCallback,
+  onAuthChange,
+  requestPasswordRecovery,
+  updateUser
 };
 
-type IdentityEvent = "login" | "signup" | "init";
+export async function loginWithEmail(email: string, password: string) {
+  return identityLogin(email.trim(), password);
+}
 
-type IdentityWidget = {
-  init: () => void;
-  open: (panel: "login" | "signup") => void;
-  logout: () => void;
-  currentUser: () => IdentityUser | null;
-  on: (event: IdentityEvent, cb: (user?: IdentityUser | null) => void) => void;
-  off: (event: IdentityEvent, cb: (user?: IdentityUser | null) => void) => void;
+export async function signupWithEmail(email: string, password: string, name: string) {
+  return identitySignup(email.trim(), password, name ? { full_name: name } : undefined);
+}
+
+export async function logout() {
+  await identityLogout();
+}
+
+type JwtCapableUser = User & {
+  jwt?: (forceRefresh?: boolean) => Promise<string>;
 };
 
-declare global {
-  interface Window {
-    netlifyIdentity?: IdentityWidget;
-  }
-}
-
-let identity: IdentityWidget | null = null;
-let initialized = false;
-
-export async function initIdentity() {
-  if (typeof window === "undefined") return null;
-
-  if (!window.netlifyIdentity) {
-    await new Promise<void>((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://identity.netlify.com/v1/netlify-identity-widget.js";
-      script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Failed to load Netlify Identity widget."));
-      document.head.appendChild(script);
-    }).catch(() => undefined);
-  }
-
-  if (!window.netlifyIdentity) return null;
-
-  identity = window.netlifyIdentity;
-
-  if (!initialized) {
-    identity.init();
-    initialized = true;
-  }
-
-  return identity;
-}
-
-export function getCurrentUser() {
-  return identity?.currentUser() ?? null;
-}
-
-export async function getIdentityToken() {
-  const currentUser = getCurrentUser();
-  if (!currentUser) return null;
-
+function getCookieValue(name: string) {
+  if (typeof document === "undefined") return null;
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escapedName}=([^;]*)`));
+  if (!match) return null;
   try {
-    return await currentUser.jwt();
+    return decodeURIComponent(match[1]);
   } catch {
-    return null;
+    return match[1];
   }
 }
 
-async function openWidget(screen: "login" | "signup") {
-  const widget = await initIdentity();
-  if (!widget) return;
-  widget.open(screen);
+export async function getIdentityToken(user?: IdentityUser | null) {
+  const currentUser = user ?? (await getUser());
+  const jwt = (currentUser as JwtCapableUser | null)?.jwt;
+
+  if (typeof jwt === "function") {
+    const token = await jwt.call(currentUser, true);
+    if (token.trim()) return token;
+  }
+
+  return getCookieValue("nf_jwt");
 }
 
-export async function openLogin() {
-  await openWidget("login");
-}
-
-export async function openSignup() {
-  await openWidget("signup");
-}
-
-export async function logoutIdentity() {
-  const widget = await initIdentity();
-  if (!widget) return;
-  widget.logout();
-}
-
-export async function onIdentityEvent(event: IdentityEvent, cb: (user?: IdentityUser | null) => void) {
-  const widget = await initIdentity();
-  if (!widget) return () => undefined;
-
-  widget.on(event, cb);
-  return () => {
-    widget.off(event, cb);
-  };
+export function describeAuthError(error: unknown): string {
+  if (error instanceof MissingIdentityError) {
+    return "Identity is not enabled on this site yet.";
+  }
+  if (error instanceof AuthError) {
+    switch (error.status) {
+      case 400:
+        return "Invalid request. Please check your input and try again.";
+      case 401:
+        return "Invalid email or password.";
+      case 403:
+        return "Sign ups are currently disabled. Please contact support.";
+      case 404:
+        return "Account not found.";
+      case 409:
+      case 422:
+        return error.message || "An account with that email may already exist.";
+      default:
+        return error.message || "Something went wrong. Please try again.";
+    }
+  }
+  if (error instanceof Error) return error.message;
+  return "Something went wrong. Please try again.";
 }

@@ -8,14 +8,30 @@ export type IdentityUser = {
   role: string;
 };
 
-export function getIdentityUser(event: HandlerEvent): IdentityUser | null {
-  const header = event.headers.authorization ?? event.headers.Authorization;
-  if (!header || !header.startsWith("Bearer ")) return null;
+function readCookie(cookieHeader: string | undefined, name: string): string | null {
+  if (!cookieHeader) return null;
+  const pairs = cookieHeader.split(/;\s*/g);
+  for (const pair of pairs) {
+    const [key, ...rest] = pair.split("=");
+    if (key === name) return decodeURIComponent(rest.join("="));
+  }
+  return null;
+}
 
-  const token = header.slice("Bearer ".length);
+function extractToken(event: HandlerEvent): string | null {
+  const authHeader = event.headers.authorization ?? event.headers.Authorization;
+  if (authHeader && typeof authHeader === "string" && authHeader.toLowerCase().startsWith("bearer ")) {
+    return authHeader.slice(7).trim() || null;
+  }
+  const cookie = event.headers.cookie ?? event.headers.Cookie;
+  return readCookie(typeof cookie === "string" ? cookie : undefined, "nf_jwt");
+}
+
+export function getIdentityUser(event: HandlerEvent): IdentityUser | null {
+  const token = extractToken(event);
+  if (!token) return null;
 
   try {
-    // TODO: Verify JWT signature against Netlify JWKS in production.
     const payload = decodeJwt(token);
     const metadata = payload.user_metadata as Record<string, unknown> | undefined;
     const appMetadata = payload.app_metadata as Record<string, unknown> | undefined;

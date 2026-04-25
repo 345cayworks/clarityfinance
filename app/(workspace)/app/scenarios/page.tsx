@@ -1,48 +1,96 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { getIdentityToken, initIdentity } from "@/lib/auth/netlify-identity";
+import { type FormEvent, useState } from "react";
+import { getIdentityToken } from "@/lib/auth/netlify-identity";
 
 export default function ScenariosPage() {
-  const [message, setMessage] = useState<string>("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setSaving(true);
+    setError(null);
+    setMessage(null);
     const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
-
-    await initIdentity();
     const token = await getIdentityToken();
+
     if (!token) {
-      setMessage("Please log in again.");
+      setSaving(false);
+      setError("Your session has expired. Please sign in again.");
       return;
     }
 
     const response = await fetch("/.netlify/functions/scenario-save", {
       method: "POST",
+      credentials: "same-origin",
       headers: {
         "content-type": "application/json",
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify(payload)
     });
-    setMessage(response.ok ? "Scenario saved." : "Failed to save scenario.");
+    setSaving(false);
+    if (!response.ok) {
+      setError(response.status === 401 ? "Your session has expired. Please sign in again." : "Failed to save scenario.");
+      return;
+    }
+    setMessage("Scenario saved.");
   }
 
+  const fields: Array<{ name: string; label: string; type?: string }> = [
+    { name: "incomeIncrease", label: "Increase income ($/mo)", type: "number" },
+    { name: "expenseReduction", label: "Reduce expenses ($/mo)", type: "number" },
+    { name: "debtPaydown", label: "Pay down debt ($)", type: "number" },
+    { name: "rentalIncome", label: "Add rental income ($/mo)", type: "number" },
+    { name: "lowerRate", label: "Lower mortgage rate (%)", type: "number" },
+    { name: "savingsIncrease", label: "Increase savings ($/mo)", type: "number" }
+  ];
+
   return (
-    <div className="card">
-      <h1 className="text-2xl font-semibold">Scenarios</h1>
-      <p className="text-sm text-slate-600 mt-2">Model what-if changes: income increase, expense reduction, debt payoff, rental income, lower rates, and savings boost.</p>
-      <form onSubmit={onSubmit} className="mt-4 grid gap-3 md:grid-cols-2">
-        <input name="name" placeholder="Scenario name" className="rounded-lg border p-2 md:col-span-2" />
-        <input name="incomeIncrease" type="number" placeholder="Increase income" className="rounded-lg border p-2" />
-        <input name="expenseReduction" type="number" placeholder="Reduce expenses" className="rounded-lg border p-2" />
-        <input name="debtPaydown" type="number" placeholder="Pay down debt" className="rounded-lg border p-2" />
-        <input name="rentalIncome" type="number" placeholder="Add rental income" className="rounded-lg border p-2" />
-        <input name="lowerRate" type="number" placeholder="Lower mortgage rate" className="rounded-lg border p-2" />
-        <input name="savingsIncrease" type="number" placeholder="Increase savings" className="rounded-lg border p-2" />
-        <button className="rounded-lg bg-blue-600 p-2 text-white md:col-span-2">Save scenario</button>
+    <div className="space-y-4">
+      <div className="card">
+        <h1 className="text-2xl font-semibold text-[#0A2540]">Scenarios</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Model what-if changes — income increase, expense reduction, debt payoff, rental income, lower rate, and
+          savings boost.
+        </p>
+      </div>
+      <form onSubmit={onSubmit} className="card grid gap-4 md:grid-cols-2">
+        <label className="block text-sm md:col-span-2">
+          <span className="mb-1.5 block font-medium text-slate-700">Scenario name</span>
+          <input
+            name="name"
+            placeholder="Boost cash flow by 15%"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          />
+        </label>
+        {fields.map((field) => (
+          <label key={field.name} className="block text-sm">
+            <span className="mb-1.5 block font-medium text-slate-700">{field.label}</span>
+            <input
+              name={field.name}
+              type={field.type ?? "text"}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            />
+          </label>
+        ))}
+        <div className="md:col-span-2">
+          <button
+            disabled={saving}
+            className="rounded-lg bg-[#0A2540] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0e3160] disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {saving ? "Saving…" : "Save scenario"}
+          </button>
+        </div>
+        {error ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 md:col-span-2">{error}</p>
+        ) : null}
+        {message ? (
+          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 md:col-span-2">{message}</p>
+        ) : null}
       </form>
-      {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
     </div>
   );
 }

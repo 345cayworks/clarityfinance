@@ -1,42 +1,60 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getIdentityToken, initIdentity } from "@/lib/auth/netlify-identity";
+import { getIdentityToken } from "@/lib/auth/netlify-identity";
 
 export default function AdminPage() {
   const [role, setRole] = useState<string>("user");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const load = async () => {
-      await initIdentity();
+    let cancelled = false;
+
+    async function loadUser() {
       const token = await getIdentityToken();
-      if (!token) {
+      if (!token) return null;
+
+      const response = await fetch("/.netlify/functions/me", {
+        credentials: "same-origin",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      return response.ok ? response.json() : null;
+    }
+
+    loadUser()
+      .then((data: { user?: { role?: string } } | null) => {
+        if (cancelled) return;
+        setRole(data?.user?.role ?? "user");
+        setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
         setRole("user");
-        return;
-      }
-
-      fetch("/.netlify/functions/me", { headers: { Authorization: `Bearer ${token}` } })
-        .then((res) => res.json())
-        .then((data) => setRole(data?.user?.role ?? "user"))
-        .catch(() => setRole("user"));
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
     };
-
-    load();
   }, []);
+
+  if (loading) {
+    return <div className="card text-sm text-slate-500">Checking permissions…</div>;
+  }
 
   if (role !== "admin") {
     return (
       <div className="card">
-        <h1 className="text-2xl font-semibold">Unauthorized</h1>
-        <p className="mt-2 text-slate-600">You do not have access to the admin workspace.</p>
+        <h1 className="text-2xl font-semibold text-[#0A2540]">Restricted area</h1>
+        <p className="mt-2 text-sm text-slate-600">You do not have access to the admin workspace.</p>
       </div>
     );
   }
 
   return (
     <div className="card">
-      <h1 className="text-2xl font-semibold">Admin (Future Ready)</h1>
-      <p className="mt-2 text-slate-600">Admin route scaffolded but intentionally minimal for first rebuild.</p>
+      <h1 className="text-2xl font-semibold text-[#0A2540]">Admin</h1>
+      <p className="mt-2 text-sm text-slate-600">Admin route scaffolded but intentionally minimal for first rebuild.</p>
     </div>
   );
 }
