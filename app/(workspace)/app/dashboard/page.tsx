@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { type ReactNode, useEffect, useState } from "react";
 import { DebtBreakdownChart, IncomeExpenseChart } from "@/components/charts";
+import { getIdentityToken } from "@/lib/auth/netlify-identity";
 import {
   clarityScore,
   debtPayoffEstimates,
@@ -92,8 +93,20 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/.netlify/functions/profile-get", { credentials: "same-origin" })
-      .then(async (res) => (res.ok ? ((await res.json()) as Exclude<DashboardData, null>) : null))
+
+    async function loadProfile() {
+      const token = await getIdentityToken();
+      if (!token) return null;
+
+      const res = await fetch("/.netlify/functions/profile-get", {
+        credentials: "same-origin",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      return res.ok ? ((await res.json()) as Exclude<DashboardData, null>) : null;
+    }
+
+    loadProfile()
       .then((result) => {
         if (cancelled) return;
         setData(result);

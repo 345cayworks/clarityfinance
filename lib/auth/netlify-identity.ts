@@ -40,6 +40,34 @@ export async function logout() {
   await identityLogout();
 }
 
+type JwtCapableUser = User & {
+  jwt?: (forceRefresh?: boolean) => Promise<string>;
+};
+
+function getCookieValue(name: string) {
+  if (typeof document === "undefined") return null;
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = document.cookie.match(new RegExp(`(?:^|; )${escapedName}=([^;]*)`));
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
+export async function getIdentityToken(user?: IdentityUser | null) {
+  const currentUser = user ?? (await getUser());
+  const jwt = (currentUser as JwtCapableUser | null)?.jwt;
+
+  if (typeof jwt === "function") {
+    const token = await jwt.call(currentUser, true);
+    if (token.trim()) return token;
+  }
+
+  return getCookieValue("nf_jwt");
+}
+
 export function describeAuthError(error: unknown): string {
   if (error instanceof MissingIdentityError) {
     return "Identity is not enabled on this site yet.";

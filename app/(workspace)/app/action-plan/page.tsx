@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getIdentityToken } from "@/lib/auth/netlify-identity";
 
 const horizons = [
   {
@@ -26,9 +27,18 @@ export default function ActionPlanPage() {
     setGenerating(true);
     setError(null);
     setMessage(null);
+    const token = await getIdentityToken();
+
+    if (!token) {
+      setGenerating(false);
+      setError("Your session has expired. Please sign in again.");
+      return;
+    }
+
     const response = await fetch("/.netlify/functions/action-plan-generate", {
       method: "POST",
-      credentials: "same-origin"
+      credentials: "same-origin",
+      headers: { Authorization: `Bearer ${token}` }
     });
     setGenerating(false);
     if (!response.ok) {
