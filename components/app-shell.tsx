@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { logoutAction } from "@/lib/actions/finance";
 
 const nav = [
