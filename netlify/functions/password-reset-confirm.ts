@@ -5,6 +5,7 @@ import { sql } from "../../lib/db/neon";
 import { json, parseJsonBody } from "./_utils";
 
 type Body = { token?: string; password?: string; confirmPassword?: string };
+type PasswordResetRow = { user_id: string };
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -19,14 +20,14 @@ export const handler: Handler = async (event) => {
   }
 
   const tokenHash = hashToken(token);
-  const rows = await sql<{ user_id: string }[]>`
+  const rows = await sql`
     SELECT user_id
     FROM password_reset_tokens
     WHERE token_hash = ${tokenHash}
       AND used_at IS NULL
       AND expires_at > NOW()
     LIMIT 1
-  `;
+  ` as PasswordResetRow[];
   const reset = rows[0];
 
   if (!reset) return json(400, { error: "This reset link is invalid or has expired." });
