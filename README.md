@@ -40,10 +40,14 @@ Set these in `.env.local` (local) and Netlify site settings (prod):
 - `AUTH_SECRET` - random long secret used by NextAuth JWT/session signing
 - `AUTH_TRUST_HOST` - set to `true` for Netlify and trusted hosts
 - `AUTH_URL` or `NEXTAUTH_URL` - canonical auth base URL (for production callbacks)
+- `APP_URL` - canonical app base URL used in password reset links
+- `EMAIL_FROM` - sender email address for password reset emails
+- `RESEND_API_KEY` - Resend API key for production password reset email delivery
 
 ## Database and Migrations
 - Prisma schema: `prisma/schema.prisma`
 - Rebuild migration: `prisma/migrations/202604250001_ground_up_rebuild/migration.sql`
+- Password reset migration: `prisma/migrations/add-password-reset-tokens/migration.sql`
 
 Run in CI/CD or before deployment:
 ```bash
@@ -59,6 +63,8 @@ npm run prisma:migrate:deploy
 - `/about`
 - `/login`
 - `/signup`
+- `/forgot-password`
+- `/reset-password`
 
 ### Authenticated App
 - `/app`
