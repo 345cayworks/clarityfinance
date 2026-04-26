@@ -73,7 +73,7 @@ const navSections: NavSection[] = [
       },
       {
         label: "Rent a Room",
-        href: "/app/tools/rent-room",
+        href: "/app/tools/rent-a-room",
         icon: (
           <Icon>
             <path d="M4 21V8l8-5 8 5v13H4z M9 21v-7h6v7" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
