@@ -46,23 +46,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function LoanApplicationPage() {
   const [appData, setAppData] = useState<CNBApplication | null>(null);
-  const [manualOnly, setManualOnly] = useState({
-    idNumber: "",
-    idIssueDate: "",
-    idExpiryDate: "",
-    nationalityManual: "",
-    workPermitExpiryDate: "",
-    mailingAddress: "",
-    homePhone: "",
-    workPhone: "",
-    bankAccountNumbers: "",
-    personalReferences: "",
-    purposeLoanDetails: "",
-    amountAppliedFor: "",
-    securityOffered: "",
-    backgroundQuestions: ""
-  });
-
   useEffect(() => {
     const load = async () => {
       const user = await getUser();
@@ -111,14 +94,8 @@ export default function LoanApplicationPage() {
     <div className="space-y-4">
       <div className="rounded-2xl border border-[#0A2540] bg-[#0A2540] p-6 text-white">
         <p className="text-xs uppercase tracking-[0.16em] text-blue-100">Personal Loan Application</p>
-        <h1 className="mt-2 text-2xl font-semibold">Mapping Audit + Submit-ready preparation tool</h1>
+        <h1 className="mt-2 text-2xl font-semibold">Preparation tool</h1>
       </div>
-
-      <Section title="Mapping Audit (value + source + status)">
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 md:col-span-2">
-          Audit format: onboarding field → DB column → profile-get key → CNB field. Fields are marked Ready/Missing based on mapped value presence.
-        </div>
-      </Section>
 
       <Section title="A. CUSTOMER INFORMATION">
         <MappedField label="Customer Name" value={appData.customer.name} source="customerName → profiles.customer_name → profile.customer_name" onChange={(v) => updateSection("customer", "name", v)} />
@@ -142,12 +119,6 @@ export default function LoanApplicationPage() {
         <MappedField label="Purchase Price" value={appData.loan.purchasePrice} source="targetHomePrice → goals.target_home_price → goals.target_home_price" onChange={(v) => updateSection("loan", "purchasePrice", v)} type="number" />
         <MappedField label="Amount Applied For" value={appData.loan.amountRequested} source="targetHomePrice → goals.target_home_price → goals.target_home_price" onChange={(v) => updateSection("loan", "amountRequested", v)} type="number" />
         <MappedField label="Security Offered" value={appData.loan.securityValue} source="estimatedHomeValue → housing_profiles.estimated_home_value" onChange={(v) => updateSection("loan", "securityValue", v)} type="number" />
-      </Section>
-
-      <Section title="Manual-only CNB fields (editable)">
-        {Object.entries(manualOnly).map(([key, value]) => (
-          <MappedField key={key} label={key.replace(/([A-Z])/g, " $1")} value={value} source="Manual input only" onChange={(v) => setManualOnly((prev) => ({ ...prev, [key]: v }))} />
-        ))}
       </Section>
 
       <Section title="G. STATEMENT OF AFFAIRS">
