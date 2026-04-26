@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { describeAuthError, getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
 
 type OnboardingPayload = Record<string, FormDataEntryValue | boolean>;
@@ -12,6 +12,16 @@ type OnboardingField = {
   type?: "number" | "text";
   placeholder?: string;
   options?: readonly string[];
+};
+
+type SavedOnboardingData = {
+  profile: Record<string, unknown> | null;
+  incomeSources: Array<Record<string, unknown>>;
+  expenseProfile: Record<string, unknown> | null;
+  debts: Array<Record<string, unknown>>;
+  housingProfile: Record<string, unknown> | null;
+  savingsProfile: Record<string, unknown> | null;
+  goals: Record<string, unknown> | null;
 };
 
 const sections = [
@@ -158,6 +168,141 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savedData, setSavedData] = useState<SavedOnboardingData | null>(null);
+  const [formDefaults, setFormDefaults] = useState<Record<string, string | number | boolean>>({});
+  const [formVersion, setFormVersion] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadProfile = async () => {
+      try {
+        const user = await getUser();
+        if (!user) return;
+
+        const token = await getIdentityToken(user);
+        if (!token) return;
+
+        const response = await fetch("/.netlify/functions/profile-get", {
+          method: "GET",
+          credentials: "same-origin",
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        if (!response.ok) return;
+
+        const result = (await response.json()) as SavedOnboardingData;
+        if (cancelled) return;
+
+        setSavedData(result);
+        const primaryIncome = result.incomeSources[0] ?? null;
+        const primaryDebt = result.debts[0] ?? null;
+        setFormDefaults({
+          countryOrMarket: String(result.profile?.country_or_market ?? ""),
+          preferredCurrency: String(result.profile?.preferred_currency ?? ""),
+          ageRange: String(result.profile?.age_range ?? ""),
+          employmentType: String(result.profile?.employment_type ?? ""),
+          householdStatus: String(result.profile?.household_status ?? ""),
+          dependents: String(result.profile?.dependents ?? ""),
+          creditScoreKnown: Boolean(result.profile?.credit_score_known),
+          creditScoreOrProfile: String(result.profile?.credit_score_or_profile ?? ""),
+          incomeLabel: String(primaryIncome?.label ?? ""),
+          incomeType: String(primaryIncome?.type ?? ""),
+          incomeMonthlyAmount: String(primaryIncome?.monthly_amount ?? ""),
+          incomeFrequency: String(primaryIncome?.frequency ?? ""),
+          incomeStability: String(primaryIncome?.stability ?? ""),
+          expenseHousing: String(result.expenseProfile?.housing ?? ""),
+          expenseUtilities: String(result.expenseProfile?.utilities ?? ""),
+          expenseTransport: String(result.expenseProfile?.transport ?? ""),
+          expenseGroceries: String(result.expenseProfile?.groceries ?? ""),
+          expenseInsurance: String(result.expenseProfile?.insurance ?? ""),
+          expenseChildcare: String(result.expenseProfile?.childcare ?? ""),
+          expenseDiscretionary: String(result.expenseProfile?.discretionary ?? ""),
+          expenseOther: String(result.expenseProfile?.other ?? ""),
+          debtName: String(primaryDebt?.name ?? ""),
+          debtType: String(primaryDebt?.type ?? ""),
+          debtBalance: String(primaryDebt?.balance ?? ""),
+          debtInterestRate: String(primaryDebt?.interest_rate ?? ""),
+          debtMonthlyPayment: String(primaryDebt?.monthly_payment ?? ""),
+          housingStatus: String(result.housingProfile?.housing_status ?? ""),
+          rentAmount: String(result.housingProfile?.rent_amount ?? ""),
+          mortgageBalance: String(result.housingProfile?.mortgage_balance ?? ""),
+          mortgageRate: String(result.housingProfile?.mortgage_rate ?? ""),
+          mortgagePayment: String(result.housingProfile?.mortgage_payment ?? ""),
+          estimatedHomeValue: String(result.housingProfile?.estimated_home_value ?? ""),
+          estimatedRoomRentalIncome: String(result.housingProfile?.estimated_room_rental_income ?? ""),
+          spareRoomAvailable: Boolean(result.housingProfile?.spare_room_available),
+          cashSavings: String(result.savingsProfile?.cash_savings ?? ""),
+          emergencyFund: String(result.savingsProfile?.emergency_fund ?? ""),
+          investments: String(result.savingsProfile?.investments ?? ""),
+          retirementSavings: String(result.savingsProfile?.retirement_savings ?? ""),
+          downPaymentSavings: String(result.savingsProfile?.down_payment_savings ?? ""),
+          targetGoal: String(result.goals?.target_goal ?? ""),
+          targetHomePrice: String(result.goals?.target_home_price ?? ""),
+          targetSavingsGoal: String(result.goals?.target_savings_goal ?? ""),
+          targetDebtReduction: String(result.goals?.target_debt_reduction ?? ""),
+          targetMonthlyCashFlow: String(result.goals?.target_monthly_cash_flow ?? ""),
+          goalTimeframe: String(result.goals?.goal_timeframe ?? "")
+        });
+        setFormVersion((prev) => prev + 1);
+      } catch {
+        // Non-blocking: onboarding remains editable even if saved profile fetch fails.
+      }
+    };
+
+    void loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const getSectionStatus = (title: string): { label: "Complete" | "Needs update" | "Optional"; classes: string } => {
+    if (title === "Market & basics") {
+      const profile = savedData?.profile;
+      const complete = Boolean(profile?.country_or_market && profile?.preferred_currency && profile?.employment_type);
+      return complete
+        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
+        : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+    }
+    if (title === "Income") {
+      const complete = (savedData?.incomeSources.length ?? 0) > 0;
+      return complete
+        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
+        : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+    }
+    if (title === "Expenses") {
+      const complete = Boolean(savedData?.expenseProfile);
+      return complete
+        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
+        : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+    }
+    if (title === "Debt (optional)") {
+      const complete = (savedData?.debts.length ?? 0) > 0;
+      return complete
+        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
+        : { label: "Optional", classes: "border-slate-200 bg-slate-50 text-slate-700" };
+    }
+    if (title === "Housing") {
+      const complete = Boolean(savedData?.housingProfile?.housing_status);
+      return complete
+        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
+        : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+    }
+    if (title === "Savings") {
+      const complete = Boolean(savedData?.savingsProfile);
+      return complete
+        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
+        : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+    }
+    if (title === "Goals") {
+      const complete = Boolean(savedData?.goals?.target_goal);
+      return complete
+        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
+        : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+    }
+    return { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+  };
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -218,15 +363,19 @@ export default function OnboardingPage() {
           blank — you can always come back and refine.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          {sections.map((s, i) => (
+          {sections.map((s, i) => {
+            const status = getSectionStatus(s.title);
+            return (
             <span key={s.title} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
               <span className="font-semibold text-[#0A2540]">{i + 1}.</span> {s.title}
+              <span className={`ml-2 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${status.classes}`}>{status.label}</span>
             </span>
-          ))}
+            );
+          })}
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form key={formVersion} onSubmit={handleSubmit} className="space-y-5">
         {sections.map((section) => (
           <fieldset key={section.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <legend className="px-1 text-base font-semibold text-[#0A2540]">{section.title}</legend>
@@ -238,7 +387,7 @@ export default function OnboardingPage() {
                   {field.options ? (
                     <select
                       name={field.name}
-                      defaultValue=""
+                      defaultValue={String(formDefaults[field.name] ?? "")}
                       className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     >
                       <option value="">Select...</option>
@@ -253,6 +402,7 @@ export default function OnboardingPage() {
                       name={field.name}
                       type={field.type ?? "text"}
                       placeholder={field.placeholder}
+                      defaultValue={typeof formDefaults[field.name] === "boolean" ? "" : String(formDefaults[field.name] ?? "")}
                       className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     />
                   )}
@@ -260,7 +410,12 @@ export default function OnboardingPage() {
               ))}
               {section.title === "Housing" ? (
                 <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input name="spareRoomAvailable" type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600" />
+                  <input
+                    name="spareRoomAvailable"
+                    type="checkbox"
+                    defaultChecked={Boolean(formDefaults.spareRoomAvailable)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                  />
                   Spare room available to rent
                 </label>
               ) : null}
@@ -273,7 +428,12 @@ export default function OnboardingPage() {
           <p className="mt-1 text-sm text-slate-500">Optional for non-U.S. users. Lending criteria vary by country.</p>
           <div className="mt-4 space-y-3">
             <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input name="creditScoreKnown" type="checkbox" className="h-4 w-4 rounded border-slate-300 text-blue-600" />
+              <input
+                name="creditScoreKnown"
+                type="checkbox"
+                defaultChecked={Boolean(formDefaults.creditScoreKnown)}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+              />
               I know my credit score / credit profile
             </label>
             <label className="block text-sm">
@@ -281,6 +441,7 @@ export default function OnboardingPage() {
               <input
                 name="creditScoreOrProfile"
                 placeholder="720 or 'Strong / Fair / Building'"
+                defaultValue={typeof formDefaults.creditScoreOrProfile === "boolean" ? "" : String(formDefaults.creditScoreOrProfile ?? "")}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
               />
             </label>
