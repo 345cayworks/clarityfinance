@@ -52,9 +52,14 @@ const badgeClass = (status: Status) => {
   return "bg-slate-100 text-slate-700 border-slate-200";
 };
 
+const StatusBadge = ({ status }: { status: Status }) => (
+  <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${badgeClass(status)}`}>{status}</span>
+);
+
 export default function ReportPage() {
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeReport, setActiveReport] = useState<ReportId>("snapshot");
 
   useEffect(() => {
@@ -75,22 +80,28 @@ export default function ReportPage() {
         }
 
         const response = await fetch("/.netlify/functions/profile-get", {
-          credentials: "same-origin",
           headers: { Authorization: `Bearer ${token}` }
         });
 
         if (!response.ok) {
-          if (!cancelled) setLoading(false);
+          if (!cancelled) {
+            setLoadError("Unable to load profile data. Please update your profile.");
+            setLoading(false);
+          }
           return;
         }
 
         const result = (await response.json()) as ProfileData;
         if (!cancelled) {
           setData(result);
+          setLoadError(null);
           setLoading(false);
         }
       } catch {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoadError("Unable to load profile data. Please update your profile.");
+          setLoading(false);
+        }
       }
     };
 
@@ -159,7 +170,17 @@ export default function ReportPage() {
     equity: homeValue <= 0 ? "Incomplete" : equity > 0 ? "Strong" : "Needs attention"
   } as Record<string, Status>;
 
+  const snapshotStatus = {
+    income: income > 0 ? "Strong" : "Incomplete",
+    expenses: expenses > 0 ? "Strong" : "Incomplete",
+    surplus: income <= 0 ? "Incomplete" : surplus >= 0 ? "Strong" : "Needs attention",
+    runway: runwayMonths === null ? "Incomplete" : runwayMonths >= 3 ? "Strong" : "Needs attention",
+    debt: totalDebtAmount <= 0 ? "Incomplete" : totalDebtAmount < income * 12 ? "Strong" : "Needs attention",
+    goals: data?.goals?.target_goal ? "Strong" : "Incomplete"
+  } as Record<string, Status>;
+
   if (loading) return <div className="card text-sm text-slate-600">Loading reports…</div>;
+  if (loadError) return <div className="card text-sm text-amber-700">{loadError}</div>;
 
   return (
     <div className="space-y-4">
@@ -186,6 +207,17 @@ export default function ReportPage() {
             );
           })}
         </div>
+        <div className="flex flex-wrap gap-2 text-sm">
+          <Link href="/app/tools/rent-a-room" className="rounded-lg border border-slate-300 px-3 py-2 font-medium text-slate-700 hover:border-slate-400">
+            Rent-a-Room Report →
+          </Link>
+          <Link href="/app/tools/mortgage" className="rounded-lg border border-slate-300 px-3 py-2 font-medium text-slate-700 hover:border-slate-400">
+            Mortgage/Housing →
+          </Link>
+          <Link href="/app/tools/refinance" className="rounded-lg border border-slate-300 px-3 py-2 font-medium text-slate-700 hover:border-slate-400">
+            Cash-out refinance →
+          </Link>
+        </div>
       </section>
 
       {activeReport === "snapshot" ? (
@@ -193,26 +225,44 @@ export default function ReportPage() {
           <div className="card">
             <h2 className="text-lg font-semibold text-[#0A2540]">Income summary</h2>
             <p className="mt-2 text-sm text-slate-600">Total monthly income: {toCurrency(income)}</p>
+            <div className="mt-2">
+              <StatusBadge status={snapshotStatus.income} />
+            </div>
           </div>
           <div className="card">
             <h2 className="text-lg font-semibold text-[#0A2540]">Expense summary</h2>
             <p className="mt-2 text-sm text-slate-600">Total monthly expenses: {toCurrency(expenses)}</p>
+            <div className="mt-2">
+              <StatusBadge status={snapshotStatus.expenses} />
+            </div>
           </div>
           <div className="card">
             <h2 className="text-lg font-semibold text-[#0A2540]">Monthly surplus</h2>
             <p className="mt-2 text-sm text-slate-600">{toCurrency(surplus)}</p>
+            <div className="mt-2">
+              <StatusBadge status={snapshotStatus.surplus} />
+            </div>
           </div>
           <div className="card">
             <h2 className="text-lg font-semibold text-[#0A2540]">Savings runway</h2>
             <p className="mt-2 text-sm text-slate-600">{runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`}</p>
+            <div className="mt-2">
+              <StatusBadge status={snapshotStatus.runway} />
+            </div>
           </div>
           <div className="card">
             <h2 className="text-lg font-semibold text-[#0A2540]">Debt total</h2>
             <p className="mt-2 text-sm text-slate-600">{toCurrency(totalDebtAmount)}</p>
+            <div className="mt-2">
+              <StatusBadge status={snapshotStatus.debt} />
+            </div>
           </div>
           <div className="card">
             <h2 className="text-lg font-semibold text-[#0A2540]">Goal summary</h2>
             <p className="mt-2 text-sm text-slate-600">{String(data?.goals?.target_goal ?? "Missing data")}</p>
+            <div className="mt-2">
+              <StatusBadge status={snapshotStatus.goals} />
+            </div>
           </div>
         </section>
       ) : null}
@@ -251,9 +301,9 @@ export default function ReportPage() {
               <div key={item.label} className="rounded-lg border border-slate-200 p-3 text-sm">
                 <p className="font-medium text-[#0A2540]">{item.label}</p>
                 <p className="text-slate-600">{item.value}</p>
-                <span className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${badgeClass(item.status as Status)}`}>
-                  {item.status}
-                </span>
+                <div className="mt-2">
+                  <StatusBadge status={item.status as Status} />
+                </div>
               </div>
             ))}
           </div>
