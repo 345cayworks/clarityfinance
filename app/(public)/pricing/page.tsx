@@ -1,60 +1,66 @@
 import Link from "next/link";
+import Script from "next/script";
 
-const tiers = [
+const tiers: Array<{
+  name: string;
+  price: string;
+  cadence: string;
+  description: string;
+  cta: string;
+  highlighted: boolean;
+  href: "/signup" | "/contact";
+  features: string[];
+}> = [
   {
-    name: "Free",
-    price: "$0",
-    cadence: "forever",
-    description: "Get clarity on your full financial picture with the core toolkit.",
-    cta: "Start free",
-    highlighted: false,
-    features: ["Onboarding profile", "Clarity dashboard", "Mortgage & debt calculators", "1 saved scenario"]
-  },
-  {
-    name: "Plus",
-    price: "$9",
-    cadence: "per month",
-    description: "Unlimited scenarios, action plans and exportable reports.",
-    cta: "Coming soon",
+    name: "Clarity Finance Plus",
+    price: "$79",
+    cadence: "/ month",
+    description: "For individuals who want guided financial clarity, reports, tools, and action plans.",
+    cta: "Subscribe to Plus",
     highlighted: true,
+    href: "/signup",
     features: [
-      "Everything in Free",
-      "Unlimited saved scenarios",
-      "Auto-generated 30/90/365-day plans",
-      "PDF report exports",
-      "Priority support"
+      "Financial profile dashboard",
+      "Bank loan readiness report",
+      "Savings runway tracker",
+      "Mortgage and refinance tools",
+      "Cash-out refinance evaluator",
+      "Action plan recommendations",
+      "Goal tracking"
     ]
   },
   {
-    name: "Advisor",
-    price: "Custom",
-    cadence: "talk to us",
-    description: "For coaches, advisors and partners who manage multiple households.",
-    cta: "Contact us",
+    name: "Advisor Support",
+    price: "Contact us",
+    cadence: "",
+    description: "For users who want personal review, coaching, or advisor-supported planning.",
+    cta: "Contact Us",
     highlighted: false,
-    features: ["Everything in Plus", "Multi-household workspace", "White-label exports", "Custom integrations"]
+    href: "/contact",
+    features: [
+      "Personal financial profile review",
+      "Loan readiness review",
+      "Refinance/cash-out refinance discussion",
+      "Debt and savings action review",
+      "Custom next-step guidance"
+    ]
   }
 ];
 
 export default function PricingPage() {
   return (
     <div className="space-y-10 pt-10">
+      <Script async src="https://js.stripe.com/v3/buy-button.js" />
       <header className="text-center">
         <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Pricing</p>
         <h1 className="mt-2 text-3xl font-semibold text-[#0A2540]">Simple plans, real value</h1>
-        <p className="mx-auto mt-3 max-w-xl text-slate-600">
-          Start free. Upgrade when you want unlimited scenarios, generated action plans and exportable reports.
-        </p>
+        <p className="mx-auto mt-3 max-w-xl text-slate-600">Choose the path that fits your level of support.</p>
       </header>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         {tiers.map((tier) => (
           <div
             key={tier.name}
-            className={`card flex flex-col ${
-              tier.highlighted
-                ? "border-blue-200 ring-1 ring-blue-200 shadow-md"
-                : ""
-            }`}
+            className={`card flex flex-col ${tier.highlighted ? "border-blue-200 ring-1 ring-blue-200 shadow-md" : ""}`}
           >
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-[#0A2540]">{tier.name}</h2>
@@ -67,7 +73,7 @@ export default function PricingPage() {
             <p className="mt-2 text-sm text-slate-600">{tier.description}</p>
             <p className="mt-5">
               <span className="text-3xl font-semibold text-[#0A2540]">{tier.price}</span>
-              <span className="ml-1 text-sm text-slate-500">{tier.cadence}</span>
+              {tier.cadence ? <span className="ml-1 text-sm text-slate-500">{tier.cadence}</span> : null}
             </p>
             <ul className="mt-5 space-y-2 text-sm text-slate-700">
               {tier.features.map((feature) => (
@@ -81,9 +87,9 @@ export default function PricingPage() {
                 </li>
               ))}
             </ul>
-            <div className="mt-6">
+            <div className="mt-6 space-y-3">
               <Link
-                href="/signup"
+                href={tier.href}
                 className={`block w-full rounded-lg px-4 py-2.5 text-center text-sm font-semibold transition-colors ${
                   tier.highlighted
                     ? "bg-[#0A2540] text-white hover:bg-[#0e3160]"
@@ -92,6 +98,14 @@ export default function PricingPage() {
               >
                 {tier.cta}
               </Link>
+              {tier.name === "Clarity Finance Plus" ? (
+                <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500">
+                  <stripe-buy-button
+                    buy-button-id="buy_btn_1TQKRzQPly5CvgcZr3JQyZrY"
+                    publishable-key="pk_live_51PMEpzQPly5CvgcZyA2elZHoVs7oauf6YKFxBVi6UAsRsstIXAUCBt1PhzxFg2fugg5iUXtRpX7koBndarCrMHAs00kyQHV89M"
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
         ))}
