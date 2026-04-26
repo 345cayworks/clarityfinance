@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
-import { debtPayoffEstimates } from "@/lib/calculations/finance";
+import { debtPayoffEstimates, rentRoomImpact } from "@/lib/calculations/finance";
 
 type Frequency = "Monthly" | "Bi-weekly" | "Weekly";
 
