@@ -41,8 +41,15 @@ const isMissingRoleColumnError = (error: unknown) => {
   return maybeError.code === "42703" || maybeError.message?.toLowerCase().includes("role") === true;
 };
 
+type UserIdRow = { id: string };
+
 const upsertUser = async (userId: string, identityUser: ReturnType<typeof getIdentityUser>) => {
-  if (!identityUser) return;
+  if (!identityUser) return userId;
+
+  const existingUserByEmail = await sql`
+    SELECT id FROM users WHERE email = ${identityUser.email} LIMIT 1
+  ` as UserIdRow[];
+  const effectiveUserId = existingUserByEmail[0]?.id ?? userId;
 
   try {
     await sql`
@@ -66,6 +73,8 @@ const upsertUser = async (userId: string, identityUser: ReturnType<typeof getIde
         updated_at = NOW()
     `;
   }
+
+  return effectiveUserId;
 };
 
 export const handler: Handler = async (event) => {
@@ -75,9 +84,9 @@ export const handler: Handler = async (event) => {
     if (!identityUser) return json(401, { error: "Unauthorized: missing or invalid Identity token." });
 
     const body = (parseJsonBody<AnyRecord>(event) ?? {}) as AnyRecord;
-    const userId = identityUser.id;
+    const userId = await upsertUser(identityUser.id, identityUser);
 
-    await upsertUser(userId, identityUser);
+    if (!userId) return json(500, { error: "Profile could not be saved. Please try again." });
 
     await sql`
     INSERT INTO profiles (id, user_id, country_or_market, preferred_currency, age_range, employment_type, household_status, dependents, credit_score_known, credit_score_or_profile)
