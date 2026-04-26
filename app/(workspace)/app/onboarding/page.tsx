@@ -56,7 +56,13 @@ const sections = [
         label: "Household status",
         options: ["Single", "Couple", "Family with children", "Single parent", "Multi-generational household", "Shared housing", "Other"]
       },
-      { name: "dependents", label: "Dependents", type: "number", placeholder: "0" }
+      { name: "dependents", label: "Dependents", type: "number", placeholder: "0" },
+      { name: "customerName", label: "Customer name" },
+      { name: "dateOfBirth", label: "Date of birth", placeholder: "dd/mm/yyyy" },
+      { name: "physicalAddress", label: "Physical address" },
+      { name: "phone", label: "Phone / Cell Phone" },
+      { name: "employer", label: "Employer" },
+      { name: "jobTitle", label: "Job title" }
     ]
   },
   {
@@ -208,6 +214,12 @@ export default function OnboardingPage() {
           dependents: String(result.profile?.dependents ?? ""),
           creditScoreKnown: Boolean(result.profile?.credit_score_known),
           creditScoreOrProfile: String(result.profile?.credit_score_or_profile ?? ""),
+          customerName: String(result.profile?.customer_name ?? ""),
+          dateOfBirth: String(result.profile?.date_of_birth ?? ""),
+          physicalAddress: String(result.profile?.physical_address ?? ""),
+          phone: String(result.profile?.phone ?? ""),
+          employer: String(result.profile?.employer ?? ""),
+          jobTitle: String(result.profile?.job_title ?? ""),
           incomeLabel: String(primaryIncome?.label ?? ""),
           incomeType: String(primaryIncome?.type ?? ""),
           incomeMonthlyAmount: String(primaryIncome?.monthly_amount ?? ""),

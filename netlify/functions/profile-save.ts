@@ -89,8 +89,8 @@ export const handler: Handler = async (event) => {
     if (!userId) return json(500, { error: "Profile could not be saved. Please try again." });
 
     await sql`
-    INSERT INTO profiles (id, user_id, country_or_market, preferred_currency, age_range, employment_type, household_status, dependents, credit_score_known, credit_score_or_profile)
-    VALUES (${randomId("pro")}, ${userId}, ${String(body.countryOrMarket ?? "")}, ${String(body.preferredCurrency ?? "")}, ${String(body.ageRange ?? "")}, ${String(body.employmentType ?? "")}, ${String(body.householdStatus ?? "")}, ${toNumber(body.dependents)}, ${toBoolean(body.creditScoreKnown)}, ${String(body.creditScoreOrProfile ?? "") || null})
+    INSERT INTO profiles (id, user_id, country_or_market, preferred_currency, age_range, employment_type, household_status, dependents, credit_score_known, credit_score_or_profile, customer_name, date_of_birth, physical_address, phone, employer, job_title)
+    VALUES (${randomId("pro")}, ${userId}, ${String(body.countryOrMarket ?? "")}, ${String(body.preferredCurrency ?? "")}, ${String(body.ageRange ?? "")}, ${String(body.employmentType ?? "")}, ${String(body.householdStatus ?? "")}, ${toNumber(body.dependents)}, ${toBoolean(body.creditScoreKnown)}, ${String(body.creditScoreOrProfile ?? "") || null}, ${String(body.customerName ?? "")}, ${String(body.dateOfBirth ?? "")}, ${String(body.physicalAddress ?? "")}, ${String(body.phone ?? "")}, ${String(body.employer ?? "")}, ${String(body.jobTitle ?? "")})
     ON CONFLICT (user_id) DO UPDATE SET
       country_or_market = EXCLUDED.country_or_market,
       preferred_currency = EXCLUDED.preferred_currency,
@@ -100,6 +100,12 @@ export const handler: Handler = async (event) => {
       dependents = EXCLUDED.dependents,
       credit_score_known = EXCLUDED.credit_score_known,
       credit_score_or_profile = EXCLUDED.credit_score_or_profile,
+      customer_name = EXCLUDED.customer_name,
+      date_of_birth = EXCLUDED.date_of_birth,
+      physical_address = EXCLUDED.physical_address,
+      phone = EXCLUDED.phone,
+      employer = EXCLUDED.employer,
+      job_title = EXCLUDED.job_title,
       updated_at = NOW()
   `;
 
