@@ -59,6 +59,7 @@ const StatusBadge = ({ status }: { status: Status }) => (
 export default function ReportPage() {
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeReport, setActiveReport] = useState<ReportId>("snapshot");
 
   useEffect(() => {
@@ -79,22 +80,28 @@ export default function ReportPage() {
         }
 
         const response = await fetch("/.netlify/functions/profile-get", {
-          credentials: "same-origin",
           headers: { Authorization: `Bearer ${token}` }
         });
 
         if (!response.ok) {
-          if (!cancelled) setLoading(false);
+          if (!cancelled) {
+            setLoadError("Unable to load profile data. Please update your profile.");
+            setLoading(false);
+          }
           return;
         }
 
         const result = (await response.json()) as ProfileData;
         if (!cancelled) {
           setData(result);
+          setLoadError(null);
           setLoading(false);
         }
       } catch {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoadError("Unable to load profile data. Please update your profile.");
+          setLoading(false);
+        }
       }
     };
 
@@ -173,6 +180,7 @@ export default function ReportPage() {
   } as Record<string, Status>;
 
   if (loading) return <div className="card text-sm text-slate-600">Loading reports…</div>;
+  if (loadError) return <div className="card text-sm text-amber-700">{loadError}</div>;
 
   return (
     <div className="space-y-4">
