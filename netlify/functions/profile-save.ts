@@ -35,6 +35,48 @@ const logSaveError = (error: unknown) => {
   console.error("profile-save database write failed", safeError);
 };
 
+const isMissingRoleColumnError = (error: unknown) => {
+  if (typeof error !== "object" || error === null) return false;
+  const maybeError = error as { code?: string; message?: string };
+  return maybeError.code === "42703" || maybeError.message?.toLowerCase().includes("role") === true;
+};
+
+type UserIdRow = { id: string };
+
+const upsertUser = async (userId: string, identityUser: ReturnType<typeof getIdentityUser>) => {
+  if (!identityUser) return userId;
+
+  const existingUserByEmail = await sql`
+    SELECT id FROM users WHERE email = ${identityUser.email} LIMIT 1
+  ` as UserIdRow[];
+  const effectiveUserId = existingUserByEmail[0]?.id ?? userId;
+
+  try {
+    await sql`
+      INSERT INTO users (id, email, name, role)
+      VALUES (${effectiveUserId}, ${identityUser.email}, ${identityUser.name}, ${identityUser.role})
+      ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        name = EXCLUDED.name,
+        role = EXCLUDED.role,
+        updated_at = NOW()
+    `;
+  } catch (error) {
+    if (!isMissingRoleColumnError(error)) throw error;
+
+    await sql`
+      INSERT INTO users (id, email, name)
+      VALUES (${effectiveUserId}, ${identityUser.email}, ${identityUser.name})
+      ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        name = EXCLUDED.name,
+        updated_at = NOW()
+    `;
+  }
+
+  return effectiveUserId;
+};
+
 export const handler: Handler = async (event) => {
   try {
     if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -42,17 +84,9 @@ export const handler: Handler = async (event) => {
     if (!identityUser) return json(401, { error: "Unauthorized: missing or invalid Identity token." });
 
     const body = (parseJsonBody<AnyRecord>(event) ?? {}) as AnyRecord;
-    const userId = identityUser.id;
+    const userId = await upsertUser(identityUser.id, identityUser);
 
-    await sql`
-    INSERT INTO users (id, email, name, role)
-    VALUES (${userId}, ${identityUser.email}, ${identityUser.name}, ${identityUser.role})
-    ON CONFLICT (id) DO UPDATE SET
-      email = EXCLUDED.email,
-      name = EXCLUDED.name,
-      role = EXCLUDED.role,
-      updated_at = NOW()
-  `;
+    if (!userId) return json(500, { error: "Profile could not be saved. Please try again." });
 
     await sql`
     INSERT INTO profiles (id, user_id, country_or_market, preferred_currency, age_range, employment_type, household_status, dependents, credit_score_known, credit_score_or_profile)
