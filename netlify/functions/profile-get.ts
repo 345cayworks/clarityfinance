@@ -11,12 +11,16 @@ type HousingProfileRow = Record<string, unknown>;
 type SavingsProfileRow = Record<string, unknown>;
 type GoalRow = Record<string, unknown>;
 type ActionPlanRow = Record<string, unknown>;
+type UserIdRow = { id: string };
 
 export const handler: Handler = async (event) => {
   const identityUser = getIdentityUser(event);
   if (!identityUser) return json(401, { error: "Unauthorized" });
 
-  const userId = identityUser.id;
+  const existingUserByEmail = await sql`
+    SELECT id FROM users WHERE email = ${identityUser.email} LIMIT 1
+  ` as UserIdRow[];
+  const userId = existingUserByEmail[0]?.id ?? identityUser.id;
   const results = await Promise.all([
     sql`SELECT * FROM profiles WHERE user_id = ${userId} LIMIT 1`,
     sql`SELECT * FROM income_sources WHERE user_id = ${userId} ORDER BY created_at DESC`,
