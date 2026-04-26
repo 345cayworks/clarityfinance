@@ -282,23 +282,14 @@ export default function ReportPage() {
     homeValue > 0 ? toCurrency(equity) : "Missing data"
   }. Items to confirm with the bank include: ${missingInfo.join(", ") || "none identified"}.`;
 
-  const snapshotStatus = {
+  const snapshotStatus: Record<"income" | "expenses" | "surplus" | "runway" | "debt" | "goals", Status> = {
     income: income > 0 ? "Strong" : "Incomplete",
     expenses: expenses > 0 ? "Strong" : "Incomplete",
     surplus: income <= 0 ? "Incomplete" : surplus >= 0 ? "Strong" : "Needs attention",
     runway: runwayMonths === null ? "Incomplete" : runwayMonths >= 3 ? "Strong" : "Needs attention",
     debt: totalDebtAmount <= 0 ? "Incomplete" : totalDebtAmount < income * 12 ? "Strong" : "Needs attention",
     goals: data?.goals?.target_goal ? "Strong" : "Incomplete"
-  } as Record<string, Status>;
-
-  const snapshotStatus = {
-    income: income > 0 ? "Strong" : "Incomplete",
-    expenses: expenses > 0 ? "Strong" : "Incomplete",
-    surplus: income <= 0 ? "Incomplete" : surplus >= 0 ? "Strong" : "Needs attention",
-    runway: runwayMonths === null ? "Incomplete" : runwayMonths >= 3 ? "Strong" : "Needs attention",
-    debt: totalDebtAmount <= 0 ? "Incomplete" : totalDebtAmount < income * 12 ? "Strong" : "Needs attention",
-    goals: data?.goals?.target_goal ? "Strong" : "Incomplete"
-  } as Record<string, Status>;
+  };
 
   if (loading) return <div className="card text-sm text-slate-600">Loading reports…</div>;
   if (loadError) return <div className="card text-sm text-amber-700">{loadError}</div>;
