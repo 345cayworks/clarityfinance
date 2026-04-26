@@ -1,27 +1,42 @@
-# Repo → Netlify Production Sync Report
+# GitHub ↔ Netlify Sync Review
 
-Date (UTC): 2026-04-25
+Date (UTC): 2026-04-26
 
-## Inputs
-- Target deploy preview: #31
-- Preview branch: `agent-in-nextjs-project-7631`
-- Preview commit: `d2c8f615b4cbeaef4df898723794c6091da41a17`
+## Scope reviewed
+- Local git branch/remotes visibility.
+- Build configuration parity between repository scripts and Netlify build settings.
+- Ability to verify deploy linkage to GitHub `main`.
 
-## Environment findings
-- Local repository has no configured git remotes.
-- Local repository only contains branch `work`.
-- Preview commit `d2c8f615b4cbeaef4df898723794c6091da41a17` is not present in local object database.
-- Outbound access to GitHub is blocked in this container (`CONNECT tunnel failed, response 403`).
+## Current findings
+- Local repository has **no configured git remotes**, so GitHub branch/PR sync cannot be validated from this environment.
+- Only one local branch is present: `work`.
+- `netlify.toml` build command is `npm run build`, and `package.json` defines `build` as `next build` (configuration is aligned).
+- A local production-equivalent build check cannot complete yet because dependencies are not installed (`next: not found`).
 
-## Task-by-task status
-1. Confirm PR #31 contains latest working fixes: **Blocked** (cannot access PR metadata remotely).
-2. Compare PR #31 branch against main: **Blocked** (branch/commit not present locally; no remote).
-3. Merge PR #31 into main if safe: **Blocked**.
-4. Resolve conflicts without changing architecture: **Not reached**.
-5. Run npm install only if package-lock needs updating: `npm install` not run.
-6. Run npm run build: **Attempted, failed** (`next: not found`) because dependencies are not installed.
-7. Push/merge to main: **Blocked** (no remote).
-8. Confirm Netlify production deploy from main: **Blocked** (no Netlify API/UI access from container).
+## Sync status
+Overall status: **Not verifiable from this container**.
 
-## Guardrails check
-No changes were made that reintroduce Prisma, Auth.js, custom JWT cookie auth, or netlify-identity-widget.
+Why:
+1. No GitHub remote means no fetch/compare against `main`.
+2. No Netlify site link metadata/API session means no deploy-to-commit confirmation.
+
+## Recommended verification sequence (outside this container or after credentials are added)
+1. Configure remote and fetch:
+   - `git remote add origin <repo-url>` (if missing)
+   - `git fetch origin`
+2. Confirm branch parity:
+   - `git rev-parse work`
+   - `git rev-parse origin/main`
+   - `git log --oneline --left-right origin/main...work`
+3. Confirm Netlify site linkage + production source branch:
+   - Netlify UI → **Site configuration → Build & deploy → Continuous deployment**
+   - Verify production branch is `main` and latest production deploy references the expected commit SHA.
+4. Run local validation before pushing:
+   - `npm install`
+   - `npm run build`
+
+## Evidence collected in this run
+- `git remote -v` returned no remotes.
+- `git branch --all` returned only `work`.
+- `npm run build` failed with `sh: 1: next: not found`.
+- `netlify.toml` and `package.json` build settings are consistent.
