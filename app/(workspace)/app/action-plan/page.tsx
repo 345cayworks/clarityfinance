@@ -6,6 +6,7 @@ import {
   emergencyFundMonths,
   housingEquity,
   monthlyDebtPayments,
+  savingsRunwayMonths,
   monthlySurplus,
   toCurrency,
   totalExpenses,
@@ -69,8 +70,9 @@ export default function ActionPlanPage() {
     const income = totalIncome(data?.incomeSources ?? []);
     const expenses = totalExpenses(data?.expenseProfile ?? null);
     const debtPayments = monthlyDebtPayments(data?.debts ?? []);
-    const surplus = monthlySurplus(income, expenses, debtPayments);
+    const surplus = monthlySurplus(data?.incomeSources ?? [], data?.expenseProfile ?? null) - debtPayments;
     const fundMonths = emergencyFundMonths(data?.savingsProfile ?? null, Math.max(1, expenses));
+    const runwayMonths = savingsRunwayMonths(data?.savingsProfile ?? null, data?.expenseProfile ?? null);
     const goal = String(data?.goals?.target_goal ?? "");
 
     if (expenses > income) {
@@ -80,6 +82,16 @@ export default function ActionPlanPage() {
     if (fundMonths < 3) {
       const targetEmergencyFund = expenses * 3;
       plan.push(`Build emergency savings toward ${toCurrency(targetEmergencyFund)} (about 3 months of expenses).`);
+    }
+
+    if (runwayMonths !== null && runwayMonths < 1) {
+      plan.push("Urgent: create a cash buffer plan for the next 30 days and pause non-essential discretionary spending.");
+    } else if (runwayMonths !== null && runwayMonths < 3) {
+      plan.push("Increase emergency fund contributions until you reach at least 3 months of expenses.");
+    } else if (runwayMonths !== null && runwayMonths < 6) {
+      plan.push("You are stable at 3–6 months runway; continue building toward a 6-month emergency buffer.");
+    } else if (runwayMonths !== null && runwayMonths >= 6) {
+      plan.push("Maintain your 6+ month buffer and direct excess cash toward goals, debt reduction, or long-term investments.");
     }
 
     if ((data?.debts.length ?? 0) > 0) {

@@ -6,7 +6,9 @@ import {
   debtTotal,
   emergencyFundMonths,
   monthlyDebtPayments,
+  savingsRunwayMonths,
   monthlySurplus,
+  toNumber,
   toCurrency,
   totalExpenses,
   totalIncome
@@ -72,9 +74,21 @@ export default function ReportPage() {
   const income = totalIncome(data?.incomeSources ?? []);
   const expenses = totalExpenses(data?.expenseProfile ?? null);
   const debtPayments = monthlyDebtPayments(data?.debts ?? []);
-  const surplus = monthlySurplus(income, expenses, debtPayments);
+  const baseSurplus = monthlySurplus(data?.incomeSources ?? [], data?.expenseProfile ?? null);
+  const surplus = baseSurplus - debtPayments;
   const totalDebt = debtTotal(data?.debts ?? []);
   const fundMonths = emergencyFundMonths(data?.savingsProfile ?? null, expenses || 1);
+  const runwayMonths = savingsRunwayMonths(data?.savingsProfile ?? null, data?.expenseProfile ?? null);
+  const runwayStatus =
+    runwayMonths === null
+      ? "Add expenses to calculate runway."
+      : runwayMonths < 1
+        ? "Critical: less than 1 month runway."
+        : runwayMonths < 3
+          ? "Needs attention: below 3 months."
+          : runwayMonths < 6
+            ? "Stable: 3–6 months."
+            : "Strong: 6+ months.";
   const completionChecks = [
     data?.profile?.country_or_market,
     data?.incomeSources?.length,
@@ -141,6 +155,17 @@ export default function ReportPage() {
           <p className="mt-2 text-sm text-slate-600">Top goal: {String(data?.goals?.target_goal ?? "Not set")}</p>
           <p className="text-sm text-slate-600">Timeframe: {String(data?.goals?.goal_timeframe ?? "Not set")}</p>
           <p className="text-sm text-slate-600">Target home price: {toCurrency(Number(data?.goals?.target_home_price ?? 0))}</p>
+        </div>
+
+        <div className="card">
+          <h2 className="text-lg font-semibold text-[#0A2540]">Savings Runway</h2>
+          <p className="mt-2 text-sm text-slate-600">Cash savings: {toCurrency(toNumber(data?.savingsProfile?.cash_savings))}</p>
+          <p className="text-sm text-slate-600">Emergency fund: {toCurrency(toNumber(data?.savingsProfile?.emergency_fund))}</p>
+          <p className="text-sm text-slate-600">Monthly expenses: {toCurrency(expenses)}</p>
+          <p className="text-sm text-slate-600">
+            Estimated runway: {runwayMonths === null ? "N/A" : `${runwayMonths.toFixed(1)} months`}
+          </p>
+          <p className="text-sm font-medium text-slate-700">{runwayStatus}</p>
         </div>
       </div>
     </div>
