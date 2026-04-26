@@ -149,6 +149,7 @@ const sections = [
           "Save for home purchase",
           "Prepare for mortgage",
           "Refinance mortgage",
+          "Cash-out refinance",
           "Invest more consistently",
           "Rent out a room",
           "Financial stability",
