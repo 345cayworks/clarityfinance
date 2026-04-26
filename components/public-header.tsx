@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 
-const links: Array<{ href: "/features" | "/pricing" | "/about"; label: string }> = [
+const links: Array<{ href: "/features" | "/pricing" | "/about" | "/contact"; label: string }> = [
   { href: "/features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/about", label: "About" }
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" }
 ];
 
 export function PublicHeader() {
