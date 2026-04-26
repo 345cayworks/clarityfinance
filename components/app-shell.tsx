@@ -19,7 +19,7 @@ const Icon = ({ children }: { children: ReactNode }) => (
 
 const navSections: NavSection[] = [
   {
-    title: "Overview",
+    title: "Workspace",
     items: [
       {
         label: "Dashboard",
@@ -31,7 +31,7 @@ const navSections: NavSection[] = [
         )
       },
       {
-        label: "Onboarding",
+        label: "Profile / Onboarding",
         href: "/app/onboarding",
         icon: (
           <Icon>
@@ -40,66 +40,11 @@ const navSections: NavSection[] = [
         )
       },
       {
-        label: "Profile",
-        href: "/app/profile",
+        label: "Reports",
+        href: "/app/report",
         icon: (
           <Icon>
-            <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 8a7 7 0 1 1 14 0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          </Icon>
-        )
-      }
-    ]
-  },
-  {
-    title: "Tools",
-    items: [
-      {
-        label: "Mortgage",
-        href: "/app/tools/mortgage",
-        icon: (
-          <Icon>
-            <path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-9z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-          </Icon>
-        )
-      },
-      {
-        label: "Cash-Out Refinance",
-        href: "/app/tools/refinance",
-        icon: (
-          <Icon>
-            <path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 12a9 9 0 0 1-15 6.7L3 16M21 4v4h-4M3 20v-4h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </Icon>
-        )
-      },
-      {
-        label: "Rent a Room",
-        href: "/app/tools/rent-a-room",
-        icon: (
-          <Icon>
-            <path d="M4 21V8l8-5 8 5v13H4z M9 21v-7h6v7" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-          </Icon>
-        )
-      },
-      {
-        label: "Debt Plan",
-        href: "/app/tools/debt-plan",
-        icon: (
-          <Icon>
-            <path d="M3 17V7m0 10h18M3 17l5-5 4 3 5-7 4 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </Icon>
-        )
-      }
-    ]
-  },
-  {
-    title: "Plan & Reports",
-    items: [
-      {
-        label: "Scenarios",
-        href: "/app/scenarios",
-        icon: (
-          <Icon>
-            <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M14 3v5h5 M9 13h6 M9 17h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </Icon>
         )
       },
@@ -113,20 +58,11 @@ const navSections: NavSection[] = [
         )
       },
       {
-        label: "Reports",
-        href: "/app/reports",
+        label: "Tools",
+        href: "/app/tools",
         icon: (
           <Icon>
-            <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M14 3v5h5 M9 13h6 M9 17h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </Icon>
-        )
-      },
-      {
-        label: "Settings",
-        href: "/app/settings",
-        icon: (
-          <Icon>
-            <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M19.4 15a7.97 7.97 0 0 0 0-6l2-1.2-2-3.5-2.3.7a7.96 7.96 0 0 0-5.2-3l-.4-2.4h-4l-.4 2.4a7.96 7.96 0 0 0-5.2 3l-2.3-.7-2 3.5 2 1.2a7.97 7.97 0 0 0 0 6l-2 1.2 2 3.5 2.3-.7a7.96 7.96 0 0 0 5.2 3l.4 2.4h4l.4-2.4a7.96 7.96 0 0 0 5.2-3l2.3.7 2-3.5-2-1.2z" stroke="currentColor" strokeWidth="1.4" />
+            <path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-9z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
           </Icon>
         )
       }
