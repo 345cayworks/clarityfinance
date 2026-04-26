@@ -54,7 +54,7 @@ const upsertUser = async (userId: string, identityUser: ReturnType<typeof getIde
   try {
     await sql`
       INSERT INTO users (id, email, name, role)
-      VALUES (${userId}, ${identityUser.email}, ${identityUser.name}, ${identityUser.role})
+      VALUES (${effectiveUserId}, ${identityUser.email}, ${identityUser.name}, ${identityUser.role})
       ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         name = EXCLUDED.name,
@@ -66,7 +66,7 @@ const upsertUser = async (userId: string, identityUser: ReturnType<typeof getIde
 
     await sql`
       INSERT INTO users (id, email, name)
-      VALUES (${userId}, ${identityUser.email}, ${identityUser.name})
+      VALUES (${effectiveUserId}, ${identityUser.email}, ${identityUser.name})
       ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         name = EXCLUDED.name,
