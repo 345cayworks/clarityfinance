@@ -65,6 +65,15 @@ const navSections: NavSection[] = [
             <path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-9z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
           </Icon>
         )
+      },
+      {
+        label: "Loan Application",
+        href: "/app/loan-application",
+        icon: (
+          <Icon>
+            <path d="M7 4h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM9 9h6M9 13h6M9 17h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </Icon>
+        )
       }
     ]
   }
