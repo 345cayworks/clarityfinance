@@ -102,6 +102,10 @@ export function mapProfileToCNBApplication(profileData: ProfilePayload) {
   const totalLiabilities = loans + mortgages + creditCards + otherDebts;
 
   const disposableIncome = incomeTotal - expensesTotal;
+  const netWorth = totalAssets - totalLiabilities;
+  const debtToIncome = incomeTotal > 0 ? ((loanPayments + cardPayments) / incomeTotal) * 100 : 0;
+  const housingRatio = incomeTotal > 0 ? (housingExpense / incomeTotal) * 100 : 0;
+  const runwayMonths = expensesTotal > 0 ? bankBalances / expensesTotal : 0;
 
   return {
     customer: {
