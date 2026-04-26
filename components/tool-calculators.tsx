@@ -267,13 +267,247 @@ export function RefinanceTool() {
 }
 
 export function RentRoomTool() {
-  const [cashFlow, setCashFlow] = useState(250);
-  const [roomIncome, setRoomIncome] = useState(900);
-  const calc = useMemo(() => rentRoomImpact(cashFlow, roomIncome), [cashFlow, roomIncome]);
-  return <ToolCard title="Rent-a-Room Tool" result={`New cash flow: $${calc.newCashFlow.toFixed(0)} · Improvement: $${calc.improvement.toFixed(0)}`}>
-    <Field label="Current cash flow" value={cashFlow} setValue={setCashFlow} />
-    <Field label="Room rental income" value={roomIncome} setValue={setRoomIncome} />
-  </ToolCard>;
+  const [basicRepairs, setBasicRepairs] = useState(1200);
+  const [painting, setPainting] = useState(600);
+  const [electricalPlumbing, setElectricalPlumbing] = useState(500);
+  const [airConditioningFan, setAirConditioningFan] = useState(450);
+  const [bathroomPrep, setBathroomPrep] = useState(500);
+  const [doorLockSecurity, setDoorLockSecurity] = useState(300);
+  const [wifiUpgrade, setWifiUpgrade] = useState(120);
+  const [cleaningDeepClean, setCleaningDeepClean] = useState(150);
+  const [beddingFurniture, setBeddingFurniture] = useState(900);
+  const [deskChairStorage, setDeskChairStorage] = useState(300);
+  const [miniFridgeMicrowave, setMiniFridgeMicrowave] = useState(250);
+  const [decorStaging, setDecorStaging] = useState(180);
+  const [permitsLegalAdmin, setPermitsLegalAdmin] = useState(200);
+  const [otherSetupCost, setOtherSetupCost] = useState(0);
+
+  const [expectedMonthlyRent, setExpectedMonthlyRent] = useState(1000);
+  const [occupancyPercent, setOccupancyPercent] = useState(90);
+  const [securityDepositCollected, setSecurityDepositCollected] = useState(1000);
+  const [otherMonthlyIncome, setOtherMonthlyIncome] = useState(0);
+
+  const [utilitiesIncrease, setUtilitiesIncrease] = useState(120);
+  const [internetIncrease, setInternetIncrease] = useState(30);
+  const [cleaningMonthly, setCleaningMonthly] = useState(40);
+  const [maintenanceReserve, setMaintenanceReserve] = useState(50);
+  const [insuranceIncrease, setInsuranceIncrease] = useState(30);
+  const [managementHelp, setManagementHelp] = useState(0);
+  const [supplies, setSupplies] = useState(25);
+  const [otherMonthlyCost, setOtherMonthlyCost] = useState(0);
+
+  const [monthsToFindTenant, setMonthsToFindTenant] = useState(1);
+  const [vacancyAllowancePercent, setVacancyAllowancePercent] = useState(0);
+  const [oneTimeContingencyPercent, setOneTimeContingencyPercent] = useState(10);
+  const [profileData, setProfileData] = useState<ProfilePayload>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProfile() {
+      const token = await getIdentityToken();
+      if (!token) return;
+
+      const response = await fetch("/.netlify/functions/profile-get", {
+        credentials: "same-origin",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok || cancelled) return;
+      const payload = (await response.json()) as Exclude<ProfilePayload, null>;
+      setProfileData(payload);
+
+      const profileRent = toSafeNumber(payload.housingProfile?.estimated_room_rental_income);
+      if (profileRent > 0) setExpectedMonthlyRent(profileRent);
+    }
+
+    loadProfile().catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const currency = String(profileData?.profile?.preferred_currency ?? "USD") || "USD";
+
+  const calc = useMemo(() => {
+    const baseSetupCost =
+      basicRepairs +
+      painting +
+      electricalPlumbing +
+      airConditioningFan +
+      bathroomPrep +
+      doorLockSecurity +
+      wifiUpgrade +
+      cleaningDeepClean +
+      beddingFurniture +
+      deskChairStorage +
+      miniFridgeMicrowave +
+      decorStaging +
+      permitsLegalAdmin +
+      otherSetupCost;
+
+    const contingencyAmount = baseSetupCost * (oneTimeContingencyPercent / 100);
+    const totalSetupCost = baseSetupCost + contingencyAmount;
+
+    const occupancyFactor = occupancyPercent / 100;
+    const vacancyFactor = Math.max(0, 1 - vacancyAllowancePercent / 100);
+    const tenantSearchFactor = Math.max(0, (12 - monthsToFindTenant) / 12);
+
+    const effectiveMonthlyRent = expectedMonthlyRent * occupancyFactor * vacancyFactor;
+
+    const monthlyAddedCosts =
+      utilitiesIncrease +
+      internetIncrease +
+      cleaningMonthly +
+      maintenanceReserve +
+      insuranceIncrease +
+      managementHelp +
+      supplies +
+      otherMonthlyCost;
+
+    const netMonthlyProfit = effectiveMonthlyRent + otherMonthlyIncome - monthlyAddedCosts;
+    const breakEvenMonths = netMonthlyProfit > 0 ? totalSetupCost / netMonthlyProfit : null;
+    const firstYearNet = netMonthlyProfit * 12 * tenantSearchFactor - totalSetupCost;
+    const annualProfitAfterBreakEven = netMonthlyProfit * 12;
+
+    return {
+      totalSetupCost,
+      effectiveMonthlyRent,
+      monthlyAddedCosts,
+      netMonthlyProfit,
+      breakEvenMonths,
+      firstYearNet,
+      annualProfitAfterBreakEven
+    };
+  }, [
+    basicRepairs,
+    painting,
+    electricalPlumbing,
+    airConditioningFan,
+    bathroomPrep,
+    doorLockSecurity,
+    wifiUpgrade,
+    cleaningDeepClean,
+    beddingFurniture,
+    deskChairStorage,
+    miniFridgeMicrowave,
+    decorStaging,
+    permitsLegalAdmin,
+    otherSetupCost,
+    oneTimeContingencyPercent,
+    expectedMonthlyRent,
+    occupancyPercent,
+    vacancyAllowancePercent,
+    monthsToFindTenant,
+    utilitiesIncrease,
+    internetIncrease,
+    cleaningMonthly,
+    maintenanceReserve,
+    insuranceIncrease,
+    managementHelp,
+    supplies,
+    otherMonthlyCost,
+    otherMonthlyIncome
+  ]);
+
+  const statusLabel =
+    calc.netMonthlyProfit <= 0 || calc.breakEvenMonths === null
+      ? "Not recommended as structured"
+      : calc.breakEvenMonths < 6
+        ? "Strong opportunity"
+        : calc.breakEvenMonths <= 12
+          ? "Reasonable opportunity"
+          : calc.breakEvenMonths <= 24
+            ? "Longer payback"
+            : "Review carefully";
+
+  return (
+    <ToolCard
+      title="Rent-a-Room Tool"
+      result={`Net monthly profit estimate: ${formatMoney(calc.netMonthlyProfit, currency)}`}
+    >
+      {profileData?.housingProfile?.spare_room_available ? (
+        <p className="text-sm text-emerald-700">Room marked as available in your profile.</p>
+      ) : null}
+      {String(profileData?.goals?.target_goal ?? "") === "Rent out a room" ? (
+        <p className="text-sm text-blue-700">Recommended based on your selected goal.</p>
+      ) : null}
+
+      <p className="text-sm font-medium text-[#0A2540]">A. Room Preparation Costs</p>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="Basic repairs" value={basicRepairs} setValue={setBasicRepairs} />
+        <Field label="Painting" value={painting} setValue={setPainting} />
+        <Field label="Electrical/plumbing" value={electricalPlumbing} setValue={setElectricalPlumbing} />
+        <Field label="Air conditioning/fan" value={airConditioningFan} setValue={setAirConditioningFan} />
+        <Field label="Bathroom upgrade/shared bathroom prep" value={bathroomPrep} setValue={setBathroomPrep} />
+        <Field label="Door/lock/security" value={doorLockSecurity} setValue={setDoorLockSecurity} />
+        <Field label="Internet/WiFi upgrade" value={wifiUpgrade} setValue={setWifiUpgrade} />
+        <Field label="Cleaning/deep clean" value={cleaningDeepClean} setValue={setCleaningDeepClean} />
+        <Field label="Bedding/furniture" value={beddingFurniture} setValue={setBeddingFurniture} />
+        <Field label="Desk/chair/storage" value={deskChairStorage} setValue={setDeskChairStorage} />
+        <Field label="Mini fridge/microwave" value={miniFridgeMicrowave} setValue={setMiniFridgeMicrowave} />
+        <Field label="Decor/staging" value={decorStaging} setValue={setDecorStaging} />
+        <Field label="Permits/legal/admin" value={permitsLegalAdmin} setValue={setPermitsLegalAdmin} />
+        <Field label="Other setup cost" value={otherSetupCost} setValue={setOtherSetupCost} />
+      </div>
+
+      <p className="text-sm font-medium text-[#0A2540]">B. Monthly Rental Income</p>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="Expected monthly rent" value={expectedMonthlyRent} setValue={setExpectedMonthlyRent} />
+        <Field label="Expected occupancy %" value={occupancyPercent} setValue={setOccupancyPercent} step="0.1" />
+        <Field label="Security deposit collected" value={securityDepositCollected} setValue={setSecurityDepositCollected} />
+        <Field label="Other monthly income" value={otherMonthlyIncome} setValue={setOtherMonthlyIncome} />
+      </div>
+
+      <p className="text-sm font-medium text-[#0A2540]">C. Monthly Added Costs</p>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="Utilities increase" value={utilitiesIncrease} setValue={setUtilitiesIncrease} />
+        <Field label="Internet increase" value={internetIncrease} setValue={setInternetIncrease} />
+        <Field label="Cleaning" value={cleaningMonthly} setValue={setCleaningMonthly} />
+        <Field label="Maintenance reserve" value={maintenanceReserve} setValue={setMaintenanceReserve} />
+        <Field label="Insurance increase" value={insuranceIncrease} setValue={setInsuranceIncrease} />
+        <Field label="Property management/help" value={managementHelp} setValue={setManagementHelp} />
+        <Field label="Supplies" value={supplies} setValue={setSupplies} />
+        <Field label="Other monthly cost" value={otherMonthlyCost} setValue={setOtherMonthlyCost} />
+      </div>
+
+      <p className="text-sm font-medium text-[#0A2540]">D. Optional Risk/Comfort Inputs</p>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="Months to find tenant" value={monthsToFindTenant} setValue={setMonthsToFindTenant} />
+        <Field label="Vacancy allowance %" value={vacancyAllowancePercent} setValue={setVacancyAllowancePercent} step="0.1" />
+        <Field label="One-time contingency %" value={oneTimeContingencyPercent} setValue={setOneTimeContingencyPercent} step="0.1" />
+      </div>
+
+      <div className="rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
+        <p>Total setup cost: {formatMoney(calc.totalSetupCost, currency)}</p>
+        <p>Effective monthly rent: {formatMoney(calc.effectiveMonthlyRent, currency)}</p>
+        <p>Monthly added costs: {formatMoney(calc.monthlyAddedCosts, currency)}</p>
+        <p>Net monthly profit: {formatMoney(calc.netMonthlyProfit, currency)}</p>
+        <p>
+          Break-even timeline: {calc.breakEvenMonths === null ? "Not profitable with current assumptions." : `${calc.breakEvenMonths.toFixed(1)} months`}
+        </p>
+        <p>First-year net result: {formatMoney(calc.firstYearNet, currency)}</p>
+        <p>Annual profit after break-even: {formatMoney(calc.annualProfitAfterBreakEven, currency)}</p>
+        <p>Security deposit collected: {formatMoney(securityDepositCollected, currency)} (cash collected, not profit).</p>
+      </div>
+
+      <p className="text-sm font-medium text-[#0A2540]">Status: {statusLabel}</p>
+
+      <div className="rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
+        <p className="font-medium text-[#0A2540]">Suggested next steps</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>Get room preparation quotes</li>
+          <li>Confirm local rental rules</li>
+          <li>Check insurance impact</li>
+          <li>Prepare tenant agreement</li>
+          <li>Screen tenant carefully</li>
+          <li>Set house rules</li>
+          <li>Build maintenance reserve</li>
+          <li>Track income and expenses</li>
+        </ul>
+      </div>
+    </ToolCard>
+  );
 }
 
 export function DebtPlanTool() {

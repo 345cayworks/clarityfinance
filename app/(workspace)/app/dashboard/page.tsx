@@ -283,6 +283,11 @@ export default function DashboardPage() {
           <h3 className="mt-1 text-lg font-semibold text-[#0A2540]">Mortgage Calculator</h3>
           <p className="mt-1 text-sm text-slate-600">Estimate mortgage payments and bank-readiness.</p>
         </Link>
+        <Link href="/app/tools/rent-a-room" className="card transition-colors hover:border-blue-300">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Tool</p>
+          <h3 className="mt-1 text-lg font-semibold text-[#0A2540]">Rent-a-Room Tool</h3>
+          <p className="mt-1 text-sm text-slate-600">Estimate room prep costs, rental income, and break-even timeline.</p>
+        </Link>
         {String(goal?.target_goal ?? "") === "Cash-out refinance" ? (
           <Link href="/app/tools/refinance" className="card transition-colors hover:border-blue-300 md:col-span-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Recommended Tool</p>
