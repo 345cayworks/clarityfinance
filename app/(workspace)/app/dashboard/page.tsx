@@ -11,10 +11,10 @@ import {
   financialStabilityScore,
   homeReadinessScore,
   monthlyCashFlow,
-  savingsRunway,
   totalExpenses,
   totalIncome
 } from "@/lib/calculations/finance";
+import { savingsRunwayMonths, toCurrency } from "@/lib/finance/calculations";
 
 type DashboardData = {
   profile: Record<string, unknown> | null;
@@ -152,8 +152,20 @@ export default function DashboardPage() {
     Number(savings?.emergency_fund ?? 0) +
     Number(savings?.investments ?? 0) +
     Number(savings?.retirement_savings ?? 0);
-  const runway = savingsRunway(totalSavings, Math.max(0, expenses + debtPayments - income));
-  const stability = financialStabilityScore(cashFlow, dti, runway);
+  const runway = savingsRunwayMonths(data?.savingsProfile ?? null, data?.expenseProfile ?? null);
+  const cashAndEmergency = Number(savings?.cash_savings ?? 0) + Number(savings?.emergency_fund ?? 0);
+  const runwaySupportingText =
+    runway === null
+      ? "Complete expenses and savings to calculate runway."
+      : runway < 1
+        ? "Critical: less than 1 month of expenses covered."
+        : runway < 3
+          ? "Needs attention: below 3 months."
+          : runway < 6
+            ? "Stable: 3–6 months."
+            : "Strong: 6+ months.";
+  const runwayValue = runway === null ? "Add expenses" : `${runway.toFixed(1)} months`;
+  const stability = financialStabilityScore(cashFlow, dti, runway ?? 0);
   const homeReadiness = homeReadinessScore({
     downPaymentSavings: Number(savings?.down_payment_savings ?? 0),
     targetHomePrice: Number(goal?.target_home_price ?? 0),
@@ -226,7 +238,12 @@ export default function DashboardPage() {
           hint="Debt payments / income"
         />
         <Metric label="Home Readiness" value={homeReadiness || 0} hint="0–100" tone="info" />
-        <Metric label="Savings Runway" value={`${runway.toFixed(1)} mo`} tone={runway >= 3 ? "positive" : "warning"} />
+        <Metric
+          label="Savings Runway"
+          value={runwayValue}
+          tone={runway !== null && runway >= 3 ? "positive" : "warning"}
+          hint={`${runwaySupportingText} Cash + emergency: ${toCurrency(cashAndEmergency)}.`}
+        />
         <Metric
           label="Top Insight"
           value={cashFlow < 0 ? "Cash flow is negative" : "Positive cash flow available"}
