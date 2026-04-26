@@ -11,10 +11,10 @@ import {
   financialStabilityScore,
   homeReadinessScore,
   monthlyCashFlow,
-  savingsRunway,
   totalExpenses,
   totalIncome
 } from "@/lib/calculations/finance";
+import { savingsRunwayMonths, toCurrency } from "@/lib/finance/calculations";
 
 type DashboardData = {
   profile: Record<string, unknown> | null;
@@ -152,8 +152,20 @@ export default function DashboardPage() {
     Number(savings?.emergency_fund ?? 0) +
     Number(savings?.investments ?? 0) +
     Number(savings?.retirement_savings ?? 0);
-  const runway = savingsRunway(totalSavings, Math.max(0, expenses + debtPayments - income));
-  const stability = financialStabilityScore(cashFlow, dti, runway);
+  const runway = savingsRunwayMonths(data?.savingsProfile ?? null, data?.expenseProfile ?? null);
+  const cashAndEmergency = Number(savings?.cash_savings ?? 0) + Number(savings?.emergency_fund ?? 0);
+  const runwaySupportingText =
+    runway === null
+      ? "Complete expenses and savings to calculate runway."
+      : runway < 1
+        ? "Critical: less than 1 month of expenses covered."
+        : runway < 3
+          ? "Needs attention: below 3 months."
+          : runway < 6
+            ? "Stable: 3–6 months."
+            : "Strong: 6+ months.";
+  const runwayValue = runway === null ? "Add expenses" : `${runway.toFixed(1)} months`;
+  const stability = financialStabilityScore(cashFlow, dti, runway ?? 0);
   const homeReadiness = homeReadinessScore({
     downPaymentSavings: Number(savings?.down_payment_savings ?? 0),
     targetHomePrice: Number(goal?.target_home_price ?? 0),
@@ -226,7 +238,12 @@ export default function DashboardPage() {
           hint="Debt payments / income"
         />
         <Metric label="Home Readiness" value={homeReadiness || 0} hint="0–100" tone="info" />
-        <Metric label="Savings Runway" value={`${runway.toFixed(1)} mo`} tone={runway >= 3 ? "positive" : "warning"} />
+        <Metric
+          label="Savings Runway"
+          value={runwayValue}
+          tone={runway !== null && runway >= 3 ? "positive" : "warning"}
+          hint={`${runwaySupportingText} Cash + emergency: ${toCurrency(cashAndEmergency)}.`}
+        />
         <Metric
           label="Top Insight"
           value={cashFlow < 0 ? "Cash flow is negative" : "Positive cash flow available"}
@@ -243,6 +260,33 @@ export default function DashboardPage() {
       <div className="grid gap-3 md:grid-cols-2">
         <IncomeExpenseChart income={income} expenses={expenses} />
         <DebtBreakdownChart totalDebt={debtPlan.totalDebt} monthlyPayment={debtPayments} />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <Link href="/app/report" className="card transition-colors hover:border-blue-300">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Report</p>
+          <h3 className="mt-1 text-lg font-semibold text-[#0A2540]">View financial report</h3>
+          <p className="mt-1 text-sm text-slate-600">See your profile summary, cash flow, debt, savings, and goals in one place.</p>
+        </Link>
+        <Link href="/app/action-plan" className="card transition-colors hover:border-blue-300">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Action plan</p>
+          <h3 className="mt-1 text-lg font-semibold text-[#0A2540]">Open action plan</h3>
+          <p className="mt-1 text-sm text-slate-600">Get practical next steps based on your current profile and financial goal.</p>
+        </Link>
+        <Link href="/app/onboarding" className="card transition-colors hover:border-blue-300">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Profile</p>
+          <h3 className="mt-1 text-lg font-semibold text-[#0A2540]">Update onboarding profile</h3>
+          <p className="mt-1 text-sm text-slate-600">Review and refresh your baseline data to keep insights accurate.</p>
+        </Link>
+        {String(goal?.target_goal ?? "") === "Cash-out refinance" ? (
+          <Link href="/app/tools/refinance" className="card transition-colors hover:border-blue-300 md:col-span-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Recommended Tool</p>
+            <h3 className="mt-1 text-lg font-semibold text-[#0A2540]">Cash-Out Refinance Tool</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              Compare proposed loan terms, payment impact, LTV, and net cash before deciding.
+            </p>
+          </Link>
+        ) : null}
       </div>
 
       {isEmpty ? (
