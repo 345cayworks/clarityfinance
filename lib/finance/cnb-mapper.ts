@@ -20,16 +20,39 @@ const toText = (value: unknown, fallback = "") => {
 
 const sum = (values: number[]) => values.reduce((acc, value) => acc + value, 0);
 
+/**
+ * Mapping audit table (Onboarding -> DB -> profile-get payload -> CNB field)
+ * customerName -> profiles.customer_name -> profile.customer_name -> customer.name
+ * dateOfBirth -> profiles.date_of_birth -> profile.date_of_birth -> customer.dob
+ * physicalAddress -> profiles.physical_address -> profile.physical_address -> customer.address
+ * phone -> profiles.phone -> profile.phone -> customer.phone
+ * countryOrMarket -> profiles.country_or_market -> profile.country_or_market -> customer.countryMarket
+ * dependents -> profiles.dependents -> profile.dependents -> customer.dependents
+ * householdStatus -> profiles.household_status -> profile.household_status -> customer.maritalStatus
+ * creditScoreOrProfile -> profiles.credit_score_or_profile -> profile.credit_score_or_profile -> customer.creditProfile
+ * employmentType -> profiles.employment_type -> profile.employment_type -> employment.employmentType
+ * employer -> profiles.employer -> profile.employer -> employment.employer
+ * jobTitle -> profiles.job_title -> profile.job_title -> employment.jobTitle
+ * incomeStability -> income_sources.stability -> incomeSources[0].stability -> employment.incomeStability
+ * incomeFrequency -> income_sources.frequency -> incomeSources[0].frequency -> employment.incomeFrequency
+ * incomeMonthlyAmount -> income_sources.monthly_amount -> incomeSources[0].monthly_amount -> income.applicantIncome
+ * incomeType -> income_sources.type -> incomeSources[0].type -> employment.incomeType
+ * incomeLabel -> income_sources.label -> incomeSources[0].label -> employment.incomeLabel
+ */
+export const CNB_MAPPING_AUDIT = true;
+
 export function mapProfileToCNBApplication(profileData: ProfilePayload) {
   const profile = profileData.profile ?? {};
   const incomeSources = profileData.incomeSources ?? [];
+  const primaryIncome = incomeSources[0] ?? {};
   const expenseProfile = profileData.expenseProfile ?? {};
   const debts = profileData.debts ?? [];
+  const primaryDebt = debts[0] ?? {};
   const housing = profileData.housingProfile ?? {};
   const savings = profileData.savingsProfile ?? {};
   const goals = profileData.goals ?? {};
 
-  const applicantIncome = toNumber(incomeSources[0]?.monthly_amount);
+  const applicantIncome = toNumber(primaryIncome.monthly_amount);
   const rentalIncome = toNumber(housing.estimated_room_rental_income);
   const investmentIncome = toNumber(incomeSources.find((item) => toText(item.type).toLowerCase().includes("investment"))?.monthly_amount);
   const otherIncome = sum(incomeSources.slice(1).map((item) => toNumber(item.monthly_amount)));
@@ -88,10 +111,13 @@ export function mapProfileToCNBApplication(profileData: ProfilePayload) {
     customer: {
       name: toText(profile.customer_name, toText(profile.email, "")),
       dob: toText(profile.date_of_birth),
+      phone: toText(profile.phone),
       maritalStatus: toText(profile.household_status),
       dependents: toNumber(profile.dependents),
       nationality: toText(profile.country_or_market),
+      countryMarket: toText(profile.country_or_market),
       address: toText(profile.physical_address),
+      creditProfile: toText(profile.credit_score_or_profile),
       housingStatus: toText(housing.housing_status),
       mortgageBalance: toNumber(housing.mortgage_balance)
     },
@@ -100,11 +126,15 @@ export function mapProfileToCNBApplication(profileData: ProfilePayload) {
       jobTitle: toText(profile.job_title),
       lengthOfService: toText(profile.length_of_service),
       income: applicantIncome,
-      employmentType: toText(profile.employment_type)
+      employmentType: toText(profile.employment_type),
+      incomeStability: toText(primaryIncome.stability),
+      incomeFrequency: toText(primaryIncome.frequency),
+      incomeType: toText(primaryIncome.type),
+      incomeLabel: toText(primaryIncome.label)
     },
     banking: {
       primaryBanker: toText(profile.primary_banker),
-      accounts: toText(profile.bank_accounts, `${bankBalances > 0 ? 1 : 0}`),
+      accounts: toText(profile.bank_accounts),
       creditCards: debts.filter((debt) => toText(debt.type).toLowerCase().includes("credit")).length
     },
     loan: {
@@ -112,7 +142,18 @@ export function mapProfileToCNBApplication(profileData: ProfilePayload) {
       amountRequested: toNumber(goals.target_home_price),
       purchasePrice: toNumber(goals.target_home_price),
       contribution: toNumber(savings.down_payment_savings),
-      securityValue: toNumber(housing.estimated_home_value)
+      securityValue: toNumber(housing.estimated_home_value),
+      targetSavingsGoal: toNumber(goals.target_savings_goal),
+      targetDebtReduction: toNumber(goals.target_debt_reduction),
+      targetMonthlyCashFlow: toNumber(goals.target_monthly_cash_flow),
+      goalTimeframe: toText(goals.goal_timeframe)
+    },
+    debt: {
+      name: toText(primaryDebt.name),
+      type: toText(primaryDebt.type),
+      balance: toNumber(primaryDebt.balance),
+      interestRate: toNumber(primaryDebt.interest_rate),
+      monthlyPayment: toNumber(primaryDebt.monthly_payment)
     },
     income: {
       applicantIncome,
@@ -129,7 +170,9 @@ export function mapProfileToCNBApplication(profileData: ProfilePayload) {
       food: toNumber(expenseProfile.groceries),
       utilities: toNumber(expenseProfile.utilities),
       transport: toNumber(expenseProfile.transport),
-      other: toNumber(expenseProfile.other) + toNumber(expenseProfile.discretionary) + toNumber(expenseProfile.childcare),
+      childcare: toNumber(expenseProfile.childcare),
+      discretionary: toNumber(expenseProfile.discretionary),
+      other: toNumber(expenseProfile.other),
       totalExpenses: expensesTotal
     },
     assets: {
@@ -137,6 +180,8 @@ export function mapProfileToCNBApplication(profileData: ProfilePayload) {
       investments,
       realEstate,
       vehicles,
+      retirementSavings: toNumber(savings.retirement_savings),
+      downPaymentSavings: toNumber(savings.down_payment_savings),
       totalAssets
     },
     liabilities: {
@@ -147,11 +192,11 @@ export function mapProfileToCNBApplication(profileData: ProfilePayload) {
       totalLiabilities
     },
     summary: {
-      netWorth,
+      netWorth: totalAssets - totalLiabilities,
       disposableIncome,
-      debtToIncome,
-      housingRatio,
-      runwayMonths
+      debtToIncome: incomeTotal > 0 ? ((loanPayments + cardPayments) / incomeTotal) * 100 : 0,
+      housingRatio: incomeTotal > 0 ? (housingExpense / incomeTotal) * 100 : 0,
+      runwayMonths: expensesTotal > 0 ? bankBalances / expensesTotal : 0
     }
   };
 }

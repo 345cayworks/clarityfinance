@@ -60,6 +60,7 @@ const sections = [
       { name: "customerName", label: "Customer name" },
       { name: "dateOfBirth", label: "Date of birth", placeholder: "dd/mm/yyyy" },
       { name: "physicalAddress", label: "Physical address" },
+      { name: "phone", label: "Phone / Cell Phone" },
       { name: "employer", label: "Employer" },
       { name: "jobTitle", label: "Job title" }
     ]
@@ -216,6 +217,7 @@ export default function OnboardingPage() {
           customerName: String(result.profile?.customer_name ?? ""),
           dateOfBirth: String(result.profile?.date_of_birth ?? ""),
           physicalAddress: String(result.profile?.physical_address ?? ""),
+          phone: String(result.profile?.phone ?? ""),
           employer: String(result.profile?.employer ?? ""),
           jobTitle: String(result.profile?.job_title ?? ""),
           incomeLabel: String(primaryIncome?.label ?? ""),

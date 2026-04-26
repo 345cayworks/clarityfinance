@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   customer_name text,
   date_of_birth text,
   physical_address text,
+  phone text,
   employer text,
   job_title text,
   created_at timestamp DEFAULT now(),
