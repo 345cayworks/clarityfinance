@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
 import {
   emergencyFundMonths,
@@ -138,6 +139,7 @@ export default function ActionPlanPage() {
   }, [data]);
 
   if (loading) return <div className="card text-sm text-slate-600">Loading action plan…</div>;
+  const isCashOutGoal = String(data?.goals?.target_goal ?? "") === "Cash-out refinance";
 
   return (
     <div className="space-y-4">
@@ -145,6 +147,11 @@ export default function ActionPlanPage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Roadmap</p>
         <h1 className="mt-1 text-2xl font-semibold text-[#0A2540]">Action plan</h1>
         <p className="mt-2 text-sm text-slate-600">A practical 5–8 step plan based on your current profile.</p>
+        {isCashOutGoal ? (
+          <Link href="/app/tools/refinance" className="mt-3 inline-flex rounded-lg bg-[#0A2540] px-3 py-2 text-sm font-semibold text-white">
+            Open Cash-Out Refinance Tool
+          </Link>
+        ) : null}
       </div>
 
       <ol className="space-y-3">

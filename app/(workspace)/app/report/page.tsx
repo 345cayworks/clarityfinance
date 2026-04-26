@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
 import {
   debtTotal,
@@ -155,6 +156,11 @@ export default function ReportPage() {
           <p className="mt-2 text-sm text-slate-600">Top goal: {String(data?.goals?.target_goal ?? "Not set")}</p>
           <p className="text-sm text-slate-600">Timeframe: {String(data?.goals?.goal_timeframe ?? "Not set")}</p>
           <p className="text-sm text-slate-600">Target home price: {toCurrency(Number(data?.goals?.target_home_price ?? 0))}</p>
+          {String(data?.goals?.target_goal ?? "") === "Cash-out refinance" ? (
+            <Link href="/app/tools/refinance" className="mt-3 inline-flex rounded-lg bg-[#0A2540] px-3 py-1.5 text-xs font-semibold text-white">
+              Open Cash-Out Refinance Tool
+            </Link>
+          ) : null}
         </div>
 
         <div className="card">

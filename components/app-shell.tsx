@@ -63,7 +63,7 @@ const navSections: NavSection[] = [
         )
       },
       {
-        label: "Refinance",
+        label: "Cash-Out Refinance",
         href: "/app/tools/refinance",
         icon: (
           <Icon>

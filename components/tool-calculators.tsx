@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { debtPayoffEstimates, mortgageAffordability, refinanceComparison, rentRoomImpact } from "@/lib/calculations/finance";
+import { debtPayoffEstimates, mortgageAffordability, rentRoomImpact } from "@/lib/calculations/finance";
 
 export function MortgageTool() {
   const [income, setIncome] = useState(8000);
@@ -17,16 +17,57 @@ export function MortgageTool() {
 }
 
 export function RefinanceTool() {
-  const [balance, setBalance] = useState(300000);
-  const [currentRate, setCurrentRate] = useState(7);
-  const [newRate, setNewRate] = useState(5.75);
-  const [costs, setCosts] = useState(4000);
-  const calc = useMemo(() => refinanceComparison({ currentBalance: balance, currentRate, newRate, yearsLeft: 25, closingCosts: costs }), [balance, currentRate, newRate, costs]);
-  return <ToolCard title="Refinance Tool" result={`Monthly savings: $${calc.monthlySavings.toFixed(0)} · Break-even: ${calc.breakEvenMonths ? `${calc.breakEvenMonths.toFixed(1)} months` : "N/A"}`}>
-    <Field label="Current balance" value={balance} setValue={setBalance} />
-    <Field label="Current rate" value={currentRate} setValue={setCurrentRate} />
-    <Field label="New rate" value={newRate} setValue={setNewRate} />
-    <Field label="Closing costs" value={costs} setValue={setCosts} />
+  const [homeValue, setHomeValue] = useState(500000);
+  const [currentBalance, setCurrentBalance] = useState(300000);
+  const [currentMonthlyPayment, setCurrentMonthlyPayment] = useState(2200);
+  const [currentRate, setCurrentRate] = useState(6.75);
+  const [newLoanAmount, setNewLoanAmount] = useState(350000);
+  const [newRate, setNewRate] = useState(6.15);
+  const [termYears, setTermYears] = useState(30);
+  const [closingCosts, setClosingCosts] = useState(7000);
+
+  const calc = useMemo(() => {
+    const availableEquity = homeValue - currentBalance;
+    const cashOutAmount = newLoanAmount - currentBalance;
+    const ltv = homeValue > 0 ? newLoanAmount / homeValue : 0;
+    const monthlyRate = newRate / 100 / 12;
+    const months = termYears * 12;
+    const newMonthlyPayment =
+      monthlyRate > 0
+        ? (newLoanAmount * monthlyRate * (1 + monthlyRate) ** months) / ((1 + monthlyRate) ** months - 1)
+        : months > 0
+          ? newLoanAmount / months
+          : 0;
+    const paymentDifference = newMonthlyPayment - currentMonthlyPayment;
+    const netCashAfterClosingCosts = cashOutAmount - closingCosts;
+    return { availableEquity, cashOutAmount, ltv, newMonthlyPayment, paymentDifference, netCashAfterClosingCosts };
+  }, [homeValue, currentBalance, currentMonthlyPayment, newLoanAmount, newRate, termYears, closingCosts]);
+
+  return <ToolCard title="Cash-Out Refinance Tool" result={`New payment: $${calc.newMonthlyPayment.toFixed(0)} · Net cash: $${calc.netCashAfterClosingCosts.toFixed(0)}`}>
+    <Field label="Current home value" value={homeValue} setValue={setHomeValue} />
+    <Field label="Current mortgage balance" value={currentBalance} setValue={setCurrentBalance} />
+    <Field label="Current monthly mortgage payment" value={currentMonthlyPayment} setValue={setCurrentMonthlyPayment} />
+    <Field label="Current interest rate (%)" value={currentRate} setValue={setCurrentRate} />
+    <Field label="New loan amount / proposed mortgage balance" value={newLoanAmount} setValue={setNewLoanAmount} />
+    <Field label="Cash out amount (derived)" value={calc.cashOutAmount} setValue={() => undefined} />
+    <Field label="New interest rate (%)" value={newRate} setValue={setNewRate} />
+    <Field label="New loan term (years)" value={termYears} setValue={setTermYears} />
+    <Field label="Closing costs estimate" value={closingCosts} setValue={setClosingCosts} />
+    <div className="rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
+      <p>Available equity: ${calc.availableEquity.toFixed(0)}</p>
+      <p>Cash out amount: ${calc.cashOutAmount.toFixed(0)}</p>
+      <p>New mortgage balance: ${newLoanAmount.toFixed(0)}</p>
+      <p>New estimated monthly payment: ${calc.newMonthlyPayment.toFixed(0)}</p>
+      <p>Increase/decrease in payment: ${calc.paymentDifference.toFixed(0)}</p>
+      <p>Loan-to-value: {(calc.ltv * 100).toFixed(1)}%</p>
+      <p>Net cash after closing costs: ${calc.netCashAfterClosingCosts.toFixed(0)}</p>
+    </div>
+    {calc.ltv > 0.8 ? <p className="text-sm text-amber-700">High LTV: lender approval may be harder and costs may rise.</p> : null}
+    {calc.paymentDifference > currentMonthlyPayment * 0.2 ? <p className="text-sm text-amber-700">Payment impact is significant.</p> : null}
+    {calc.netCashAfterClosingCosts <= 0 ? <p className="text-sm text-amber-700">Cash-out amount may not justify costs.</p> : null}
+    <p className="text-xs text-slate-500">
+      Best uses: high-interest debt payoff, home improvement, investment/property strategy. Avoid using cash-out refinance for lifestyle spending unless repayment plan is clear.
+    </p>
   </ToolCard>;
 }
 

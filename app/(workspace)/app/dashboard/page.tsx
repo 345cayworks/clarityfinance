@@ -278,6 +278,15 @@ export default function DashboardPage() {
           <h3 className="mt-1 text-lg font-semibold text-[#0A2540]">Update onboarding profile</h3>
           <p className="mt-1 text-sm text-slate-600">Review and refresh your baseline data to keep insights accurate.</p>
         </Link>
+        {String(goal?.target_goal ?? "") === "Cash-out refinance" ? (
+          <Link href="/app/tools/refinance" className="card transition-colors hover:border-blue-300 md:col-span-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Recommended Tool</p>
+            <h3 className="mt-1 text-lg font-semibold text-[#0A2540]">Cash-Out Refinance Tool</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              Compare proposed loan terms, payment impact, LTV, and net cash before deciding.
+            </p>
+          </Link>
+        ) : null}
       </div>
 
       {isEmpty ? (
