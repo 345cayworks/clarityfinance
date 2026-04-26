@@ -15,6 +15,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <Link href="/features" className="hover:text-[#0A2540]">Features</Link>
             <Link href="/pricing" className="hover:text-[#0A2540]">Pricing</Link>
             <Link href="/about" className="hover:text-[#0A2540]">About</Link>
+            <Link href="/contact" className="hover:text-[#0A2540]">Contact</Link>
           </div>
         </div>
       </footer>
