@@ -310,7 +310,17 @@ export default function OnboardingPage() {
     setError(null);
 
     const formData = new FormData(event.currentTarget);
-    const payload: OnboardingPayload = Object.fromEntries(formData.entries());
+    const rawPayload = Object.fromEntries(formData.entries()) as Record<string, FormDataEntryValue>;
+    const payload: OnboardingPayload = Object.fromEntries(
+      Object.entries(formDefaults).map(([key, value]) => [key, typeof value === "boolean" ? String(value) : String(value ?? "")])
+    );
+
+    for (const [key, value] of Object.entries(rawPayload)) {
+      const defaultValue = formDefaults[key];
+      const hasDefaultValue = defaultValue !== undefined && String(defaultValue).trim() !== "";
+      payload[key] = value === "" && hasDefaultValue ? String(defaultValue) : value;
+    }
+
     payload.creditScoreKnown = formData.get("creditScoreKnown") === "on";
     payload.spareRoomAvailable = formData.get("spareRoomAvailable") === "on";
 
