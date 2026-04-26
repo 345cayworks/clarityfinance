@@ -18,6 +18,11 @@ CREATE TABLE IF NOT EXISTS profiles (
   dependents integer,
   credit_score_known boolean DEFAULT false,
   credit_score_or_profile text,
+  customer_name text,
+  date_of_birth text,
+  physical_address text,
+  employer text,
+  job_title text,
   created_at timestamp DEFAULT now(),
   updated_at timestamp DEFAULT now()
 );

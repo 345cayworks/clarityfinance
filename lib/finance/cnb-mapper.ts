@@ -86,12 +86,12 @@ export function mapProfileToCNBApplication(profileData: ProfilePayload) {
 
   return {
     customer: {
-      name: toText(profile.full_name, toText(profile.email, "")),
+      name: toText(profile.customer_name, toText(profile.email, "")),
       dob: toText(profile.date_of_birth),
       maritalStatus: toText(profile.household_status),
       dependents: toNumber(profile.dependents),
       nationality: toText(profile.country_or_market),
-      address: toText(profile.address),
+      address: toText(profile.physical_address),
       housingStatus: toText(housing.housing_status),
       mortgageBalance: toNumber(housing.mortgage_balance)
     },

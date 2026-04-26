@@ -300,20 +300,6 @@ export default function LoanApplicationPage() {
                 Print / Save as PDF
               </button>
               <button
-                onClick={() => {
-                  const blob = new Blob([JSON.stringify(appData, null, 2)], { type: "application/json" });
-                  const url = URL.createObjectURL(blob);
-                  const link = document.createElement("a");
-                  link.href = url;
-                  link.download = "cnb-loan-application.json";
-                  link.click();
-                  URL.revokeObjectURL(url);
-                }}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50"
-              >
-                Download JSON
-              </button>
-              <button
                 onClick={async () => navigator.clipboard.writeText(bankSummary)}
                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50"
               >
