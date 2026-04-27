@@ -19,6 +19,23 @@ type SavedOnboardingData = {
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(value || 0));
 const formatPercent = (value: number) => `${value.toFixed(1)}%`;
+const documentChecklistItems = [
+  "Government-issued ID",
+  "Proof of address",
+  "Employment letter",
+  "Recent payslips",
+  "3–6 months bank statements",
+  "Existing loan/debt statements",
+  "Credit report / credit profile",
+  "Proof/source of down payment",
+  "Purchase agreement or property details",
+  "Property valuation/appraisal",
+  "Insurance estimate",
+  "Mortgage statement if refinancing",
+  "Business registration and financials if self-employed",
+  "Tax returns if required",
+  "Work permit if applicable",
+];
 
 function Section({ title, children, breakBefore = false }: { title: string; children: React.ReactNode; breakBefore?: boolean }) {
   return (
@@ -159,9 +176,13 @@ export default function LoanApplicationPage() {
       </Section>
 
       <Section title="10. Documents Checklist">
-        {Object.entries(readinessProfile.documents).map(([key, value]) => (
-          <Row key={key} label={key} value={value ? "Provided" : "Missing"} />
-        ))}
+        <div className="md:col-span-2 space-y-2 rounded border border-slate-300 bg-white p-3 text-black">
+          {documentChecklistItems.map((item) => (
+            <p key={item} className="border-b border-slate-200 py-2 text-sm last:border-b-0 print:py-3">
+              ☐ {item}
+            </p>
+          ))}
+        </div>
       </Section>
 
       <Section title="11. Declarations / Signature">
