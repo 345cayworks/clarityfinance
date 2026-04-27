@@ -4,8 +4,6 @@ import { getIdentityUser } from "./_identity";
 import { json, parseJsonBody, randomId } from "./_utils";
 
 type AnyRecord = Record<string, unknown>;
-type UserIdRow = { id: string };
-
 const safeLog = (error: unknown) => {
   if (error instanceof Error) {
     console.error("rent-room-save database write failed", { name: error.name, message: error.message });
@@ -20,10 +18,7 @@ export const handler: Handler = async (event) => {
   const identityUser = getIdentityUser(event);
   if (!identityUser) return json(401, { error: "Unauthorized" });
 
-  const existingUserByEmail = (await sql`
-    SELECT id FROM users WHERE email = ${identityUser.email} LIMIT 1
-  `) as UserIdRow[];
-  const userId = existingUserByEmail[0]?.id ?? identityUser.id;
+  const userId = identityUser.id;
 
   const body = parseJsonBody<AnyRecord>(event) ?? {};
   const input = (body.input as AnyRecord | undefined) ?? {};

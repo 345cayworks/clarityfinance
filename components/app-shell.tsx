@@ -76,7 +76,7 @@ const navSections: NavSection[] = [
         )
       },
       {
-        label: "Proven Bank Prequalification",
+        label: "Bank Prequalification",
         href: "/app/prequalification/proven-bank",
         icon: (
           <Icon>
@@ -111,12 +111,12 @@ function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () =
                   onClick={onNavigate}
                   className={`flex items-center gap-2.5 rounded-lg px-3 py-2 transition-colors ${
                     active
-                      ? "bg-blue-50 font-semibold text-[#0A2540]"
+                      ? "bg-blue-50 font-semibold text-[#0A2540] border-l-2 border-blue-600"
                       : "text-slate-600 hover:bg-slate-100 hover:text-[#0A2540]"
                   }`}
                 >
                   <span className={active ? "text-blue-600" : "text-slate-400"}>{item.icon}</span>
-                  {item.label}
+                  <span className="truncate" title={item.label}>{item.label}</span>
                 </Link>
               );
             })}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { type ReactNode, useEffect, useState } from "react";
+import { useWorkspaceUser } from "@/components/auth/workspace-guard";
 import { DebtBreakdownChart, IncomeExpenseChart } from "@/components/charts";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
 import {
@@ -11,10 +12,11 @@ import {
   financialStabilityScore,
   homeReadinessScore,
   monthlyCashFlow,
+  savingsRunwayMonths,
+  toCurrency,
   totalExpenses,
   totalIncome
-} from "@/lib/calculations/finance";
-import { savingsRunwayMonths, toCurrency } from "@/lib/finance/calculations";
+} from "@/lib/finance/calculations";
 
 type DashboardData = {
   profile: Record<string, unknown> | null;
@@ -30,12 +32,14 @@ function Metric({
   label,
   value,
   hint,
-  tone = "default"
+  tone = "default",
+  prominent = false
 }: {
   label: string;
   value: ReactNode;
   hint?: string;
   tone?: "default" | "positive" | "warning" | "info";
+  prominent?: boolean;
 }) {
   const toneStyles: Record<string, string> = {
     default: "text-[#0A2540]",
@@ -46,7 +50,7 @@ function Metric({
   return (
     <div className="card">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`mt-2 text-2xl font-semibold ${toneStyles[tone]}`}>{value}</p>
+      <p className={`mt-2 ${prominent ? "text-3xl" : "text-2xl"} font-semibold ${toneStyles[tone]}`}>{value}</p>
       {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
     </div>
   );
@@ -90,12 +94,13 @@ function ProgressRing({ value }: { value: number }) {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData>(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useWorkspaceUser();
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadProfile() {
-      const token = await getIdentityToken();
+      const token = await getIdentityToken(user);
       if (!token) return null;
 
       const res = await fetch("/.netlify/functions/profile-get", {
@@ -120,7 +125,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user]);
 
   const incomes = (data?.incomeSources ?? []) as Array<Record<string, unknown>>;
   const expense = (data?.expenseProfile ?? null) as Record<string, unknown> | null;
@@ -129,21 +134,8 @@ export default function DashboardPage() {
   const savings = (data?.savingsProfile ?? null) as Record<string, unknown> | null;
   const goal = (data?.goals ?? null) as Record<string, unknown> | null;
 
-  const income = totalIncome(incomes.map((i) => ({ monthlyAmount: Number(i.monthly_amount ?? 0) })));
-  const expenses = totalExpenses(
-    expense
-      ? {
-          housing: Number(expense.housing ?? 0),
-          utilities: Number(expense.utilities ?? 0),
-          transport: Number(expense.transport ?? 0),
-          groceries: Number(expense.groceries ?? 0),
-          insurance: Number(expense.insurance ?? 0),
-          childcare: Number(expense.childcare ?? 0),
-          discretionary: Number(expense.discretionary ?? 0),
-          other: Number(expense.other ?? 0)
-        }
-      : null
-  );
+  const income = totalIncome(incomes);
+  const expenses = totalExpenses(expense);
   const debtPayments = debts.reduce((sum, d) => sum + Number(d.monthly_payment ?? 0), 0);
   const cashFlow = monthlyCashFlow(income, expenses, debtPayments);
   const dti = debtToIncomeRatio(debtPayments, income);
@@ -224,36 +216,47 @@ export default function DashboardPage() {
           value={stability || 0}
           hint="0–100, higher is better"
           tone="info"
+          prominent
         />
         <Metric
           label="Monthly Cash Flow"
           value={`$${cashFlow.toFixed(0)}`}
           tone={cashFlow >= 0 ? "positive" : "warning"}
           hint={cashFlow >= 0 ? "Surplus available" : "Negative cash flow"}
+          prominent
         />
         <Metric
           label="Debt Pressure"
           value={`${Math.round(dti * 100)}%`}
           tone={dti > 0.36 ? "warning" : "default"}
           hint="Debt payments / income"
+          prominent
         />
-        <Metric label="Home Readiness" value={homeReadiness || 0} hint="0–100" tone="info" />
+        <Metric label="Home Readiness" value={homeReadiness || 0} hint="0–100" tone="info" prominent />
         <Metric
           label="Savings Runway"
           value={runwayValue}
           tone={runway !== null && runway >= 3 ? "positive" : "warning"}
           hint={`${runwaySupportingText} Cash + emergency: ${toCurrency(cashAndEmergency)}.`}
         />
-        <Metric
-          label="Top Insight"
-          value={cashFlow < 0 ? "Cash flow is negative" : "Positive cash flow available"}
-          hint={cashFlow < 0 ? "Prioritize expense and debt optimization." : "Allocate surplus toward goals faster."}
-        />
-        <Metric
-          label="Recommended Next"
-          value={completion < 100 ? "Finish onboarding" : "Lock 30-day plan"}
-          hint={completion < 100 ? "Improves accuracy" : "Run a scenario first"}
-        />
+        <div className="card border-l-4 border-blue-500 md:col-span-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+            Top insight
+          </p>
+          <p className="mt-1 text-sm font-semibold text-[#0A2540]">
+            {cashFlow < 0
+              ? "Cash flow is negative — prioritize expense and debt optimization."
+              : "Positive cash flow available — allocate surplus toward goals faster."}
+          </p>
+          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-blue-700">
+            Recommended next
+          </p>
+          <p className="mt-1 text-sm text-slate-600">
+            {completion < 100
+              ? "Finish your onboarding profile to improve score accuracy."
+              : "Run a scenario to model your next financial move."}
+          </p>
+        </div>
         <Metric label="Total Monthly Income" value={`$${income.toFixed(0)}`} tone="positive" />
       </div>
 

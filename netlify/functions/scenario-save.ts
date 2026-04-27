@@ -3,17 +3,12 @@ import { sql } from "../../lib/db/neon";
 import { getIdentityUser } from "./_identity";
 import { json, parseJsonBody, randomId } from "./_utils";
 
-type UserIdRow = { id: string };
-
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
   const identityUser = getIdentityUser(event);
   if (!identityUser) return json(401, { error: "Unauthorized" });
 
-  const existingUserByEmail = (await sql`
-    SELECT id FROM users WHERE email = ${identityUser.email} LIMIT 1
-  `) as UserIdRow[];
-  const userId = existingUserByEmail[0]?.id ?? identityUser.id;
+  const userId = identityUser.id;
 
   const body = parseJsonBody<Record<string, unknown>>(event) ?? {};
   const adjustments = {

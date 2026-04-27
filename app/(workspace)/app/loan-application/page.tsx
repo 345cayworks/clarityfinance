@@ -84,6 +84,15 @@ export default function LoanApplicationPage() {
     readinessProfile.financials.monthlySurplus
   )}, DTI ${formatPercent((readinessProfile.ratios.debtToIncome ?? 0) * 100)}.`;
 
+
+  const bandStyle = (band: string) => {
+    if (band === "Likely Ready")
+      return "bg-emerald-100 text-emerald-800 border border-emerald-200";
+    if (band === "Needs Review")
+      return "bg-amber-100 text-amber-800 border border-amber-200";
+    return "bg-red-100 text-red-800 border border-red-200";
+  };
+
   const onExportPdf = () => {
     setExportMode(true);
     window.setTimeout(() => {
@@ -97,7 +106,7 @@ export default function LoanApplicationPage() {
       <div className="rounded-2xl border border-black bg-white p-6 text-black">
         <p className="text-xs uppercase tracking-[0.16em]">Loan Application Preparation Form</p>
         <h1 className="mt-2 text-2xl font-semibold">Prepared for bank review. Applicant must verify all details before submission.</h1>
-        <p className="mt-2 text-sm">Readiness: <span className="font-semibold">{approvalScore.band}</span> ({formatNumber(approvalScore.score)}/100)</p>
+        <p className="mt-2 text-sm">Readiness: <span className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${bandStyle(approvalScore.band)}`}>{approvalScore.band}</span> ({formatNumber(approvalScore.score)}/100)</p>
         <p className="mt-1 text-xs">This score is an estimate only and does not represent a bank decision.</p>
       </div>
 

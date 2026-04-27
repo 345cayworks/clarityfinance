@@ -90,6 +90,11 @@ export default function ScenariosPage() {
         {message ? (
           <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 md:col-span-2">{message}</p>
         ) : null}
+        {!message ? (
+          <p className="text-xs text-slate-400 mt-2">
+            Saved scenarios will appear in your reports once profile data is complete.
+          </p>
+        ) : null}
       </form>
     </div>
   );
