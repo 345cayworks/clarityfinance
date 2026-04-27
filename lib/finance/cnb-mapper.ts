@@ -1,16 +1,5 @@
 import { toNumber } from "@/lib/finance/calculations";
-
-type GenericRow = Record<string, unknown>;
-
-type ProfilePayload = {
-  profile: GenericRow | null;
-  incomeSources: GenericRow[];
-  expenseProfile: GenericRow | null;
-  debts: GenericRow[];
-  housingProfile: GenericRow | null;
-  savingsProfile: GenericRow | null;
-  goals: GenericRow | null;
-};
+import { buildLoanReadinessProfile, type LoanReadinessPayload } from "@/lib/finance/loan-readiness-mapper";
 
 const toText = (value: unknown, fallback = "") => {
   if (typeof value === "string") return value;
@@ -18,170 +7,122 @@ const toText = (value: unknown, fallback = "") => {
   return fallback;
 };
 
-const sum = (values: number[]) => values.reduce((acc, value) => acc + value, 0);
-
-/**
- * Mapping audit table (Onboarding -> DB -> profile-get payload -> CNB field)
- * customerName -> profiles.customer_name -> profile.customer_name -> customer.name
- * dateOfBirth -> profiles.date_of_birth -> profile.date_of_birth -> customer.dob
- * physicalAddress -> profiles.physical_address -> profile.physical_address -> customer.address
- * phone -> profiles.phone -> profile.phone -> customer.phone
- * countryOrMarket -> profiles.country_or_market -> profile.country_or_market -> customer.countryMarket
- * dependents -> profiles.dependents -> profile.dependents -> customer.dependents
- * householdStatus -> profiles.household_status -> profile.household_status -> customer.maritalStatus
- * creditScoreOrProfile -> profiles.credit_score_or_profile -> profile.credit_score_or_profile -> customer.creditProfile
- * employmentType -> profiles.employment_type -> profile.employment_type -> employment.employmentType
- * employer -> profiles.employer -> profile.employer -> employment.employer
- * jobTitle -> profiles.job_title -> profile.job_title -> employment.jobTitle
- * incomeStability -> income_sources.stability -> incomeSources[0].stability -> employment.incomeStability
- * incomeFrequency -> income_sources.frequency -> incomeSources[0].frequency -> employment.incomeFrequency
- * incomeMonthlyAmount -> income_sources.monthly_amount -> incomeSources[0].monthly_amount -> income.applicantIncome
- * incomeType -> income_sources.type -> incomeSources[0].type -> employment.incomeType
- * incomeLabel -> income_sources.label -> incomeSources[0].label -> employment.incomeLabel
- */
 export const CNB_MAPPING_AUDIT = true;
 
-export function mapProfileToCNBApplication(profileData: ProfilePayload) {
-  const profile = profileData.profile ?? {};
-  const incomeSources = profileData.incomeSources ?? [];
-  const primaryIncome = incomeSources[0] ?? {};
-  const expenseProfile = profileData.expenseProfile ?? {};
+export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
+  const readiness = buildLoanReadinessProfile(profileData);
   const debts = profileData.debts ?? [];
-  const primaryDebt = debts[0] ?? {};
-  const housing = profileData.housingProfile ?? {};
-  const savings = profileData.savingsProfile ?? {};
-  const goals = profileData.goals ?? {};
 
-  const applicantIncome = toNumber(primaryIncome.monthly_amount);
-  const rentalIncome = toNumber(housing.estimated_room_rental_income);
-  const investmentIncome = toNumber(incomeSources.find((item) => toText(item.type).toLowerCase().includes("investment"))?.monthly_amount);
-  const otherIncome = sum(incomeSources.slice(1).map((item) => toNumber(item.monthly_amount)));
+  const loanPayments = debts
+    .filter((debt) => {
+      const debtType = toText(debt.type).toLowerCase();
+      return debtType.includes("loan") || debtType.includes("mortgage");
+    })
+    .reduce((acc, debt) => acc + toNumber(debt.monthly_payment), 0);
 
-  const housingExpense = toNumber(expenseProfile.housing) || toNumber(housing.mortgage_payment) || toNumber(housing.rent_amount);
-  const loanPayments = debts.reduce((acc, debt) => {
-    const debtType = toText(debt.type).toLowerCase();
-    if (debtType.includes("loan") || debtType.includes("mortgage")) return acc + toNumber(debt.monthly_payment);
-    return acc;
-  }, 0);
-  const cardPayments = debts.reduce((acc, debt) => {
-    if (toText(debt.type).toLowerCase().includes("credit")) return acc + toNumber(debt.monthly_payment);
-    return acc;
-  }, 0);
-
-  const incomeTotal = applicantIncome + rentalIncome + investmentIncome + otherIncome;
-  const expensesTotal = sum([
-    housingExpense,
-    loanPayments,
-    cardPayments,
-    toNumber(expenseProfile.insurance),
-    toNumber(expenseProfile.groceries),
-    toNumber(expenseProfile.utilities),
-    toNumber(expenseProfile.transport),
-    toNumber(expenseProfile.other) + toNumber(expenseProfile.discretionary) + toNumber(expenseProfile.childcare)
-  ]);
-
-  const bankBalances = toNumber(savings.cash_savings) + toNumber(savings.emergency_fund);
-  const investments = toNumber(savings.investments) + toNumber(savings.retirement_savings);
-  const realEstate = toNumber(housing.estimated_home_value);
-  const vehicles = 0;
-  const totalAssets = bankBalances + investments + realEstate + vehicles;
+  const cardPayments = debts
+    .filter((debt) => toText(debt.type).toLowerCase().includes("credit"))
+    .reduce((acc, debt) => acc + toNumber(debt.monthly_payment), 0);
 
   const loans = debts
     .filter((debt) => toText(debt.type).toLowerCase().includes("loan"))
     .reduce((acc, debt) => acc + toNumber(debt.balance), 0);
-  const mortgages = toNumber(housing.mortgage_balance);
+
   const creditCards = debts
     .filter((debt) => toText(debt.type).toLowerCase().includes("credit"))
     .reduce((acc, debt) => acc + toNumber(debt.balance), 0);
+
   const otherDebts = debts
     .filter((debt) => {
       const debtType = toText(debt.type).toLowerCase();
       return !debtType.includes("loan") && !debtType.includes("mortgage") && !debtType.includes("credit");
     })
     .reduce((acc, debt) => acc + toNumber(debt.balance), 0);
-  const totalLiabilities = loans + mortgages + creditCards + otherDebts;
 
-  const disposableIncome = incomeTotal - expensesTotal;
-  const netWorth = totalAssets - totalLiabilities;
-  const debtToIncome = incomeTotal > 0 ? ((loanPayments + cardPayments) / incomeTotal) * 100 : 0;
-  const housingRatio = incomeTotal > 0 ? (housingExpense / incomeTotal) * 100 : 0;
-  const runwayMonths = expensesTotal > 0 ? bankBalances / expensesTotal : 0;
+  const bankBalances = readiness.financials.savingsCash + readiness.financials.emergencyFund;
+  const investments = readiness.financials.investments + readiness.financials.retirementSavings;
+  const realEstate = readiness.housing.estimatedHomeValue;
+  const vehicles = 0;
+  const totalAssets = bankBalances + investments + realEstate + vehicles;
+
+  const mortgages = readiness.housing.mortgageBalance;
+  const totalLiabilities = loans + mortgages + creditCards + otherDebts;
 
   return {
     customer: {
-      name: toText(profile.customer_name, toText(profile.email, "")),
-      dob: toText(profile.date_of_birth),
-      phone: toText(profile.phone),
-      maritalStatus: toText(profile.household_status),
-      dependents: toNumber(profile.dependents),
-      nationality: toText(profile.nationality, toText(profile.country_or_market)),
-      countryMarket: toText(profile.country_or_market),
-      address: toText(profile.physical_address),
-      creditProfile: toText(profile.credit_score_or_profile),
-      housingStatus: toText(housing.housing_status),
-      mortgageBalance: toNumber(housing.mortgage_balance)
+      name: readiness.applicant.name,
+      dob: readiness.applicant.dateOfBirth,
+      phone: readiness.applicant.phone,
+      maritalStatus: toText(profileData.profile?.household_status),
+      dependents: toNumber(profileData.profile?.dependents),
+      nationality: readiness.applicant.nationality || toText(profileData.profile?.country_or_market),
+      countryMarket: toText(profileData.profile?.country_or_market),
+      address: readiness.applicant.physicalAddress,
+      creditProfile: toText(profileData.profile?.credit_score_or_profile),
+      housingStatus: readiness.housing.housingStatus,
+      mortgageBalance: readiness.housing.mortgageBalance
     },
     employment: {
-      employer: toText(profile.employer),
-      jobTitle: toText(profile.job_title),
-      lengthOfService: toText(profile.employment_length, toText(profile.length_of_service)),
-      income: applicantIncome,
-      employmentType: toText(profile.employment_type),
-      incomeStability: toText(primaryIncome.stability),
-      incomeFrequency: toText(primaryIncome.frequency),
-      incomeType: toText(primaryIncome.type),
-      incomeLabel: toText(primaryIncome.label)
+      employer: readiness.employment.employer,
+      jobTitle: readiness.employment.jobTitle,
+      lengthOfService: readiness.employment.employmentLength,
+      income: readiness.financials.monthlyIncomeUsed,
+      employmentType: readiness.employment.employmentType,
+      incomeStability: readiness.employment.incomeStability,
+      incomeFrequency: readiness.employment.incomeFrequency,
+      incomeType: toText(profileData.incomeSources?.[0]?.type),
+      incomeLabel: toText(profileData.incomeSources?.[0]?.label)
     },
     banking: {
-      primaryBanker: toText(profile.primary_bank_name, toText(profile.primary_banker)),
-      accounts: toText(profile.bank_accounts),
+      primaryBanker: toText(profileData.profile?.primary_bank_name),
+      accounts: toText(profileData.profile?.bank_accounts),
       creditCards: debts.filter((debt) => toText(debt.type).toLowerCase().includes("credit")).length
     },
     loan: {
-      purpose: toText(profile.loan_purpose, toText(goals.target_goal)),
-      amountRequested: toNumber(profile.requested_loan_amount) || toNumber(goals.target_home_price),
-      purchasePrice: toNumber(goals.target_home_price),
-      contribution: toNumber(savings.down_payment_savings),
-      securityValue: toNumber(housing.estimated_home_value),
-      targetSavingsGoal: toNumber(goals.target_savings_goal),
-      targetDebtReduction: toNumber(goals.target_debt_reduction),
-      targetMonthlyCashFlow: toNumber(goals.target_monthly_cash_flow),
-      goalTimeframe: toText(goals.goal_timeframe)
+      purpose: readiness.loan.loanPurpose,
+      amountRequested: readiness.loan.requestedLoanAmount,
+      purchasePrice: readiness.loan.purchasePrice,
+      contribution: readiness.loan.downPaymentAvailable,
+      securityValue: readiness.housing.estimatedHomeValue,
+      targetSavingsGoal: toNumber(profileData.goals?.target_savings_goal),
+      targetDebtReduction: toNumber(profileData.goals?.target_debt_reduction),
+      targetMonthlyCashFlow: toNumber(profileData.goals?.target_monthly_cash_flow),
+      goalTimeframe: toText(profileData.goals?.goal_timeframe)
     },
     debt: {
-      name: toText(primaryDebt.name),
-      type: toText(primaryDebt.type),
-      balance: toNumber(primaryDebt.balance),
-      interestRate: toNumber(primaryDebt.interest_rate),
-      monthlyPayment: toNumber(primaryDebt.monthly_payment)
+      name: toText(debts[0]?.name),
+      type: toText(debts[0]?.type),
+      balance: toNumber(debts[0]?.balance),
+      interestRate: toNumber(debts[0]?.interest_rate),
+      monthlyPayment: toNumber(debts[0]?.monthly_payment)
     },
     income: {
-      applicantIncome,
-      rentalIncome,
-      investmentIncome,
-      otherIncome,
-      totalIncome: incomeTotal
+      applicantIncome: readiness.financials.monthlyIncomeUsed,
+      rentalIncome: readiness.housing.estimatedRoomRentalIncome,
+      investmentIncome: 0,
+      otherIncome: readiness.financials.monthlyNetIncome > 0 ? toNumber(profileData.profile?.other_income_amount) : 0,
+      totalIncome: readiness.financials.monthlyIncomeUsed + readiness.housing.estimatedRoomRentalIncome
     },
     expenses: {
-      housing: housingExpense,
+      housing: toNumber(profileData.expenseProfile?.housing) || readiness.housing.mortgagePayment || readiness.housing.rentAmount,
       loanPayments,
       creditCards: cardPayments,
-      insurance: toNumber(expenseProfile.insurance),
-      food: toNumber(expenseProfile.groceries),
-      utilities: toNumber(expenseProfile.utilities),
-      transport: toNumber(expenseProfile.transport),
-      childcare: toNumber(expenseProfile.childcare),
-      discretionary: toNumber(expenseProfile.discretionary),
-      other: toNumber(expenseProfile.other),
-      totalExpenses: expensesTotal
+      insurance: toNumber(profileData.expenseProfile?.insurance),
+      food: toNumber(profileData.expenseProfile?.groceries),
+      utilities: toNumber(profileData.expenseProfile?.utilities),
+      transport: toNumber(profileData.expenseProfile?.transport),
+      childcare: toNumber(profileData.expenseProfile?.childcare),
+      discretionary: toNumber(profileData.expenseProfile?.discretionary),
+      other: toNumber(profileData.expenseProfile?.other),
+      totalExpenses: readiness.financials.monthlyExpenses + loanPayments + cardPayments
     },
     assets: {
       bankBalances,
       investments,
       realEstate,
       vehicles,
-      retirementSavings: toNumber(savings.retirement_savings),
-      downPaymentSavings: toNumber(savings.down_payment_savings),
+      retirementSavings: readiness.financials.retirementSavings,
+      downPaymentSavings: readiness.financials.downPaymentSavings,
       totalAssets
     },
     liabilities: {
@@ -193,10 +134,10 @@ export function mapProfileToCNBApplication(profileData: ProfilePayload) {
     },
     summary: {
       netWorth: totalAssets - totalLiabilities,
-      disposableIncome,
-      debtToIncome: incomeTotal > 0 ? ((loanPayments + cardPayments) / incomeTotal) * 100 : 0,
-      housingRatio: incomeTotal > 0 ? (housingExpense / incomeTotal) * 100 : 0,
-      runwayMonths: expensesTotal > 0 ? bankBalances / expensesTotal : 0
+      disposableIncome: readiness.financials.monthlySurplus,
+      debtToIncome: readiness.ratios.debtToIncome ? readiness.ratios.debtToIncome * 100 : 0,
+      housingRatio: readiness.ratios.housingRatio ? readiness.ratios.housingRatio * 100 : 0,
+      runwayMonths: readiness.financials.savingsRunwayMonths ?? 0
     }
   };
 }

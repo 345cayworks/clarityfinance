@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
+import { calculateApprovalReadinessScore } from "@/lib/finance/approval-score";
 import { CNBApplication, mapProfileToCNBApplication } from "@/lib/finance/cnb-mapper";
+import { buildLoanReadinessProfile } from "@/lib/finance/loan-readiness-mapper";
 
 type SavedOnboardingData = {
   profile: Record<string, unknown> | null;
@@ -16,36 +18,31 @@ type SavedOnboardingData = {
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(value || 0));
-
 const formatPercent = (value: number) => `${value.toFixed(1)}%`;
-const statusFor = (value: string | number) => (String(value ?? "").trim() === "" || Number(value) === 0 ? "Missing" : "Ready");
 
-function MappedField({ label, value, source, onChange, type = "text" }: { label: string; value: string | number; source: string; onChange: (v: string) => void; type?: "text" | "number" }) {
-  const status = statusFor(value);
-  const tone = status === "Ready" ? "text-green-700 bg-green-50 border-green-200" : "text-red-700 bg-red-50 border-red-200";
+function Section({ title, children, breakBefore = false }: { title: string; children: React.ReactNode; breakBefore?: boolean }) {
   return (
-    <label className="text-sm text-slate-700">
-      <div className="mb-1 flex items-center justify-between">
-        <span className="font-medium">{label}</span>
-        <span className={`rounded-full border px-2 py-0.5 text-xs ${tone}`}>{status}</span>
-      </div>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-      <p className="mt-1 text-xs text-slate-500">Source: {source}</p>
-    </label>
+    <section className={`rounded-xl border border-slate-300 bg-white p-4 ${breakBefore ? "print:break-before-page" : ""}`}>
+      <h2 className="mb-3 text-base font-semibold uppercase tracking-wide text-black">{title}</h2>
+      <div className="grid gap-2 md:grid-cols-2">{children}</div>
+    </section>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Row({ label, value }: { label: string; value: string | number }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-4 text-sm font-semibold tracking-wide text-[#0A2540]">{title}</h2>
-      <div className="grid gap-3 md:grid-cols-2">{children}</div>
-    </section>
+    <div className="rounded border border-slate-300 px-3 py-2 text-sm">
+      <p className="text-xs uppercase text-slate-600">{label}</p>
+      <p className="font-medium text-black">{String(value || "—")}</p>
+    </div>
   );
 }
 
 export default function LoanApplicationPage() {
   const [appData, setAppData] = useState<CNBApplication | null>(null);
+  const [payload, setPayload] = useState<SavedOnboardingData | null>(null);
+  const [exportMode, setExportMode] = useState(false);
+
   useEffect(() => {
     const load = async () => {
       const user = await getUser();
@@ -54,101 +51,132 @@ export default function LoanApplicationPage() {
       if (!token) return;
       const response = await fetch("/.netlify/functions/profile-get", { method: "GET", credentials: "same-origin", headers: { Authorization: `Bearer ${token}` } });
       if (!response.ok) return;
-      const payload = (await response.json()) as SavedOnboardingData;
-      setAppData(mapProfileToCNBApplication(payload));
+      const result = (await response.json()) as SavedOnboardingData;
+      setPayload(result);
+      setAppData(mapProfileToCNBApplication(result));
     };
     void load();
   }, []);
 
-  const missingFields = useMemo(() => {
-    if (!appData) return [] as string[];
-    return [
-      ["Customer Name", appData.customer.name],
-      ["DOB", appData.customer.dob],
-      ["Address", appData.customer.address],
-      ["Phone", appData.customer.phone],
-      ["Employer", appData.employment.employer],
-      ["Job Title", appData.employment.jobTitle],
-      ["Loan Purpose", appData.loan.purpose],
-      ["Amount Requested", appData.loan.amountRequested]
-    ]
-      .filter((entry) => statusFor(entry[1]) === "Missing")
-      .map((entry) => entry[0]);
-  }, [appData]);
+  const readinessProfile = useMemo(() => (payload ? buildLoanReadinessProfile(payload) : null), [payload]);
+  const approvalScore = useMemo(() => (readinessProfile ? calculateApprovalReadinessScore(readinessProfile) : null), [readinessProfile]);
 
-  if (!appData) return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading application...</div>;
+  if (!appData || !readinessProfile || !approvalScore) return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading application...</div>;
 
-  const updateSection = <K extends keyof CNBApplication>(section: K, field: keyof CNBApplication[K], value: string) => {
-    setAppData((prev) => (prev ? ({ ...prev, [section]: { ...prev[section], [field]: value } } as CNBApplication) : prev));
+  const bankSummary = `Loan readiness ${approvalScore.band} (${approvalScore.score}/100). Income ${formatCurrency(readinessProfile.financials.monthlyIncomeUsed)}, expenses ${formatCurrency(
+    readinessProfile.financials.monthlyExpenses
+  )}, debt payments ${formatCurrency(readinessProfile.financials.monthlyDebtPayments)}, surplus ${formatCurrency(
+    readinessProfile.financials.monthlySurplus
+  )}, DTI ${formatPercent((readinessProfile.ratios.debtToIncome ?? 0) * 100)}.`;
+
+  const onExportPdf = () => {
+    setExportMode(true);
+    window.setTimeout(() => {
+      window.print();
+      setExportMode(false);
+    }, 50);
   };
 
-  const documentChecklist = ["ID", "Address verification", "Payslips", "Bank statements", "Credit report", "Down payment proof"];
-
-  const bankSummary = `Applicant has monthly income of ${formatCurrency(appData.income.totalIncome)}, expenses of ${formatCurrency(
-    appData.expenses.totalExpenses
-  )}, debt obligations of ${formatCurrency(appData.expenses.loanPayments + appData.expenses.creditCards)}, disposable income of ${formatCurrency(
-    appData.summary.disposableIncome
-  )}, net worth of ${formatCurrency(appData.summary.netWorth)}, and savings runway of ${appData.summary.runwayMonths.toFixed(1)} months.`;
-
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-[#0A2540] bg-[#0A2540] p-6 text-white">
-        <p className="text-xs uppercase tracking-[0.16em] text-blue-100">Personal Loan Application</p>
-        <h1 className="mt-2 text-2xl font-semibold">Preparation tool</h1>
+    <div className={`space-y-4 ${exportMode ? "print-export-mode" : ""}`}>
+      <div className="rounded-2xl border border-black bg-white p-6 text-black">
+        <p className="text-xs uppercase tracking-[0.16em]">Loan Application Preparation Form</p>
+        <h1 className="mt-2 text-2xl font-semibold">Prepared for bank review. Applicant must verify all details before submission.</h1>
+        <p className="mt-2 text-sm">Readiness: <span className="font-semibold">{approvalScore.band}</span> ({approvalScore.score}/100)</p>
+        <p className="mt-1 text-xs">This score is an estimate only and does not represent a bank decision.</p>
       </div>
 
-      <Section title="A. CUSTOMER INFORMATION">
-        <MappedField label="Customer Name" value={appData.customer.name} source="customerName → profiles.customer_name → profile.customer_name" onChange={(v) => updateSection("customer", "name", v)} />
-        <MappedField label="Date of Birth" value={appData.customer.dob} source="dateOfBirth → profiles.date_of_birth → profile.date_of_birth" onChange={(v) => updateSection("customer", "dob", v)} />
-        <MappedField label="Physical Address" value={appData.customer.address} source="physicalAddress → profiles.physical_address → profile.physical_address" onChange={(v) => updateSection("customer", "address", v)} />
-        <MappedField label="Cell Phone" value={appData.customer.phone} source="phone → profiles.phone → profile.phone" onChange={(v) => updateSection("customer", "phone", v)} />
-        <MappedField label="Country / Market" value={appData.customer.countryMarket} source="countryOrMarket → profiles.country_or_market → profile.country_or_market" onChange={(v) => updateSection("customer", "countryMarket", v)} />
-        <MappedField label="Dependants" value={appData.customer.dependents} source="dependents → profiles.dependents → profile.dependents" onChange={(v) => updateSection("customer", "dependents", v)} type="number" />
-      </Section>
-
-      <Section title="B. EMPLOYMENT">
-        <MappedField label="Employment Type" value={appData.employment.employmentType} source="employmentType → profiles.employment_type → profile.employment_type" onChange={(v) => updateSection("employment", "employmentType", v)} />
-        <MappedField label="Employer / Business" value={appData.employment.employer} source="employer → profiles.employer → profile.employer" onChange={(v) => updateSection("employment", "employer", v)} />
-        <MappedField label="Applicant Job Title" value={appData.employment.jobTitle} source="jobTitle → profiles.job_title → profile.job_title" onChange={(v) => updateSection("employment", "jobTitle", v)} />
-        <MappedField label="Income Stability" value={appData.employment.incomeStability} source="incomeStability → income_sources.stability → incomeSources[0].stability" onChange={(v) => updateSection("employment", "incomeStability", v)} />
-        <MappedField label="Frequency of Payments" value={appData.employment.incomeFrequency} source="incomeFrequency → income_sources.frequency → incomeSources[0].frequency" onChange={(v) => updateSection("employment", "incomeFrequency", v)} />
-      </Section>
-
-      <Section title="E. LOAN DETAILS">
-        <MappedField label="Purpose of Loan" value={appData.loan.purpose} source="targetGoal → goals.target_goal → goals.target_goal" onChange={(v) => updateSection("loan", "purpose", v)} />
-        <MappedField label="Purchase Price" value={appData.loan.purchasePrice} source="targetHomePrice → goals.target_home_price → goals.target_home_price" onChange={(v) => updateSection("loan", "purchasePrice", v)} type="number" />
-        <MappedField label="Amount Applied For" value={appData.loan.amountRequested} source="targetHomePrice → goals.target_home_price → goals.target_home_price" onChange={(v) => updateSection("loan", "amountRequested", v)} type="number" />
-        <MappedField label="Security Offered" value={appData.loan.securityValue} source="estimatedHomeValue → housing_profiles.estimated_home_value" onChange={(v) => updateSection("loan", "securityValue", v)} type="number" />
-      </Section>
-
-      <Section title="G. STATEMENT OF AFFAIRS">
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">Total Income: <span className="font-semibold">{formatCurrency(appData.income.totalIncome)}</span></div>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">Total Expenses: <span className="font-semibold">{formatCurrency(appData.expenses.totalExpenses)}</span></div>
-        <div className={`rounded-lg border p-3 text-sm ${appData.summary.disposableIncome < 0 ? "border-red-300 bg-red-50 text-red-700" : "border-green-200 bg-green-50 text-green-700"}`}>
-          Disposable Income: <span className="font-semibold">{formatCurrency(appData.summary.disposableIncome)}</span>
+      <div className="print:hidden rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button onClick={() => window.print()} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Print / Save as PDF</button>
+          <button onClick={async () => navigator.clipboard.writeText(bankSummary)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Copy Bank Summary</button>
+          <button onClick={onExportPdf} className="rounded-lg border border-black bg-black px-3 py-2 text-sm font-medium text-white hover:opacity-90">Export Loan Application PDF</button>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">Debt-to-Income: <span className="font-semibold">{formatPercent(appData.summary.debtToIncome)}</span></div>
+      </div>
+
+      <Section title="1. Customer Information">
+        <Row label="Full name" value={readinessProfile.applicant.name} />
+        <Row label="Date of birth" value={readinessProfile.applicant.dateOfBirth} />
+        <Row label="Phone" value={readinessProfile.applicant.phone} />
+        <Row label="Email" value={readinessProfile.applicant.email} />
+        <Row label="Physical address" value={readinessProfile.applicant.physicalAddress} />
+        <Row label="Mailing address" value={readinessProfile.applicant.mailingAddress} />
       </Section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-[#0A2540]">Warnings & Missing Data</h3>
-          <ul className="mt-3 space-y-2 text-sm text-slate-700">
-            {missingFields.map((field) => (
-              <li key={field} className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700">Missing: {field}</li>
-            ))}
-          </ul>
-        </section>
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-[#0A2540]">Export (Submit Ready)</h3>
-          <div className="mt-3 flex flex-col gap-2">
-            <button onClick={() => window.print()} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Print / Save as PDF</button>
-            <button onClick={async () => navigator.clipboard.writeText(bankSummary)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Copy Bank Summary</button>
-          </div>
-          <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">{bankSummary}</p>
-          <ul className="mt-3 list-disc pl-5 text-xs text-slate-600">{documentChecklist.map((doc) => <li key={doc}>{doc}</li>)}</ul>
-        </section>
-      </div>
+      <Section title="2. Employment Information">
+        <Row label="Employment type" value={readinessProfile.employment.employmentType} />
+        <Row label="Employer" value={readinessProfile.employment.employer} />
+        <Row label="Job title" value={readinessProfile.employment.jobTitle} />
+        <Row label="Employment length" value={readinessProfile.employment.employmentLength} />
+        <Row label="Gross income" value={formatCurrency(readinessProfile.financials.monthlyGrossIncome)} />
+        <Row label="Net income" value={formatCurrency(readinessProfile.financials.monthlyNetIncome)} />
+      </Section>
+
+      <Section title="3. Co-applicant Section (Placeholder)">
+        <Row label="Co-applicant name" value="____________________" />
+        <Row label="Co-applicant contact" value="____________________" />
+      </Section>
+
+      <Section title="4. Banking Information" breakBefore>
+        <Row label="Primary bank" value={appData.banking.primaryBanker} />
+        <Row label="Existing relationship" value={String(payload?.profile?.existing_bank_relationship ? "Yes" : "No")} />
+        <Row label="Bank statements available" value={String(payload?.profile?.bank_statements_available ? "Yes" : "No")} />
+      </Section>
+
+      <Section title="5. Loan Details">
+        <Row label="Loan purpose" value={readinessProfile.loan.loanPurpose} />
+        <Row label="Requested amount" value={formatCurrency(readinessProfile.loan.requestedLoanAmount)} />
+        <Row label="Purchase price" value={formatCurrency(readinessProfile.loan.purchasePrice)} />
+        <Row label="Down payment available" value={formatCurrency(readinessProfile.loan.downPaymentAvailable)} />
+        <Row label="Down payment %" value={formatPercent(readinessProfile.loan.downPaymentPercent * 100)} />
+        <Row label="Loan-to-value" value={formatPercent((readinessProfile.loan.loanToValue ?? 0) * 100)} />
+      </Section>
+
+      <Section title="6. Statement of Affairs">
+        <Row label="Monthly income used" value={formatCurrency(readinessProfile.financials.monthlyIncomeUsed)} />
+        <Row label="Monthly expenses" value={formatCurrency(readinessProfile.financials.monthlyExpenses)} />
+        <Row label="Monthly debt payments" value={formatCurrency(readinessProfile.financials.monthlyDebtPayments)} />
+        <Row label="Monthly surplus" value={formatCurrency(readinessProfile.financials.monthlySurplus)} />
+      </Section>
+
+      <Section title="7. Assets">
+        <Row label="Cash savings" value={formatCurrency(readinessProfile.financials.savingsCash)} />
+        <Row label="Emergency fund" value={formatCurrency(readinessProfile.financials.emergencyFund)} />
+        <Row label="Investments" value={formatCurrency(readinessProfile.financials.investments)} />
+        <Row label="Retirement savings" value={formatCurrency(readinessProfile.financials.retirementSavings)} />
+      </Section>
+
+      <Section title="8. Liabilities" breakBefore>
+        <Row label="Total debt" value={formatCurrency(readinessProfile.financials.totalDebt)} />
+        <Row label="DTI ratio" value={formatPercent((readinessProfile.ratios.debtToIncome ?? 0) * 100)} />
+      </Section>
+
+      <Section title="9. Property Held">
+        <Row label="Housing status" value={readinessProfile.housing.housingStatus} />
+        <Row label="Estimated home value" value={formatCurrency(readinessProfile.housing.estimatedHomeValue)} />
+        <Row label="Mortgage balance" value={formatCurrency(readinessProfile.housing.mortgageBalance)} />
+        <Row label="Estimated equity" value={formatCurrency(readinessProfile.housing.equity)} />
+      </Section>
+
+      <Section title="10. Documents Checklist">
+        {Object.entries(readinessProfile.documents).map(([key, value]) => (
+          <Row key={key} label={key} value={value ? "Provided" : "Missing"} />
+        ))}
+      </Section>
+
+      <Section title="11. Declarations / Signature">
+        <Row label="Applicant signature" value="______________________________" />
+        <Row label="Date" value="______________________________" />
+        <Row label="Officer notes" value="________________________________________________" />
+      </Section>
+
+      <style jsx global>{`
+        @media print {
+          body { background: #fff !important; color: #000 !important; }
+          .print\:hidden { display: none !important; }
+          .print\:break-before-page { break-before: page; }
+        }
+      `}</style>
     </div>
   );
 }
