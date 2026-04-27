@@ -305,6 +305,21 @@ export default function ReportPage() {
     ...(rentRoomCalculated ?? {}),
     ...((rentRoomScenario?.result_json ?? {}) as Record<string, unknown>)
   } as Record<string, unknown>;
+  const rentRoomConstructionCost =
+    toNumber(rentRoomSetup.basicRepairs) + toNumber(rentRoomSetup.painting) + toNumber(rentRoomSetup.electricalPlumbing);
+  const rentRoomFurnishingsCost =
+    toNumber(rentRoomSetup.beddingFurniture) +
+    toNumber(rentRoomSetup.deskChairStorage) +
+    toNumber(rentRoomSetup.miniFridgeMicrowave) +
+    toNumber(rentRoomSetup.decorStaging);
+  const rentRoomOtherSetupCost =
+    toNumber(rentRoomSetup.otherSetupCost) +
+    toNumber(rentRoomSetup.permitsLegalAdmin) +
+    toNumber(rentRoomSetup.wifiUpgrade) +
+    toNumber(rentRoomSetup.cleaningDeepClean) +
+    toNumber(rentRoomSetup.bathroomPrep) +
+    toNumber(rentRoomSetup.doorLockSecurity) +
+    toNumber(rentRoomSetup.airConditioningFan);
 
   const loanStatus = {
     dti: toStatus(dti === null ? null : dti <= 0.36),
@@ -730,50 +745,52 @@ export default function ReportPage() {
         <section className="card space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <h2 className="text-lg font-semibold text-[#0A2540]">Rent-a-Room Profitability Report</h2>
-            <ReportActions
-              reportName="rent-a-room-profitability"
-              csvRows={[
-                ["Metric", "Value"],
-                ["Total setup cost", toCurrency(toNumber(rentRoomResult.totalSetupCost))],
-                ["Construction/repair cost", toCurrency(toNumber(rentRoomSetup.basicRepairs) + toNumber(rentRoomSetup.painting) + toNumber(rentRoomSetup.electricalPlumbing))],
-                ["Furnishings cost", toCurrency(toNumber(rentRoomSetup.beddingFurniture) + toNumber(rentRoomSetup.deskChairStorage) + toNumber(rentRoomSetup.miniFridgeMicrowave) + toNumber(rentRoomSetup.decorStaging))],
-                ["Other setup costs", toCurrency(toNumber(rentRoomSetup.otherSetupCost) + toNumber(rentRoomSetup.permitsLegalAdmin) + toNumber(rentRoomSetup.wifiUpgrade) + toNumber(rentRoomSetup.cleaningDeepClean) + toNumber(rentRoomSetup.bathroomPrep) + toNumber(rentRoomSetup.doorLockSecurity) + toNumber(rentRoomSetup.airConditioningFan))],
-                ["Expected monthly rent", toCurrency(toNumber(rentRoomIncome.expectedMonthlyRent))],
-                ["Occupancy %", `${toNumber(rentRoomIncome.occupancyPercent).toFixed(1)}%`],
-                ["Monthly added costs", toCurrency(toNumber(rentRoomResult.monthlyAddedCosts))],
-                ["Net monthly profit", toCurrency(toNumber(rentRoomResult.netMonthlyProfit))],
-                [
-                  "Break-even timeline",
-                  toNumber(rentRoomResult.breakEvenMonths) > 0 ? `${toNumber(rentRoomResult.breakEvenMonths).toFixed(1)} months` : "Not profitable"
-                ],
-                ["First-year net result", toCurrency(toNumber(rentRoomResult.firstYearNet))],
-                ["Annual profit after break-even", toCurrency(toNumber(rentRoomResult.annualProfitAfterBreakEven))],
-                ["Status label", String(rentRoomResult.statusLabel ?? "Missing data")]
-              ]}
-              summaryText={`Rent-a-Room report: setup ${toCurrency(toNumber(rentRoomResult.totalSetupCost))}, expected monthly rent ${toCurrency(
-                toNumber(rentRoomIncome.expectedMonthlyRent)
-              )}, occupancy ${toNumber(rentRoomIncome.occupancyPercent).toFixed(1)}%, monthly added costs ${toCurrency(
-                toNumber(rentRoomResult.monthlyAddedCosts)
-              )}, net monthly profit ${toCurrency(toNumber(rentRoomResult.netMonthlyProfit))}, break-even ${
-                toNumber(rentRoomResult.breakEvenMonths) > 0 ? `${toNumber(rentRoomResult.breakEvenMonths).toFixed(1)} months` : "not profitable"
-              }, first-year net ${toCurrency(toNumber(rentRoomResult.firstYearNet))}, annual after break-even ${toCurrency(
-                toNumber(rentRoomResult.annualProfitAfterBreakEven)
-              )}, status ${String(rentRoomResult.statusLabel ?? "Missing data")}.`}
-              copied={copiedReport === "rent-room"}
-              onCopy={() => {
-                setCopiedReport("rent-room");
-                window.setTimeout(() => setCopiedReport(null), 1500);
-              }}
-            />
+            {rentRoomScenario ? (
+              <ReportActions
+                reportName="rent-a-room-profitability"
+                csvRows={[
+                  ["Metric", "Value"],
+                  ["Total setup cost", toCurrency(toNumber(rentRoomResult.totalSetupCost))],
+                  ["Construction/repair cost", toCurrency(rentRoomConstructionCost)],
+                  ["Furnishings cost", toCurrency(rentRoomFurnishingsCost)],
+                  ["Other setup costs", toCurrency(rentRoomOtherSetupCost)],
+                  ["Expected monthly rent", toCurrency(toNumber(rentRoomIncome.expectedMonthlyRent))],
+                  ["Occupancy %", `${toNumber(rentRoomIncome.occupancyPercent).toFixed(1)}%`],
+                  ["Monthly added costs", toCurrency(toNumber(rentRoomResult.monthlyAddedCosts))],
+                  ["Net monthly profit", toCurrency(toNumber(rentRoomResult.netMonthlyProfit))],
+                  [
+                    "Break-even timeline",
+                    toNumber(rentRoomResult.breakEvenMonths) > 0 ? `${toNumber(rentRoomResult.breakEvenMonths).toFixed(1)} months` : "Not profitable"
+                  ],
+                  ["First-year net result", toCurrency(toNumber(rentRoomResult.firstYearNet))],
+                  ["Annual profit after break-even", toCurrency(toNumber(rentRoomResult.annualProfitAfterBreakEven))],
+                  ["Status label", String(rentRoomResult.statusLabel ?? "Missing data")]
+                ]}
+                summaryText={`Rent-a-Room report: setup ${toCurrency(toNumber(rentRoomResult.totalSetupCost))}, expected monthly rent ${toCurrency(
+                  toNumber(rentRoomIncome.expectedMonthlyRent)
+                )}, occupancy ${toNumber(rentRoomIncome.occupancyPercent).toFixed(1)}%, monthly added costs ${toCurrency(
+                  toNumber(rentRoomResult.monthlyAddedCosts)
+                )}, net monthly profit ${toCurrency(toNumber(rentRoomResult.netMonthlyProfit))}, break-even ${
+                  toNumber(rentRoomResult.breakEvenMonths) > 0 ? `${toNumber(rentRoomResult.breakEvenMonths).toFixed(1)} months` : "not profitable"
+                }, first-year net ${toCurrency(toNumber(rentRoomResult.firstYearNet))}, annual after break-even ${toCurrency(
+                  toNumber(rentRoomResult.annualProfitAfterBreakEven)
+                )}, status ${String(rentRoomResult.statusLabel ?? "Missing data")}.`}
+                copied={copiedReport === "rent-room"}
+                onCopy={() => {
+                  setCopiedReport("rent-room");
+                  window.setTimeout(() => setCopiedReport(null), 1500);
+                }}
+              />
+            ) : null}
           </div>
           {rentRoomLoading ? (
             <p className="text-sm text-slate-600">Loading saved scenario…</p>
           ) : rentRoomScenario ? (
             <>
               <p className="text-sm text-slate-600">Total setup cost: {toCurrency(toNumber(rentRoomResult.totalSetupCost))}</p>
-              <p className="text-sm text-slate-600">Construction/repair cost: {toCurrency(toNumber(rentRoomSetup.basicRepairs) + toNumber(rentRoomSetup.painting) + toNumber(rentRoomSetup.electricalPlumbing))}</p>
-              <p className="text-sm text-slate-600">Furnishings cost: {toCurrency(toNumber(rentRoomSetup.beddingFurniture) + toNumber(rentRoomSetup.deskChairStorage) + toNumber(rentRoomSetup.miniFridgeMicrowave) + toNumber(rentRoomSetup.decorStaging))}</p>
-              <p className="text-sm text-slate-600">Other setup costs: {toCurrency(toNumber(rentRoomSetup.otherSetupCost) + toNumber(rentRoomSetup.permitsLegalAdmin) + toNumber(rentRoomSetup.wifiUpgrade) + toNumber(rentRoomSetup.cleaningDeepClean) + toNumber(rentRoomSetup.bathroomPrep) + toNumber(rentRoomSetup.doorLockSecurity) + toNumber(rentRoomSetup.airConditioningFan))}</p>
+              <p className="text-sm text-slate-600">Construction/repair cost: {toCurrency(rentRoomConstructionCost)}</p>
+              <p className="text-sm text-slate-600">Furnishings cost: {toCurrency(rentRoomFurnishingsCost)}</p>
+              <p className="text-sm text-slate-600">Other setup costs: {toCurrency(rentRoomOtherSetupCost)}</p>
               <p className="text-sm text-slate-600">Expected monthly rent: {toCurrency(toNumber(rentRoomIncome.expectedMonthlyRent))}</p>
               <p className="text-sm text-slate-600">Occupancy %: {toNumber(rentRoomIncome.occupancyPercent).toFixed(1)}%</p>
               <p className="text-sm text-slate-600">Monthly added costs: {toCurrency(toNumber(rentRoomResult.monthlyAddedCosts))}</p>
