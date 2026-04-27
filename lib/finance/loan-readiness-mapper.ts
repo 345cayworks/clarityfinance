@@ -1,4 +1,5 @@
 import {
+  housingPayment,
   monthlyDebtPayments,
   savingsRunwayMonths,
   toNumber,
@@ -29,7 +30,6 @@ const toBool = (value: unknown) => value === true || String(value).toLowerCase()
 export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
   const profile = data.profile ?? {};
   const incomeSources = data.incomeSources ?? [];
-  const expenses = data.expenseProfile ?? {};
   const debts = data.debts ?? [];
   const housing = data.housingProfile ?? {};
   const savings = data.savingsProfile ?? {};
@@ -42,9 +42,10 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
   const monthlyIncomeSource = monthlyNetIncome > 0 ? "profiles.monthly_net_income" : monthlyGrossIncome > 0 ? "profiles.monthly_gross_income" : "income_sources.monthly_amount";
 
   const monthlyExpenses = totalExpenses(data.expenseProfile ?? null);
+  const monthlyHousingPayment = housingPayment(data.housingProfile ?? null);
   const debtPayments = monthlyDebtPayments(debts);
   const totalDebt = debts.reduce((sum, debt) => sum + toNumber(debt.balance), 0);
-  const monthlySurplus = monthlyIncomeUsed - monthlyExpenses - debtPayments;
+  const monthlySurplus = monthlyIncomeUsed - monthlyExpenses - monthlyHousingPayment - debtPayments;
 
   const cashSavings = toNumber(savings.cash_savings);
   const emergencyFund = toNumber(savings.emergency_fund);
@@ -55,7 +56,6 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
 
   const rentAmount = toNumber(housing.rent_amount);
   const mortgagePayment = toNumber(housing.mortgage_payment);
-  const housingPaymentForRatio = toNumber(expenses.housing) || mortgagePayment || rentAmount;
 
   const estimatedHomeValue = toNumber(housing.estimated_home_value);
   const mortgageBalance = toNumber(housing.mortgage_balance);
@@ -65,7 +65,7 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
   const loanToValue = purchasePrice > 0 ? requestedLoanAmount / purchasePrice : null;
 
   const debtToIncome = monthlyIncomeUsed > 0 ? debtPayments / monthlyIncomeUsed : null;
-  const housingRatio = monthlyIncomeUsed > 0 ? housingPaymentForRatio / monthlyIncomeUsed : null;
+  const housingRatio = monthlyIncomeUsed > 0 ? monthlyHousingPayment / monthlyIncomeUsed : null;
   const runwayMonths = savingsRunwayMonths(data.savingsProfile ?? null, data.expenseProfile ?? null);
 
   return {
@@ -96,6 +96,7 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
       monthlyIncomeUsed,
       monthlyIncomeSource,
       monthlyExpenses,
+      housingPayment: monthlyHousingPayment,
       monthlyDebtPayments: debtPayments,
       monthlySurplus,
       totalDebt,

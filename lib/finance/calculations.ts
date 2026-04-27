@@ -9,7 +9,6 @@ export const totalIncome = (incomeSources: Array<Record<string, unknown>>) =>
 export const totalExpenses = (expenseProfile: Record<string, unknown> | null) => {
   if (!expenseProfile) return 0;
   return (
-    toNumber(expenseProfile.housing) +
     toNumber(expenseProfile.utilities) +
     toNumber(expenseProfile.transport) +
     toNumber(expenseProfile.groceries) +
@@ -20,10 +19,18 @@ export const totalExpenses = (expenseProfile: Record<string, unknown> | null) =>
   );
 };
 
+export const housingPayment = (housingProfile: Record<string, unknown> | null) => {
+  if (!housingProfile) return 0;
+  return toNumber(housingProfile.mortgage_payment) || toNumber(housingProfile.rent_amount) || 0;
+};
+
 export const debtTotal = (debts: Array<Record<string, unknown>>) => debts.reduce((sum, row) => sum + toNumber(row.balance), 0);
 
-export const monthlySurplus = (incomeSources: Array<Record<string, unknown>>, expenseProfile: Record<string, unknown> | null) =>
-  totalIncome(incomeSources) - totalExpenses(expenseProfile);
+export const monthlySurplus = (
+  incomeSources: Array<Record<string, unknown>>,
+  expenseProfile: Record<string, unknown> | null,
+  housingProfile: Record<string, unknown> | null
+) => totalIncome(incomeSources) - totalExpenses(expenseProfile) - housingPayment(housingProfile);
 
 export const emergencyFundMonths = (savingsProfile: Record<string, unknown> | null, expenses: number) => {
   if (!savingsProfile || expenses <= 0) return 0;

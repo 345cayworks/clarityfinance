@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
 import { calculateApprovalReadinessScore } from "@/lib/finance/approval-score";
+import { housingPayment, totalExpenses } from "@/lib/finance/calculations";
 import { buildLoanReadinessProfile } from "@/lib/finance/loan-readiness-mapper";
 
 type SavedOnboardingData = {
@@ -272,8 +273,8 @@ export default function ProvenBankPrequalificationPage() {
         const income = payload.incomeSources?.[0] ?? {};
 
         const debtPayments = debts.reduce<number>((sum, debt) => sum + toNumber(String(debt.monthly_payment ?? "0")), 0);
-        const nonDebtExpense = [expenseProfile.housing, expenseProfile.utilities, expenseProfile.transport, expenseProfile.groceries, expenseProfile.insurance, expenseProfile.childcare, expenseProfile.discretionary, expenseProfile.other]
-          .reduce<number>((sum, item) => sum + toNumber(String(item ?? "0")), 0);
+        const nonHousingExpenses = totalExpenses(expenseProfile);
+        const currentHousingPayment = housingPayment(payload.housingProfile ?? null);
 
         setForm((prev) => ({
           ...prev,
@@ -312,8 +313,8 @@ export default function ProvenBankPrequalificationPage() {
           propertyIdentified: toYesNo(readiness.loan.propertyIdentified),
           purchaseAgreementAvailable: toYesNo(readiness.loan.purchaseAgreementAvailable),
           rentOrOwn: String(readiness.housing.housingStatus ?? ""),
-          currentHousingPayment: String(readiness.housing.mortgagePayment || readiness.housing.rentAmount || ""),
-          monthlyLivingExpenses: String(nonDebtExpense || ""),
+          currentHousingPayment: String(currentHousingPayment || ""),
+          monthlyLivingExpenses: String(nonHousingExpenses || ""),
           currentMortgageBalance: String(readiness.housing.mortgageBalance ?? ""),
           estimatedHomeValue: String(readiness.housing.estimatedHomeValue ?? ""),
           otherDebtMonthlyPayment: String(debtPayments || ""),
@@ -348,18 +349,33 @@ export default function ProvenBankPrequalificationPage() {
 
   const calculations = useMemo(() => {
     const monthlyIncome = toNumber(form.monthlyNetIncome) + toNumber(form.otherIncome);
-    const monthlyExpenses = toNumber(form.monthlyLivingExpenses) + toNumber(form.currentHousingPayment);
+    const monthlyLivingExpenses = toNumber(form.monthlyLivingExpenses);
+    const currentHousingPayment = toNumber(form.currentHousingPayment);
     const monthlyDebtPayments = toNumber(form.creditCardMonthlyPayment) + toNumber(form.personalLoanMonthlyPayment) + toNumber(form.autoLoanMonthlyPayment) + toNumber(form.otherDebtMonthlyPayment);
     const proposedMortgagePayment = calcMortgagePayment(toNumber(form.requestedLoanAmount), toNumber(form.annualRate), toNumber(form.loanTermYears));
-    const monthlySurplus = monthlyIncome - monthlyExpenses - monthlyDebtPayments;
+    const totalMonthlyObligations = monthlyLivingExpenses + currentHousingPayment + monthlyDebtPayments;
+    const monthlySurplus = monthlyIncome - totalMonthlyObligations;
     const debtToIncome = monthlyIncome > 0 ? monthlyDebtPayments / monthlyIncome : 0;
-    const housingRatio = monthlyIncome > 0 ? proposedMortgagePayment / monthlyIncome : 0;
+    const housingRatio = monthlyIncome > 0 ? currentHousingPayment / monthlyIncome : 0;
     const downPaymentPercent = toNumber(form.purchasePrice) > 0 ? toNumber(form.downPaymentAvailable) / toNumber(form.purchasePrice) : 0;
     const loanToValue = toNumber(form.purchasePrice) > 0 ? toNumber(form.requestedLoanAmount) / toNumber(form.purchasePrice) : 0;
     const liquidSavings = toNumber(form.cashSavings) + toNumber(form.emergencyFund) + toNumber(form.downPaymentSavings);
-    const expenseBase = monthlyExpenses + monthlyDebtPayments;
+    const expenseBase = totalMonthlyObligations;
     const savingsRunwayMonths = expenseBase > 0 ? liquidSavings / expenseBase : 0;
-    return { monthlyIncome, monthlyExpenses, monthlyDebtPayments, monthlySurplus, proposedMortgagePayment, debtToIncome, housingRatio, downPaymentPercent, loanToValue, savingsRunwayMonths };
+    return {
+      monthlyIncome,
+      monthlyLivingExpenses,
+      currentHousingPayment,
+      monthlyDebtPayments,
+      totalMonthlyObligations,
+      monthlySurplus,
+      proposedMortgagePayment,
+      debtToIncome,
+      housingRatio,
+      downPaymentPercent,
+      loanToValue,
+      savingsRunwayMonths
+    };
   }, [form]);
 
   const missingRequired = useMemo(() => REQUIRED_FIELDS.filter((field) => String(form[field] ?? "").trim() === ""), [form]);
@@ -411,7 +427,6 @@ export default function ProvenBankPrequalificationPage() {
           },
           incomeSources: [{ monthly_amount: form.monthlyNetIncome, frequency: form.incomeFrequency, stability: form.incomeStability }],
           expenseProfile: {
-            housing: form.currentHousingPayment,
             utilities: 0,
             transport: 0,
             groceries: 0,
@@ -442,7 +457,7 @@ export default function ProvenBankPrequalificationPage() {
   );
 
   const completion = Math.round(((REQUIRED_FIELDS.length - missingRequired.length) / REQUIRED_FIELDS.length) * 100);
-  const summary = `Proven Bank prequalification status: ${approvalScore.band} (${approvalScore.score}/100). Monthly income ${currency(calculations.monthlyIncome)}, expenses ${currency(calculations.monthlyExpenses)}, debt payments ${currency(calculations.monthlyDebtPayments)}, surplus ${currency(calculations.monthlySurplus)}. DTI ${percent(calculations.debtToIncome)}, housing ratio ${percent(calculations.housingRatio)}, down payment ${percent(calculations.downPaymentPercent)}, LTV ${percent(calculations.loanToValue)}.`;
+  const summary = `Proven Bank prequalification status: ${approvalScore.band} (${approvalScore.score}/100). Monthly income ${currency(calculations.monthlyIncome)}, living expenses ${currency(calculations.monthlyLivingExpenses)}, housing payment ${currency(calculations.currentHousingPayment)}, debt payments ${currency(calculations.monthlyDebtPayments)}, total obligations ${currency(calculations.totalMonthlyObligations)}, surplus ${currency(calculations.monthlySurplus)}. DTI ${percent(calculations.debtToIncome)}, housing ratio ${percent(calculations.housingRatio)}, down payment ${percent(calculations.downPaymentPercent)}, LTV ${percent(calculations.loanToValue)}.`;
   const setString = (field: keyof PrequalForm) => (value: string) => setForm((prev) => ({ ...prev, [field]: value }));
   const locked = (field: keyof PrequalForm) => PROFILE_CONTROLLED_FIELDS.has(field);
 
@@ -563,8 +578,10 @@ export default function ProvenBankPrequalificationPage() {
             <div className="rounded-lg border border-slate-200 px-3 py-2">Status: <span className="font-semibold">{approvalScore.band}</span> ({approvalScore.score}/100)</div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Estimated mortgage payment: <span className="font-semibold">{currency(calculations.proposedMortgagePayment)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Monthly income: <span className="font-semibold">{currency(calculations.monthlyIncome)}</span></div>
-            <div className="rounded-lg border border-slate-200 px-3 py-2">Monthly expenses: <span className="font-semibold">{currency(calculations.monthlyExpenses)}</span></div>
-            <div className="rounded-lg border border-slate-200 px-3 py-2">Monthly debt payments: <span className="font-semibold">{currency(calculations.monthlyDebtPayments)}</span></div>
+            <div className="rounded-lg border border-slate-200 px-3 py-2">Living expenses (excluding housing): <span className="font-semibold">{currency(calculations.monthlyLivingExpenses)}</span></div>
+            <div className="rounded-lg border border-slate-200 px-3 py-2">Housing payment: <span className="font-semibold">{currency(calculations.currentHousingPayment)}</span></div>
+            <div className="rounded-lg border border-slate-200 px-3 py-2">Debt payments: <span className="font-semibold">{currency(calculations.monthlyDebtPayments)}</span></div>
+            <div className="rounded-lg border border-slate-200 px-3 py-2">Total monthly obligations: <span className="font-semibold">{currency(calculations.totalMonthlyObligations)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Monthly surplus: <span className="font-semibold">{currency(calculations.monthlySurplus)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">DTI: <span className="font-semibold">{percent(calculations.debtToIncome)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Housing ratio: <span className="font-semibold">{percent(calculations.housingRatio)}</span></div>
