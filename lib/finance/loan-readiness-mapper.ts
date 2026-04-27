@@ -1,4 +1,5 @@
 import {
+  debtTotal,
   housingPayment,
   monthlyDebtPayments,
   savingsRunwayMonths,
@@ -35,21 +36,39 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
   const savings = data.savingsProfile ?? {};
   const goals = data.goals ?? {};
 
+  // Canonical source order: income
   const recurringIncomeTotal = totalIncome(incomeSources);
   const monthlyNetIncome = toNumber(profile.monthly_net_income);
   const monthlyGrossIncome = toNumber(profile.monthly_gross_income);
-  const monthlyIncomeUsed = monthlyNetIncome > 0 ? monthlyNetIncome : monthlyGrossIncome > 0 ? monthlyGrossIncome : recurringIncomeTotal;
-  const monthlyIncomeSource = monthlyNetIncome > 0 ? "profiles.monthly_net_income" : monthlyGrossIncome > 0 ? "profiles.monthly_gross_income" : "income_sources.monthly_amount";
+  const monthlyIncomeUsed = monthlyNetIncome > 0 ? monthlyNetIncome : monthlyGrossIncome > 0 ? monthlyGrossIncome : recurringIncomeTotal > 0 ? recurringIncomeTotal : 0;
+  const monthlyIncomeSource =
+    monthlyNetIncome > 0
+      ? "profiles.monthly_net_income"
+      : monthlyGrossIncome > 0
+        ? "profiles.monthly_gross_income"
+        : recurringIncomeTotal > 0
+          ? "income_sources.monthly_amount"
+          : "fallback.0";
 
+  // Canonical source order: expenses
   const monthlyExpenses = totalExpenses(data.expenseProfile ?? null);
+  // Canonical source order: housing
   const monthlyHousingPayment = housingPayment(data.housingProfile ?? null);
+  // Canonical source order: debt
   const debtPayments = monthlyDebtPayments(debts);
-  const totalDebt = debts.reduce((sum, debt) => sum + toNumber(debt.balance), 0);
+  const totalDebt = debtTotal(debts);
   const monthlySurplus = monthlyIncomeUsed - monthlyExpenses - monthlyHousingPayment - debtPayments;
 
+  // Canonical source order: assets
   const cashSavings = toNumber(savings.cash_savings);
   const emergencyFund = toNumber(savings.emergency_fund);
   const downPaymentSavings = toNumber(savings.down_payment_savings);
+  const savingsInvestments = toNumber(savings.investments);
+  const retirementSavings = toNumber(savings.retirement_savings);
+  const bankBalances = cashSavings + emergencyFund + downPaymentSavings;
+  const totalInvestments = savingsInvestments + retirementSavings;
+
+  // Canonical source order: loan request
   const downPaymentAvailable = toNumber(profile.down_payment_available) || downPaymentSavings;
   const purchasePrice = toNumber(profile.purchase_price) || toNumber(goals.target_home_price);
   const requestedLoanAmount = toNumber(profile.requested_loan_amount) || Math.max(purchasePrice - downPaymentAvailable, 0);
@@ -57,9 +76,13 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
   const rentAmount = toNumber(housing.rent_amount);
   const mortgagePayment = toNumber(housing.mortgage_payment);
 
+  // Canonical source order: liabilities
   const estimatedHomeValue = toNumber(housing.estimated_home_value);
   const mortgageBalance = toNumber(housing.mortgage_balance);
   const equity = estimatedHomeValue - mortgageBalance;
+  const totalAssets = bankBalances + totalInvestments + estimatedHomeValue;
+  const totalLiabilities = mortgageBalance + totalDebt;
+  const netWorth = totalAssets - totalLiabilities;
 
   const downPaymentPercent = purchasePrice > 0 ? downPaymentAvailable / purchasePrice : 0;
   const loanToValue = purchasePrice > 0 ? requestedLoanAmount / purchasePrice : null;
@@ -103,8 +126,15 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
       savingsCash: cashSavings,
       emergencyFund,
       downPaymentSavings,
-      investments: toNumber(savings.investments),
-      retirementSavings: toNumber(savings.retirement_savings),
+      bankBalances,
+      investments: savingsInvestments,
+      retirementSavings,
+      totalInvestments,
+      totalAssets,
+      mortgages: mortgageBalance,
+      otherDebt: totalDebt,
+      totalLiabilities,
+      netWorth,
       savingsRunwayMonths: runwayMonths
     },
     housing: {
