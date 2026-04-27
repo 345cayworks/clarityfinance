@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
+import { calculateApprovalReadinessScore } from "@/lib/finance/approval-score";
 import {
   debtTotal,
   housingEquity,
@@ -14,6 +15,7 @@ import {
   totalExpenses,
   totalIncome
 } from "@/lib/finance/calculations";
+import { buildLoanReadinessProfile } from "@/lib/finance/loan-readiness-mapper";
 
 type ProfileData = {
   profile: Record<string, unknown> | null;
@@ -198,6 +200,8 @@ export default function ReportPage() {
     toNumber(data?.savingsProfile?.investments) +
     toNumber(data?.savingsProfile?.retirement_savings);
   const runwayMonths = savingsRunwayMonths(data?.savingsProfile ?? null, data?.expenseProfile ?? null);
+  const readinessProfile = useMemo(() => (data ? buildLoanReadinessProfile(data) : null), [data]);
+  const approvalScore = useMemo(() => (readinessProfile ? calculateApprovalReadinessScore(readinessProfile) : null), [readinessProfile]);
 
   const expenseRows = useMemo(() => {
     const categories = [
@@ -461,6 +465,15 @@ export default function ReportPage() {
             />
           </div>
           <div className="grid gap-3 md:grid-cols-2">
+            {approvalScore ? (
+              <div className="rounded-lg border border-slate-200 p-3 text-sm md:col-span-2">
+                <h3 className="font-semibold text-[#0A2540]">Approval Readiness Score</h3>
+                <p className="mt-2 text-slate-600">
+                  {approvalScore.band} ({approvalScore.score}/100)
+                </p>
+                <p className="mt-1 text-xs text-slate-500">This score is an estimate only and does not represent a bank decision.</p>
+              </div>
+            ) : null}
             <div className="rounded-lg border border-slate-200 p-3 text-sm">
               <h3 className="font-semibold text-[#0A2540]">Borrower Snapshot</h3>
               <div className="mt-2 space-y-1 text-slate-600">

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
+import { calculateApprovalReadinessScore } from "@/lib/finance/approval-score";
+import { buildLoanReadinessProfile } from "@/lib/finance/loan-readiness-mapper";
 
 type SavedOnboardingData = {
   profile: Record<string, unknown> | null;
@@ -263,13 +265,11 @@ export default function ProvenBankPrequalificationPage() {
         if (!response.ok) return;
 
         const payload = (await response.json()) as SavedOnboardingData;
+        const readiness = buildLoanReadinessProfile(payload);
         const profile = payload.profile ?? {};
         const expenseProfile = payload.expenseProfile ?? {};
         const debts = payload.debts ?? [];
         const income = payload.incomeSources?.[0] ?? {};
-        const housing = payload.housingProfile ?? {};
-        const savings = payload.savingsProfile ?? {};
-        const goals = payload.goals ?? {};
 
         const debtPayments = debts.reduce<number>((sum, debt) => sum + toNumber(String(debt.monthly_payment ?? "0")), 0);
         const nonDebtExpense = [expenseProfile.housing, expenseProfile.utilities, expenseProfile.transport, expenseProfile.groceries, expenseProfile.insurance, expenseProfile.childcare, expenseProfile.discretionary, expenseProfile.other]
@@ -279,49 +279,49 @@ export default function ProvenBankPrequalificationPage() {
           ...prev,
           fullName: String(profile.customer_name ?? ""),
           email: user.email ?? "",
-          phone: String(profile.phone ?? ""),
+          phone: String(readiness.applicant.phone ?? ""),
           alternatePhone: String(profile.alternate_phone ?? ""),
-          dateOfBirth: String(profile.date_of_birth ?? ""),
+          dateOfBirth: String(readiness.applicant.dateOfBirth ?? ""),
           countryMarket: String(profile.country_or_market ?? ""),
-          residentialAddress: String(profile.physical_address ?? ""),
-          mailingAddress: String(profile.mailing_address ?? ""),
-          nationality: String(profile.nationality ?? ""),
-          citizenshipStatus: String(profile.citizenship_status ?? ""),
-          workPermitRequired: toYesNo(profile.work_permit_required),
-          workPermitExpiry: String(profile.work_permit_expiry_date ?? ""),
-          employmentStatus: String(profile.employment_type ?? ""),
-          employerBusinessName: String(profile.employer ?? ""),
-          employerAddress: String(profile.employer_address ?? ""),
-          jobTitle: String(profile.job_title ?? ""),
-          lengthOfEmployment: String(profile.employment_length ?? ""),
-          monthlyGrossIncome: String(profile.monthly_gross_income ?? ""),
-          monthlyNetIncome: String(profile.monthly_net_income ?? income.monthly_amount ?? ""),
+          residentialAddress: String(readiness.applicant.physicalAddress ?? ""),
+          mailingAddress: String(readiness.applicant.mailingAddress ?? ""),
+          nationality: String(readiness.applicant.nationality ?? ""),
+          citizenshipStatus: String(readiness.applicant.citizenshipStatus ?? ""),
+          workPermitRequired: toYesNo(readiness.applicant.workPermitRequired),
+          workPermitExpiry: String(readiness.applicant.workPermitExpiryDate ?? ""),
+          employmentStatus: String(readiness.employment.employmentType ?? ""),
+          employerBusinessName: String(readiness.employment.employer ?? ""),
+          employerAddress: String(readiness.employment.employerAddress ?? ""),
+          jobTitle: String(readiness.employment.jobTitle ?? ""),
+          lengthOfEmployment: String(readiness.employment.employmentLength ?? ""),
+          monthlyGrossIncome: String(readiness.financials.monthlyGrossIncome ?? ""),
+          monthlyNetIncome: String(readiness.financials.monthlyNetIncome || readiness.financials.monthlyIncomeUsed || income.monthly_amount || ""),
           otherIncome: String(profile.other_income_amount ?? ""),
           otherIncomeDescription: String(profile.other_income_description ?? ""),
-          incomeFrequency: String(income.frequency ?? ""),
-          incomeStability: String(income.stability ?? ""),
+          incomeFrequency: String(readiness.employment.incomeFrequency ?? ""),
+          incomeStability: String(readiness.employment.incomeStability ?? ""),
           selfEmployed: String(profile.employment_type ?? "").toLowerCase().includes("self") ? "yes" : "no",
           businessFinancialsAvailable: toYesNo(profile.has_business_financials),
-          loanPurpose: String(profile.loan_purpose ?? goals.target_goal ?? ""),
-          purchasePrice: String(goals.target_home_price ?? ""),
-          requestedLoanAmount: String(profile.requested_loan_amount ?? ""),
-          downPaymentAvailable: String(savings.down_payment_savings ?? ""),
-          loanTermYears: String(profile.desired_loan_term_years ?? "30"),
-          propertyType: String(profile.property_type ?? ""),
-          propertyLocation: String(profile.property_location ?? ""),
-          propertyIdentified: toYesNo(profile.property_identified),
-          purchaseAgreementAvailable: toYesNo(profile.purchase_agreement_available),
-          rentOrOwn: String(housing.housing_status ?? ""),
-          currentHousingPayment: String(housing.mortgage_payment ?? housing.rent_amount ?? ""),
+          loanPurpose: String(readiness.loan.loanPurpose ?? ""),
+          purchasePrice: String(readiness.loan.purchasePrice ?? ""),
+          requestedLoanAmount: String(readiness.loan.requestedLoanAmount ?? ""),
+          downPaymentAvailable: String(readiness.loan.downPaymentAvailable ?? ""),
+          loanTermYears: String(readiness.loan.desiredLoanTermYears || "30"),
+          propertyType: String(readiness.loan.propertyType ?? ""),
+          propertyLocation: String(readiness.loan.propertyLocation ?? ""),
+          propertyIdentified: toYesNo(readiness.loan.propertyIdentified),
+          purchaseAgreementAvailable: toYesNo(readiness.loan.purchaseAgreementAvailable),
+          rentOrOwn: String(readiness.housing.housingStatus ?? ""),
+          currentHousingPayment: String(readiness.housing.mortgagePayment || readiness.housing.rentAmount || ""),
           monthlyLivingExpenses: String(nonDebtExpense || ""),
-          currentMortgageBalance: String(housing.mortgage_balance ?? ""),
-          estimatedHomeValue: String(housing.estimated_home_value ?? ""),
+          currentMortgageBalance: String(readiness.housing.mortgageBalance ?? ""),
+          estimatedHomeValue: String(readiness.housing.estimatedHomeValue ?? ""),
           otherDebtMonthlyPayment: String(debtPayments || ""),
-          cashSavings: String(savings.cash_savings ?? ""),
-          emergencyFund: String(savings.emergency_fund ?? ""),
-          investments: String(savings.investments ?? ""),
-          retirementSavings: String(savings.retirement_savings ?? ""),
-          downPaymentSavings: String(savings.down_payment_savings ?? ""),
+          cashSavings: String(readiness.financials.savingsCash ?? ""),
+          emergencyFund: String(readiness.financials.emergencyFund ?? ""),
+          investments: String(readiness.financials.investments ?? ""),
+          retirementSavings: String(readiness.financials.retirementSavings ?? ""),
+          downPaymentSavings: String(readiness.financials.downPaymentSavings ?? ""),
           primaryBankName: String(profile.primary_bank_name ?? ""),
           existingBankRelationship: toYesNo(profile.existing_bank_relationship),
           bankStatementsAvailable: toYesNo(profile.bank_statements_available),
@@ -369,19 +369,80 @@ export default function ProvenBankPrequalificationPage() {
     return docs.filter(([available]) => !available).map(([, name]) => name);
   }, [form]);
 
-  const readiness = useMemo(() => {
-    const hasIncome = calculations.monthlyIncome > 0;
-    const hasDownPayment = toNumber(form.downPaymentAvailable) > 0;
-    const hasCoreDocs = form.docId && form.docProofOfAddress;
-    const dti = calculations.debtToIncome;
-    if (!hasIncome || calculations.monthlySurplus < 0 || !hasDownPayment || dti > 0.5) return "Not Ready Yet" as const;
-    if (hasIncome && dti < 0.4 && hasDownPayment && calculations.monthlySurplus > 0 && form.bankStatementsAvailable === "yes" && hasCoreDocs) return "Likely Ready" as const;
-    if ((dti >= 0.4 && dti <= 0.5) || calculations.savingsRunwayMonths < 3 || documentGaps.length > 0) return "Needs Review" as const;
-    return "Needs Review" as const;
-  }, [calculations, documentGaps.length, form]);
+  const approvalScore = useMemo(
+    () =>
+      calculateApprovalReadinessScore(
+        buildLoanReadinessProfile({
+          profile: {
+            customer_name: form.fullName,
+            date_of_birth: form.dateOfBirth,
+            phone: form.phone,
+            physical_address: form.residentialAddress,
+            mailing_address: form.mailingAddress,
+            nationality: form.nationality,
+            citizenship_status: form.citizenshipStatus,
+            work_permit_required: form.workPermitRequired === "yes",
+            work_permit_expiry_date: form.workPermitExpiry,
+            employment_type: form.employmentStatus,
+            employer: form.employerBusinessName,
+            employer_address: form.employerAddress,
+            job_title: form.jobTitle,
+            employment_length: form.lengthOfEmployment,
+            monthly_gross_income: form.monthlyGrossIncome,
+            monthly_net_income: form.monthlyNetIncome,
+            loan_purpose: form.loanPurpose,
+            requested_loan_amount: form.requestedLoanAmount,
+            desired_loan_term_years: form.loanTermYears,
+            property_type: form.propertyType,
+            property_location: form.propertyLocation,
+            property_identified: form.propertyIdentified === "yes",
+            purchase_agreement_available: form.purchaseAgreementAvailable === "yes",
+            has_id: form.docId,
+            has_proof_of_address: form.docProofOfAddress,
+            has_payslips: form.docPayslips,
+            has_employment_letter: form.docEmploymentLetter,
+            has_bank_statements: form.docBankStatements,
+            has_debt_statements: form.docDebtStatements,
+            has_credit_report: form.docCreditReport,
+            has_purchase_agreement: form.docPurchaseAgreement,
+            has_valuation: form.docPropertyValuation,
+            has_down_payment_proof: form.docProofDownPayment,
+            has_business_financials: form.docBusinessFinancials
+          },
+          incomeSources: [{ monthly_amount: form.monthlyNetIncome, frequency: form.incomeFrequency, stability: form.incomeStability }],
+          expenseProfile: {
+            housing: form.currentHousingPayment,
+            utilities: 0,
+            transport: 0,
+            groceries: 0,
+            insurance: 0,
+            childcare: 0,
+            discretionary: 0,
+            other: form.monthlyLivingExpenses
+          },
+          debts: [{ monthly_payment: calculations.monthlyDebtPayments, balance: toNumber(form.creditCardBalance) + toNumber(form.personalLoanBalance) + toNumber(form.autoLoanBalance) + toNumber(form.otherDebtBalance) }],
+          housingProfile: {
+            housing_status: form.rentOrOwn,
+            rent_amount: form.currentHousingPayment,
+            mortgage_balance: form.currentMortgageBalance,
+            mortgage_payment: form.currentHousingPayment,
+            estimated_home_value: form.estimatedHomeValue
+          },
+          savingsProfile: {
+            cash_savings: form.cashSavings,
+            emergency_fund: form.emergencyFund,
+            down_payment_savings: form.downPaymentSavings,
+            investments: form.investments,
+            retirement_savings: form.retirementSavings
+          },
+          goals: { target_home_price: form.purchasePrice, target_goal: form.loanPurpose }
+        })
+      ),
+    [calculations.monthlyDebtPayments, form]
+  );
 
   const completion = Math.round(((REQUIRED_FIELDS.length - missingRequired.length) / REQUIRED_FIELDS.length) * 100);
-  const summary = `Proven Bank prequalification status: ${readiness}. Monthly income ${currency(calculations.monthlyIncome)}, expenses ${currency(calculations.monthlyExpenses)}, debt payments ${currency(calculations.monthlyDebtPayments)}, surplus ${currency(calculations.monthlySurplus)}. DTI ${percent(calculations.debtToIncome)}, housing ratio ${percent(calculations.housingRatio)}, down payment ${percent(calculations.downPaymentPercent)}, LTV ${percent(calculations.loanToValue)}.`;
+  const summary = `Proven Bank prequalification status: ${approvalScore.band} (${approvalScore.score}/100). Monthly income ${currency(calculations.monthlyIncome)}, expenses ${currency(calculations.monthlyExpenses)}, debt payments ${currency(calculations.monthlyDebtPayments)}, surplus ${currency(calculations.monthlySurplus)}. DTI ${percent(calculations.debtToIncome)}, housing ratio ${percent(calculations.housingRatio)}, down payment ${percent(calculations.downPaymentPercent)}, LTV ${percent(calculations.loanToValue)}.`;
   const setString = (field: keyof PrequalForm) => (value: string) => setForm((prev) => ({ ...prev, [field]: value }));
   const locked = (field: keyof PrequalForm) => PROFILE_CONTROLLED_FIELDS.has(field);
 
@@ -499,7 +560,7 @@ export default function ProvenBankPrequalificationPage() {
           <h2 className="text-sm font-semibold tracking-wide text-[#0A2540]">Prequalification Summary</h2>
           <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">{summary}</p>
           <div className="mt-3 grid gap-2 text-sm text-slate-700">
-            <div className="rounded-lg border border-slate-200 px-3 py-2">Status: <span className="font-semibold">{readiness}</span></div>
+            <div className="rounded-lg border border-slate-200 px-3 py-2">Status: <span className="font-semibold">{approvalScore.band}</span> ({approvalScore.score}/100)</div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Estimated mortgage payment: <span className="font-semibold">{currency(calculations.proposedMortgagePayment)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Monthly income: <span className="font-semibold">{currency(calculations.monthlyIncome)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Monthly expenses: <span className="font-semibold">{currency(calculations.monthlyExpenses)}</span></div>
@@ -511,6 +572,7 @@ export default function ProvenBankPrequalificationPage() {
             <div className="rounded-lg border border-slate-200 px-3 py-2">Loan-to-value: <span className="font-semibold">{percent(calculations.loanToValue)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Savings runway: <span className="font-semibold">{calculations.savingsRunwayMonths.toFixed(1)} months</span></div>
           </div>
+          <p className="mt-3 text-xs text-slate-500">This score is an estimate only and does not represent a bank decision.</p>
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
