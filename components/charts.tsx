@@ -3,6 +3,14 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 
 export function IncomeExpenseChart({ income, expenses }: { income: number; expenses: number }) {
+  if (income === 0 && expenses === 0) {
+    return (
+      <div className="card h-72 flex items-center justify-center">
+        <p className="text-sm text-slate-400">Complete your profile to see this chart.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="card h-72">
       <h3 className="mb-3 font-semibold">Income vs Expenses</h3>
@@ -20,6 +28,14 @@ export function IncomeExpenseChart({ income, expenses }: { income: number; expen
 }
 
 export function DebtBreakdownChart({ totalDebt, monthlyPayment }: { totalDebt: number; monthlyPayment: number }) {
+  if (totalDebt === 0 && monthlyPayment === 0) {
+    return (
+      <div className="card h-72 flex items-center justify-center">
+        <p className="text-sm text-slate-400">Complete your profile to see this chart.</p>
+      </div>
+    );
+  }
+
   const data = [
     { name: "Total Debt", value: Math.max(totalDebt, 1) },
     { name: "Monthly Payment", value: Math.max(monthlyPayment, 1) }

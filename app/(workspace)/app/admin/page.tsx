@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useWorkspaceUser } from "@/components/auth/workspace-guard";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
 
 export default function AdminPage() {
   const [role, setRole] = useState<string>("user");
   const [loading, setLoading] = useState(true);
+  const { user } = useWorkspaceUser();
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadUser() {
-      const token = await getIdentityToken();
+      const token = await getIdentityToken(user);
       if (!token) return null;
 
       const response = await fetch("/.netlify/functions/me", {
@@ -36,7 +38,7 @@ export default function AdminPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user]);
 
   if (loading) {
     return <div className="card text-sm text-slate-500">Checking permissions…</div>;

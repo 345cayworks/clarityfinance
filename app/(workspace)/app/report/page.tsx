@@ -272,6 +272,8 @@ export default function ReportPage() {
   const readinessProfile = useMemo(() => (data ? buildLoanReadinessProfile(data) : null), [data]);
   const approvalScore = useMemo(() => (readinessProfile ? calculateApprovalReadinessScore(readinessProfile) : null), [readinessProfile]);
 
+  const currency = String(data?.profile?.preferred_currency ?? "USD") || "USD";
+
   const expenseRows = useMemo(() => {
     const categories = [
       { label: "Utilities", value: toNumber(data?.expenseProfile?.utilities) },
@@ -371,10 +373,10 @@ export default function ReportPage() {
 
   const bankConversationSummary = `Based on the information provided, the applicant has monthly income of ${toCurrency(
     income
-  )}, monthly expenses of ${toCurrency(expenses)}, monthly debt payments of ${toCurrency(debtPayments)}, estimated surplus of ${toCurrency(
+  , currency)}, monthly expenses of ${toCurrency(expenses, currency)}, monthly debt payments of ${toCurrency(debtPayments, currency)}, estimated surplus of ${toCurrency(
     adjustedSurplus
-  )}, savings runway of ${runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`}, and estimated property equity of ${
-    homeValue > 0 ? toCurrency(equity) : "Missing data"
+  , currency)}, savings runway of ${runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`}, and estimated property equity of ${
+    homeValue > 0 ? toCurrency(equity, currency) : "Missing data"
   }. Items to confirm with the bank include: ${missingInfo.join(", ") || "none identified"}.`;
 
   const snapshotStatus: Record<"income" | "expenses" | "surplus" | "runway" | "debt" | "goals", Status> = {
@@ -387,7 +389,14 @@ export default function ReportPage() {
   };
 
   if (loading) return <div className="card text-sm text-slate-600">Loading reports…</div>;
-  if (loadError) return <div className="card text-sm text-amber-700">{loadError}</div>;
+  if (loadError) return <div className="card">
+    <p className="text-sm text-amber-700">{loadError}</p>
+    <Link href="/app/onboarding"
+      className="mt-3 inline-flex rounded-lg bg-[#0A2540] px-4 py-2
+                 text-sm font-semibold text-white">
+      Complete your profile
+    </Link>
+  </div>;
 
   return (
     <div className="space-y-4 print:bg-white">
@@ -397,7 +406,7 @@ export default function ReportPage() {
           <h1 className="mt-1 text-2xl font-semibold text-[#0A2540]">Reports</h1>
           <p className="mt-2 text-sm text-slate-600">Select a report type to review your financial position from different angles.</p>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 print:hidden">
+        <div className="flex gap-2 overflow-x-auto pb-1 print:hidden">
           {reportOptions.map((option) => {
             const active = activeReport === option.id;
             return (
@@ -405,8 +414,10 @@ export default function ReportPage() {
                 key={option.id}
                 type="button"
                 onClick={() => setActiveReport(option.id)}
-                className={`rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors ${
-                  active ? "border-blue-300 bg-blue-50 text-[#0A2540]" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-colors flex-none ${
+                  active
+                    ? "bg-[#0A2540] text-white"
+                    : "border border-slate-300 text-slate-600 hover:border-slate-400"
                 }`}
               >
                 {option.label}
@@ -414,6 +425,7 @@ export default function ReportPage() {
             );
           })}
         </div>
+        <div className="border-t border-slate-200 print:hidden" />
         <div className="print:hidden flex flex-wrap gap-2 text-sm">
           <Link href="/app/tools/rent-a-room" className="rounded-lg border border-slate-300 px-3 py-2 font-medium text-slate-700 hover:border-slate-400">
             Rent-a-Room Report →
@@ -430,20 +442,24 @@ export default function ReportPage() {
       {activeReport === "snapshot" ? (
         <section className="grid gap-3 md:grid-cols-2 print:bg-white">
           <div className="card md:col-span-2 print:bg-white print:shadow-none">
+            <div className="flex items-baseline gap-2 mb-4">
+              <span className="text-4xl font-semibold text-[#0A2540]">{toCurrency(income, currency)}</span>
+              <span className="text-sm text-slate-500">monthly income</span>
+            </div>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <h2 className="text-lg font-semibold text-[#0A2540]">Financial Snapshot</h2>
               <ReportActions
                 reportName="financial-snapshot"
                 csvRows={[
                   ["Metric", "Value"],
-                  ["Monthly Income", toCurrency(income)],
-                  ["Monthly Expenses", toCurrency(expenses)],
-                  ["Monthly Surplus", toCurrency(surplus)],
+                  ["Monthly Income", toCurrency(income, currency)],
+                  ["Monthly Expenses", toCurrency(expenses, currency)],
+                  ["Monthly Surplus", toCurrency(surplus, currency)],
                   ["Savings Runway", runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`]
                 ]}
-                summaryText={`Financial Snapshot: income ${toCurrency(income)}, expenses ${toCurrency(expenses)}, surplus ${toCurrency(
+                summaryText={`Financial Snapshot: income ${toCurrency(income, currency)}, expenses ${toCurrency(expenses, currency)}, surplus ${toCurrency(
                   surplus
-                )}, savings runway ${runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`}, debt ${toCurrency(totalDebtAmount)}.`}
+                , currency)}, savings runway ${runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`}, debt ${toCurrency(totalDebtAmount, currency)}.`}
                 copied={copiedReport === "snapshot"}
                 onCopy={() => {
                   setCopiedReport("snapshot");
@@ -454,21 +470,21 @@ export default function ReportPage() {
           </div>
           <div className="card">
             <h2 className="text-lg font-semibold text-[#0A2540]">Income summary</h2>
-            <p className="mt-2 text-sm text-slate-600">Total monthly income: {toCurrency(income)}</p>
+            <p className="mt-2 text-sm text-slate-600">Total monthly income: {toCurrency(income, currency)}</p>
             <div className="mt-2">
               <StatusBadge status={snapshotStatus.income} />
             </div>
           </div>
           <div className="card">
             <h2 className="text-lg font-semibold text-[#0A2540]">Expense summary</h2>
-            <p className="mt-2 text-sm text-slate-600">Total monthly expenses: {toCurrency(expenses)}</p>
+            <p className="mt-2 text-sm text-slate-600">Total monthly expenses: {toCurrency(expenses, currency)}</p>
             <div className="mt-2">
               <StatusBadge status={snapshotStatus.expenses} />
             </div>
           </div>
           <div className="card">
             <h2 className="text-lg font-semibold text-[#0A2540]">Monthly surplus</h2>
-            <p className="mt-2 text-sm text-slate-600">{toCurrency(surplus)}</p>
+            <p className="mt-2 text-sm text-slate-600">{toCurrency(surplus, currency)}</p>
             <div className="mt-2">
               <StatusBadge status={snapshotStatus.surplus} />
             </div>
@@ -482,7 +498,7 @@ export default function ReportPage() {
           </div>
           <div className="card">
             <h2 className="text-lg font-semibold text-[#0A2540]">Debt total</h2>
-            <p className="mt-2 text-sm text-slate-600">{toCurrency(totalDebtAmount)}</p>
+            <p className="mt-2 text-sm text-slate-600">{toCurrency(totalDebtAmount, currency)}</p>
             <div className="mt-2">
               <StatusBadge status={snapshotStatus.debt} />
             </div>
@@ -503,8 +519,8 @@ export default function ReportPage() {
             <h2 className="text-lg font-semibold text-[#0A2540]">Expense Report</h2>
             <ReportActions
               reportName="expense-report"
-              csvRows={[["Metric", "Value"], ...expenseRows.map((row) => [row.label, `${toCurrency(row.value)} (${row.pct.toFixed(1)}%)`])]}
-              summaryText={`Expense Report: total monthly expenses ${toCurrency(expenses)}. Top categories: ${
+              csvRows={[["Metric", "Value"], ...expenseRows.map((row) => [row.label, `${toCurrency(row.value, currency)} (${row.pct.toFixed(1)}%)`])]}
+              summaryText={`Expense Report: total monthly expenses ${toCurrency(expenses, currency)}. Top categories: ${
                 topExpenseRows.map((row) => row.label).join(", ") || "Missing data"
               }.`}
               copied={copiedReport === "expense"}
@@ -514,12 +530,16 @@ export default function ReportPage() {
               }}
             />
           </div>
-          <p className="text-sm text-slate-600">Total living expenses (excluding housing): {toCurrency(expenses)}</p>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-4xl font-semibold text-[#0A2540]">{toCurrency(expenses, currency)}</span>
+            <span className="text-sm text-slate-500">total monthly expenses</span>
+          </div>
+          <p className="text-sm text-slate-600">Total living expenses (excluding housing): {toCurrency(expenses, currency)}</p>
           <div className="grid gap-2 md:grid-cols-2">
             {expenseRows.map((row) => (
               <div key={row.label} className="rounded-lg border border-slate-200 p-3 text-sm">
                 <p className="font-medium text-[#0A2540]">{row.label}</p>
-                <p className="text-slate-600">{toCurrency(row.value)}</p>
+                <p className="text-slate-600">{toCurrency(row.value, currency)}</p>
                 <p className="text-xs text-slate-500">{row.pct.toFixed(1)}% of total</p>
               </div>
             ))}
@@ -539,14 +559,14 @@ export default function ReportPage() {
               csvRows={[
                 ["Metric", "Value"],
                 ...borrowerSnapshot,
-                ["Monthly income", toCurrency(income)],
-                ["Living expenses (excluding housing)", toCurrency(expenses)],
-                ["Housing payment", toCurrency(housing)],
-                ["Debt payments", toCurrency(debtPayments)],
-                ["Total monthly obligations", toCurrency(expenses + housing + debtPayments)],
+                ["Monthly income", toCurrency(income, currency)],
+                ["Living expenses (excluding housing)", toCurrency(expenses, currency)],
+                ["Housing payment", toCurrency(housing, currency)],
+                ["Debt payments", toCurrency(debtPayments, currency)],
+                ["Total monthly obligations", toCurrency(expenses + housing + debtPayments, currency)],
                 ["Debt-to-income ratio", dti === null ? "Missing data" : `${(dti * 100).toFixed(1)}%`],
                 ["Housing ratio", housingRatio === null ? "Missing data" : `${(housingRatio * 100).toFixed(1)}%`],
-                ["Adjusted surplus", toCurrency(adjustedSurplus)],
+                ["Adjusted surplus", toCurrency(adjustedSurplus, currency)],
                 ["Savings runway", runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`]
               ]}
               summaryText={bankConversationSummary}
@@ -556,6 +576,10 @@ export default function ReportPage() {
                 window.setTimeout(() => setCopiedReport(null), 1500);
               }}
             />
+          </div>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-4xl font-semibold text-[#0A2540]">{approvalScore?.score.toString() ?? "—"}</span>
+            <span className="text-sm text-slate-500">{`/ 100 · ${approvalScore?.band ?? ""}`}</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {approvalScore ? (
@@ -580,7 +604,7 @@ export default function ReportPage() {
             <div className="rounded-lg border border-slate-200 p-3 text-sm">
               <h3 className="font-semibold text-[#0A2540]">Income & Employment</h3>
               <div className="mt-2 space-y-1 text-slate-600">
-                <p>Monthly income: {toCurrency(income)}</p>
+                <p>Monthly income: {toCurrency(income, currency)}</p>
                 <p>Income type: {String(data?.profile?.income_type ?? "Missing data")}</p>
                 <p>Income frequency: {String(data?.profile?.income_frequency ?? "Missing data")}</p>
                 <p>Income stability: {String(data?.profile?.income_stability ?? "Missing data")}</p>
@@ -590,13 +614,13 @@ export default function ReportPage() {
             <div className="rounded-lg border border-slate-200 p-3 text-sm">
               <h3 className="font-semibold text-[#0A2540]">Expense Position</h3>
               <div className="mt-2 space-y-1 text-slate-600">
-                <p>Living expenses (excluding housing): {toCurrency(expenses)}</p>
-                <p>Housing payment: {toCurrency(housing)}</p>
-                <p>Debt payments: {toCurrency(debtPayments)}</p>
-                <p>Total monthly obligations: {toCurrency(expenses + housing + debtPayments)}</p>
+                <p>Living expenses (excluding housing): {toCurrency(expenses, currency)}</p>
+                <p>Housing payment: {toCurrency(housing, currency)}</p>
+                <p>Debt payments: {toCurrency(debtPayments, currency)}</p>
+                <p>Total monthly obligations: {toCurrency(expenses + housing + debtPayments, currency)}</p>
                 {expenseRows.map((row) => (
                   <p key={row.label}>
-                    {row.label}: {toCurrency(row.value)}
+                    {row.label}: {toCurrency(row.value, currency)}
                   </p>
                 ))}
               </div>
@@ -604,8 +628,8 @@ export default function ReportPage() {
             <div className="rounded-lg border border-slate-200 p-3 text-sm">
               <h3 className="font-semibold text-[#0A2540]">Debt Obligations</h3>
               <div className="mt-2 space-y-1 text-slate-600">
-                <p>Total debt balance: {toCurrency(totalDebtAmount)}</p>
-                <p>Monthly debt payments: {toCurrency(debtPayments)}</p>
+                <p>Total debt balance: {toCurrency(totalDebtAmount, currency)}</p>
+                <p>Monthly debt payments: {toCurrency(debtPayments, currency)}</p>
                 <p>Debt types: {debtTypes.join(", ") || "Missing data"}</p>
                 <p>Interest rates: {(data?.debts?.length ?? 0) > 0 ? `${avgDebtRate.toFixed(2)}% avg` : "Missing data"}</p>
                 <p>Debt-to-income ratio: {dti === null ? "Missing data" : `${(dti * 100).toFixed(1)}%`}</p>
@@ -615,24 +639,24 @@ export default function ReportPage() {
               <h3 className="font-semibold text-[#0A2540]">Housing / Property Position</h3>
               <div className="mt-2 space-y-1 text-slate-600">
                 <p>Housing status: {String(data?.housingProfile?.housing_status ?? "Missing data")}</p>
-                <p>Rent amount: {toCurrency(toNumber(data?.housingProfile?.rent_amount))}</p>
-                <p>Mortgage balance: {mortgageBalance > 0 ? toCurrency(mortgageBalance) : "Missing data"}</p>
-                <p>Mortgage payment: {mortgagePayment > 0 ? toCurrency(mortgagePayment) : "Missing data"}</p>
-                <p>Housing payment used in ratios: {toCurrency(housing)}</p>
+                <p>Rent amount: {toCurrency(toNumber(data?.housingProfile?.rent_amount), currency)}</p>
+                <p>Mortgage balance: {mortgageBalance > 0 ? toCurrency(mortgageBalance, currency) : "Missing data"}</p>
+                <p>Mortgage payment: {mortgagePayment > 0 ? toCurrency(mortgagePayment, currency) : "Missing data"}</p>
+                <p>Housing payment used in ratios: {toCurrency(housing, currency)}</p>
                 <p>Mortgage rate: {toNumber(data?.housingProfile?.mortgage_rate) > 0 ? `${toNumber(data?.housingProfile?.mortgage_rate)}%` : "Missing data"}</p>
-                <p>Estimated home value: {homeValue > 0 ? toCurrency(homeValue) : "Missing data"}</p>
-                <p>Estimated equity: {homeValue > 0 ? toCurrency(equity) : "Missing data"}</p>
+                <p>Estimated home value: {homeValue > 0 ? toCurrency(homeValue, currency) : "Missing data"}</p>
+                <p>Estimated equity: {homeValue > 0 ? toCurrency(equity, currency) : "Missing data"}</p>
                 <p>Loan-to-value: {ltv === null ? "Missing data" : `${(ltv * 100).toFixed(1)}%`}</p>
               </div>
             </div>
             <div className="rounded-lg border border-slate-200 p-3 text-sm">
               <h3 className="font-semibold text-[#0A2540]">Savings & Liquidity</h3>
               <div className="mt-2 space-y-1 text-slate-600">
-                <p>Cash savings: {toCurrency(cashSavings)}</p>
-                <p>Emergency fund: {toCurrency(emergencyFund)}</p>
-                <p>Down payment savings: {toCurrency(downPaymentSavings)}</p>
-                <p>Investments: {toCurrency(toNumber(data?.savingsProfile?.investments))}</p>
-                <p>Retirement savings: {toCurrency(toNumber(data?.savingsProfile?.retirement_savings))}</p>
+                <p>Cash savings: {toCurrency(cashSavings, currency)}</p>
+                <p>Emergency fund: {toCurrency(emergencyFund, currency)}</p>
+                <p>Down payment savings: {toCurrency(downPaymentSavings, currency)}</p>
+                <p>Investments: {toCurrency(toNumber(data?.savingsProfile?.investments), currency)}</p>
+                <p>Retirement savings: {toCurrency(toNumber(data?.savingsProfile?.retirement_savings), currency)}</p>
                 <p>Savings runway: {runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`}</p>
               </div>
             </div>
@@ -643,7 +667,7 @@ export default function ReportPage() {
               {[
                 { label: "Debt-to-income ratio", value: dti === null ? "Missing data" : `${(dti * 100).toFixed(1)}%`, status: loanStatus.dti },
                 { label: "Housing payment ratio", value: housingRatio === null ? "Missing data" : `${(housingRatio * 100).toFixed(1)}%`, status: loanStatus.housing },
-                { label: "Monthly surplus (adjusted)", value: toCurrency(adjustedSurplus), status: loanStatus.surplus },
+                { label: "Monthly surplus (adjusted)", value: toCurrency(adjustedSurplus, currency), status: loanStatus.surplus },
                 { label: "Savings runway", value: runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`, status: loanStatus.runway },
                 { label: "Loan-to-value", value: ltv === null ? "Missing data" : `${(ltv * 100).toFixed(1)}%`, status: loanStatus.ltv }
               ].map((item) => (
@@ -750,31 +774,31 @@ export default function ReportPage() {
                 reportName="rent-a-room-profitability"
                 csvRows={[
                   ["Metric", "Value"],
-                  ["Total setup cost", toCurrency(toNumber(rentRoomResult.totalSetupCost))],
-                  ["Construction/repair cost", toCurrency(rentRoomConstructionCost)],
-                  ["Furnishings cost", toCurrency(rentRoomFurnishingsCost)],
-                  ["Other setup costs", toCurrency(rentRoomOtherSetupCost)],
-                  ["Expected monthly rent", toCurrency(toNumber(rentRoomIncome.expectedMonthlyRent))],
+                  ["Total setup cost", toCurrency(toNumber(rentRoomResult.totalSetupCost), currency)],
+                  ["Construction/repair cost", toCurrency(rentRoomConstructionCost, currency)],
+                  ["Furnishings cost", toCurrency(rentRoomFurnishingsCost, currency)],
+                  ["Other setup costs", toCurrency(rentRoomOtherSetupCost, currency)],
+                  ["Expected monthly rent", toCurrency(toNumber(rentRoomIncome.expectedMonthlyRent), currency)],
                   ["Occupancy %", `${toNumber(rentRoomIncome.occupancyPercent).toFixed(1)}%`],
-                  ["Monthly added costs", toCurrency(toNumber(rentRoomResult.monthlyAddedCosts))],
-                  ["Net monthly profit", toCurrency(toNumber(rentRoomResult.netMonthlyProfit))],
+                  ["Monthly added costs", toCurrency(toNumber(rentRoomResult.monthlyAddedCosts), currency)],
+                  ["Net monthly profit", toCurrency(toNumber(rentRoomResult.netMonthlyProfit), currency)],
                   [
                     "Break-even timeline",
                     toNumber(rentRoomResult.breakEvenMonths) > 0 ? `${toNumber(rentRoomResult.breakEvenMonths).toFixed(1)} months` : "Not profitable"
                   ],
-                  ["First-year net result", toCurrency(toNumber(rentRoomResult.firstYearNet))],
-                  ["Annual profit after break-even", toCurrency(toNumber(rentRoomResult.annualProfitAfterBreakEven))],
+                  ["First-year net result", toCurrency(toNumber(rentRoomResult.firstYearNet), currency)],
+                  ["Annual profit after break-even", toCurrency(toNumber(rentRoomResult.annualProfitAfterBreakEven), currency)],
                   ["Status label", String(rentRoomResult.statusLabel ?? "Missing data")]
                 ]}
-                summaryText={`Rent-a-Room report: setup ${toCurrency(toNumber(rentRoomResult.totalSetupCost))}, expected monthly rent ${toCurrency(
+                summaryText={`Rent-a-Room report: setup ${toCurrency(toNumber(rentRoomResult.totalSetupCost), currency)}, expected monthly rent ${toCurrency(
                   toNumber(rentRoomIncome.expectedMonthlyRent)
-                )}, occupancy ${toNumber(rentRoomIncome.occupancyPercent).toFixed(1)}%, monthly added costs ${toCurrency(
+                , currency)}, occupancy ${toNumber(rentRoomIncome.occupancyPercent).toFixed(1)}%, monthly added costs ${toCurrency(
                   toNumber(rentRoomResult.monthlyAddedCosts)
-                )}, net monthly profit ${toCurrency(toNumber(rentRoomResult.netMonthlyProfit))}, break-even ${
+                , currency)}, net monthly profit ${toCurrency(toNumber(rentRoomResult.netMonthlyProfit), currency)}, break-even ${
                   toNumber(rentRoomResult.breakEvenMonths) > 0 ? `${toNumber(rentRoomResult.breakEvenMonths).toFixed(1)} months` : "not profitable"
-                }, first-year net ${toCurrency(toNumber(rentRoomResult.firstYearNet))}, annual after break-even ${toCurrency(
+                }, first-year net ${toCurrency(toNumber(rentRoomResult.firstYearNet), currency)}, annual after break-even ${toCurrency(
                   toNumber(rentRoomResult.annualProfitAfterBreakEven)
-                )}, status ${String(rentRoomResult.statusLabel ?? "Missing data")}.`}
+                , currency)}, status ${String(rentRoomResult.statusLabel ?? "Missing data")}.`}
                 copied={copiedReport === "rent-room"}
                 onCopy={() => {
                   setCopiedReport("rent-room");
@@ -787,22 +811,22 @@ export default function ReportPage() {
             <p className="text-sm text-slate-600">Loading saved scenario…</p>
           ) : rentRoomScenario ? (
             <>
-              <p className="text-sm text-slate-600">Total setup cost: {toCurrency(toNumber(rentRoomResult.totalSetupCost))}</p>
-              <p className="text-sm text-slate-600">Construction/repair cost: {toCurrency(rentRoomConstructionCost)}</p>
-              <p className="text-sm text-slate-600">Furnishings cost: {toCurrency(rentRoomFurnishingsCost)}</p>
-              <p className="text-sm text-slate-600">Other setup costs: {toCurrency(rentRoomOtherSetupCost)}</p>
-              <p className="text-sm text-slate-600">Expected monthly rent: {toCurrency(toNumber(rentRoomIncome.expectedMonthlyRent))}</p>
+              <p className="text-sm text-slate-600">Total setup cost: {toCurrency(toNumber(rentRoomResult.totalSetupCost), currency)}</p>
+              <p className="text-sm text-slate-600">Construction/repair cost: {toCurrency(rentRoomConstructionCost, currency)}</p>
+              <p className="text-sm text-slate-600">Furnishings cost: {toCurrency(rentRoomFurnishingsCost, currency)}</p>
+              <p className="text-sm text-slate-600">Other setup costs: {toCurrency(rentRoomOtherSetupCost, currency)}</p>
+              <p className="text-sm text-slate-600">Expected monthly rent: {toCurrency(toNumber(rentRoomIncome.expectedMonthlyRent), currency)}</p>
               <p className="text-sm text-slate-600">Occupancy %: {toNumber(rentRoomIncome.occupancyPercent).toFixed(1)}%</p>
-              <p className="text-sm text-slate-600">Monthly added costs: {toCurrency(toNumber(rentRoomResult.monthlyAddedCosts))}</p>
-              <p className="text-sm text-slate-600">Net monthly profit: {toCurrency(toNumber(rentRoomResult.netMonthlyProfit))}</p>
+              <p className="text-sm text-slate-600">Monthly added costs: {toCurrency(toNumber(rentRoomResult.monthlyAddedCosts), currency)}</p>
+              <p className="text-sm text-slate-600">Net monthly profit: {toCurrency(toNumber(rentRoomResult.netMonthlyProfit), currency)}</p>
               <p className="text-sm text-slate-600">
                 Break-even timeline:{" "}
                 {toNumber(rentRoomResult.breakEvenMonths) > 0
                   ? `${toNumber(rentRoomResult.breakEvenMonths).toFixed(1)} months`
                   : "Not profitable with current assumptions."}
               </p>
-              <p className="text-sm text-slate-600">First-year net result: {toCurrency(toNumber(rentRoomResult.firstYearNet))}</p>
-              <p className="text-sm text-slate-600">Annual profit after break-even: {toCurrency(toNumber(rentRoomResult.annualProfitAfterBreakEven))}</p>
+              <p className="text-sm text-slate-600">First-year net result: {toCurrency(toNumber(rentRoomResult.firstYearNet), currency)}</p>
+              <p className="text-sm text-slate-600">Annual profit after break-even: {toCurrency(toNumber(rentRoomResult.annualProfitAfterBreakEven), currency)}</p>
               <p className="text-sm text-slate-600">Status label: {String(rentRoomResult.statusLabel ?? "Missing data")}</p>
             </>
           ) : (
@@ -822,21 +846,21 @@ export default function ReportPage() {
               reportName="savings-cash-flow"
               csvRows={[
                 ["Metric", "Value"],
-                ["Monthly income", toCurrency(income)],
-                ["Living expenses (excluding housing)", toCurrency(expenses)],
-                ["Housing payment", toCurrency(housing)],
-                ["Debt payments", toCurrency(debtPayments)],
-                ["Total monthly obligations", toCurrency(expenses + housing + debtPayments)],
-                ["Monthly surplus", toCurrency(surplus)],
-                ["Savings balance", toCurrency(savingsBalance)],
-                ["Emergency fund", toCurrency(emergencyFund)],
+                ["Monthly income", toCurrency(income, currency)],
+                ["Living expenses (excluding housing)", toCurrency(expenses, currency)],
+                ["Housing payment", toCurrency(housing, currency)],
+                ["Debt payments", toCurrency(debtPayments, currency)],
+                ["Total monthly obligations", toCurrency(expenses + housing + debtPayments, currency)],
+                ["Monthly surplus", toCurrency(surplus, currency)],
+                ["Savings balance", toCurrency(savingsBalance, currency)],
+                ["Emergency fund", toCurrency(emergencyFund, currency)],
                 ["Runway months", runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`]
               ]}
-              summaryText={`Savings & Cash Flow: income ${toCurrency(income)}, living expenses ${toCurrency(expenses)}, housing payment ${toCurrency(
+              summaryText={`Savings & Cash Flow: income ${toCurrency(income, currency)}, living expenses ${toCurrency(expenses, currency)}, housing payment ${toCurrency(
                 housing
-              )}, debt payments ${toCurrency(debtPayments)}, total obligations ${toCurrency(expenses + housing + debtPayments)}, surplus ${toCurrency(
+              , currency)}, debt payments ${toCurrency(debtPayments, currency)}, total obligations ${toCurrency(expenses + housing + debtPayments, currency)}, surplus ${toCurrency(
                 surplus
-              )}, savings balance ${toCurrency(savingsBalance)}, emergency fund ${toCurrency(emergencyFund)}.`}
+              , currency)}, savings balance ${toCurrency(savingsBalance, currency)}, emergency fund ${toCurrency(emergencyFund, currency)}.`}
               copied={copiedReport === "savings"}
               onCopy={() => {
                 setCopiedReport("savings");
@@ -844,14 +868,18 @@ export default function ReportPage() {
               }}
             />
           </div>
-          <p className="text-sm text-slate-600">Monthly income: {toCurrency(income)}</p>
-          <p className="text-sm text-slate-600">Living expenses (excluding housing): {toCurrency(expenses)}</p>
-          <p className="text-sm text-slate-600">Housing payment: {toCurrency(housing)}</p>
-          <p className="text-sm text-slate-600">Debt payments: {toCurrency(debtPayments)}</p>
-          <p className="text-sm text-slate-600">Total monthly obligations: {toCurrency(expenses + housing + debtPayments)}</p>
-          <p className="text-sm text-slate-600">Monthly surplus: {toCurrency(surplus)}</p>
-          <p className="text-sm text-slate-600">Savings balance: {toCurrency(savingsBalance)}</p>
-          <p className="text-sm text-slate-600">Emergency fund: {toCurrency(emergencyFund)}</p>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-4xl font-semibold text-[#0A2540]">{runwayMonths === null ? "—" : `${runwayMonths.toFixed(1)} mo`}</span>
+            <span className="text-sm text-slate-500">savings runway</span>
+          </div>
+          <p className="text-sm text-slate-600">Monthly income: {toCurrency(income, currency)}</p>
+          <p className="text-sm text-slate-600">Living expenses (excluding housing): {toCurrency(expenses, currency)}</p>
+          <p className="text-sm text-slate-600">Housing payment: {toCurrency(housing, currency)}</p>
+          <p className="text-sm text-slate-600">Debt payments: {toCurrency(debtPayments, currency)}</p>
+          <p className="text-sm text-slate-600">Total monthly obligations: {toCurrency(expenses + housing + debtPayments, currency)}</p>
+          <p className="text-sm text-slate-600">Monthly surplus: {toCurrency(surplus, currency)}</p>
+          <p className="text-sm text-slate-600">Savings balance: {toCurrency(savingsBalance, currency)}</p>
+          <p className="text-sm text-slate-600">Emergency fund: {toCurrency(emergencyFund, currency)}</p>
           <p className="text-sm text-slate-600">Runway months: {runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`}</p>
         </section>
       ) : null}
@@ -864,14 +892,14 @@ export default function ReportPage() {
               reportName="debt-liability"
               csvRows={[
                 ["Metric", "Value"],
-                ["Total debt", toCurrency(totalDebtAmount)],
-                ["Monthly debt payments", toCurrency(debtPayments)],
+                ["Total debt", toCurrency(totalDebtAmount, currency)],
+                ["Monthly debt payments", toCurrency(debtPayments, currency)],
                 ["Debt-to-income ratio", dti === null ? "Missing data" : `${(dti * 100).toFixed(1)}%`],
-                ...(data?.debts ?? []).map((debt) => [String(debt.name ?? "Debt"), toCurrency(toNumber(debt.balance))])
+                ...(data?.debts ?? []).map((debt) => [String(debt.name ?? "Debt"), toCurrency(toNumber(debt.balance), currency)])
               ]}
-              summaryText={`Debt report: total debt ${toCurrency(totalDebtAmount)}, monthly debt payments ${toCurrency(
+              summaryText={`Debt report: total debt ${toCurrency(totalDebtAmount, currency)}, monthly debt payments ${toCurrency(
                 debtPayments
-              )}, debt-to-income ratio ${dti === null ? "Missing data" : `${(dti * 100).toFixed(1)}%`}.`}
+              , currency)}, debt-to-income ratio ${dti === null ? "Missing data" : `${(dti * 100).toFixed(1)}%`}.`}
               copied={copiedReport === "debt"}
               onCopy={() => {
                 setCopiedReport("debt");
@@ -879,16 +907,20 @@ export default function ReportPage() {
               }}
             />
           </div>
-          <p className="text-sm text-slate-600">Total debt: {toCurrency(totalDebtAmount)}</p>
-          <p className="text-sm text-slate-600">Monthly debt payments: {toCurrency(debtPayments)}</p>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-4xl font-semibold text-[#0A2540]">{toCurrency(totalDebtAmount, currency)}</span>
+            <span className="text-sm text-slate-500">total debt</span>
+          </div>
+          <p className="text-sm text-slate-600">Total debt: {toCurrency(totalDebtAmount, currency)}</p>
+          <p className="text-sm text-slate-600">Monthly debt payments: {toCurrency(debtPayments, currency)}</p>
           <p className="text-sm text-slate-600">Debt-to-income ratio: {dti === null ? "Missing data" : `${(dti * 100).toFixed(1)}%`}</p>
           <div className="grid gap-2 md:grid-cols-2">
             {(data?.debts ?? []).map((debt, idx) => (
               <div key={`${String(debt.name ?? "debt")}-${idx}`} className="rounded-lg border border-slate-200 p-3 text-sm">
                 <p className="font-medium text-[#0A2540]">{String(debt.name ?? "Unnamed debt")}</p>
                 <p className="text-slate-600">Type: {String(debt.type ?? "Unknown")}</p>
-                <p className="text-slate-600">Balance: {toCurrency(toNumber(debt.balance))}</p>
-                <p className="text-slate-600">Monthly payment: {toCurrency(toNumber(debt.monthly_payment))}</p>
+                <p className="text-slate-600">Balance: {toCurrency(toNumber(debt.balance), currency)}</p>
+                <p className="text-slate-600">Monthly payment: {toCurrency(toNumber(debt.monthly_payment), currency)}</p>
               </div>
             ))}
           </div>
@@ -904,15 +936,15 @@ export default function ReportPage() {
               reportName="housing-equity"
               csvRows={[
                 ["Metric", "Value"],
-                ["Home value", homeValue > 0 ? toCurrency(homeValue) : "Missing data"],
-                ["Mortgage balance", mortgageBalance > 0 ? toCurrency(mortgageBalance) : "Missing data"],
-                ["Equity", homeValue > 0 ? toCurrency(equity) : "Missing data"],
-                ["Mortgage payment", mortgagePayment > 0 ? toCurrency(mortgagePayment) : "Missing data"],
+                ["Home value", homeValue > 0 ? toCurrency(homeValue, currency) : "Missing data"],
+                ["Mortgage balance", mortgageBalance > 0 ? toCurrency(mortgageBalance, currency) : "Missing data"],
+                ["Equity", homeValue > 0 ? toCurrency(equity, currency) : "Missing data"],
+                ["Mortgage payment", mortgagePayment > 0 ? toCurrency(mortgagePayment, currency) : "Missing data"],
                 ["Estimated LTV", ltv === null ? "Missing data" : `${(ltv * 100).toFixed(1)}%`]
               ]}
-              summaryText={`Housing report: home value ${homeValue > 0 ? toCurrency(homeValue) : "Missing data"}, mortgage balance ${
-                mortgageBalance > 0 ? toCurrency(mortgageBalance) : "Missing data"
-              }, equity ${homeValue > 0 ? toCurrency(equity) : "Missing data"}, LTV ${
+              summaryText={`Housing report: home value ${homeValue > 0 ? toCurrency(homeValue, currency) : "Missing data"}, mortgage balance ${
+                mortgageBalance > 0 ? toCurrency(mortgageBalance, currency) : "Missing data"
+              }, equity ${homeValue > 0 ? toCurrency(equity, currency) : "Missing data"}, LTV ${
                 ltv === null ? "Missing data" : `${(ltv * 100).toFixed(1)}%`
               }.`}
               copied={copiedReport === "housing"}
@@ -922,10 +954,14 @@ export default function ReportPage() {
               }}
             />
           </div>
-          <p className="text-sm text-slate-600">Home value: {homeValue > 0 ? toCurrency(homeValue) : "Missing data"}</p>
-          <p className="text-sm text-slate-600">Mortgage balance: {mortgageBalance > 0 ? toCurrency(mortgageBalance) : "Missing data"}</p>
-          <p className="text-sm text-slate-600">Equity: {homeValue > 0 ? toCurrency(equity) : "Missing data"}</p>
-          <p className="text-sm text-slate-600">Mortgage payment: {mortgagePayment > 0 ? toCurrency(mortgagePayment) : "Missing data"}</p>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-4xl font-semibold text-[#0A2540]">{homeValue > 0 ? toCurrency(equity, currency) : "—"}</span>
+            <span className="text-sm text-slate-500">estimated equity</span>
+          </div>
+          <p className="text-sm text-slate-600">Home value: {homeValue > 0 ? toCurrency(homeValue, currency) : "Missing data"}</p>
+          <p className="text-sm text-slate-600">Mortgage balance: {mortgageBalance > 0 ? toCurrency(mortgageBalance, currency) : "Missing data"}</p>
+          <p className="text-sm text-slate-600">Equity: {homeValue > 0 ? toCurrency(equity, currency) : "Missing data"}</p>
+          <p className="text-sm text-slate-600">Mortgage payment: {mortgagePayment > 0 ? toCurrency(mortgagePayment, currency) : "Missing data"}</p>
           <p className="text-sm text-slate-600">Estimated LTV: {ltv === null ? "Missing data" : `${(ltv * 100).toFixed(1)}%`}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <Link href="/app/tools/mortgage" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400">

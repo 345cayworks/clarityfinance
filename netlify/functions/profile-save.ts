@@ -219,16 +219,16 @@ export const handler: Handler = async (event) => {
       updated_at = NOW()
   `;
 
-    await sql`DELETE FROM income_sources WHERE user_id = ${userId}`;
     if (toNumber(body.incomeMonthlyAmount) > 0) {
+      await sql`DELETE FROM income_sources WHERE user_id = ${userId}`;
       await sql`
       INSERT INTO income_sources (id, user_id, type, label, monthly_amount, frequency, stability)
       VALUES (${randomId("inc")}, ${userId}, ${String(body.incomeType ?? "salary")}, ${String(body.incomeLabel ?? "Primary Income")}, ${toNumber(body.incomeMonthlyAmount)}, ${String(body.incomeFrequency ?? "monthly")}, ${String(body.incomeStability ?? "stable")})
     `;
     }
 
-    await sql`DELETE FROM debts WHERE user_id = ${userId}`;
     if (String(body.debtName ?? "").trim()) {
+      await sql`DELETE FROM debts WHERE user_id = ${userId}`;
       await sql`
       INSERT INTO debts (id, user_id, name, type, balance, interest_rate, monthly_payment)
       VALUES (${randomId("deb")}, ${userId}, ${String(body.debtName ?? "")}, ${String(body.debtType ?? "other")}, ${toNumber(body.debtBalance)}, ${toNumber(body.debtInterestRate)}, ${toNumber(body.debtMonthlyPayment)})

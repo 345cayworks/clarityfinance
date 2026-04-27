@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
-import { debtPayoffEstimates, rentRoomImpact } from "@/lib/calculations/finance";
+import { debtPayoffEstimates, rentRoomImpact } from "@/lib/finance/calculations";
 import { calculateRentRoomProfitability } from "@/lib/finance/rent-room";
 
 type Frequency = "Monthly" | "Bi-weekly" | "Weekly";
@@ -145,6 +145,7 @@ export function MortgageTool() {
         Actual approval depends on lender criteria, income, debt, credit profile, property valuation, and documentation.
       </p>
 
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-4 mb-1 pt-2 border-t border-slate-100">Loan details</h3>
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="Property price" value={propertyPrice} setValue={setPropertyPrice} />
         <Field label="Down payment amount" value={downPayment} setValue={setDownPayment} />
@@ -168,6 +169,7 @@ export function MortgageTool() {
         <Field label="Estimated other housing costs monthly" value={otherHousingMonthly} setValue={setOtherHousingMonthly} />
       </div>
 
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-4 mb-1 pt-2 border-t border-slate-100">Results</h3>
       <div className="rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
         <p>Estimated mortgage payment: {formatMoney(calc.monthlyMortgagePayment, currency)} / month</p>
         <p>
@@ -453,7 +455,7 @@ export function RentRoomTool() {
         <p className="text-sm text-blue-700">Recommended based on your selected goal.</p>
       ) : null}
 
-      <p className="text-sm font-medium text-[#0A2540]">A. Room Preparation Costs</p>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-4 mb-1 pt-2 border-t border-slate-100">A. Room Preparation Costs</h3>
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="Basic repairs" value={basicRepairs} setValue={setBasicRepairs} />
         <Field label="Painting" value={painting} setValue={setPainting} />
@@ -471,7 +473,7 @@ export function RentRoomTool() {
         <Field label="Other setup cost" value={otherSetupCost} setValue={setOtherSetupCost} />
       </div>
 
-      <p className="text-sm font-medium text-[#0A2540]">B. Monthly Rental Income</p>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-4 mb-1 pt-2 border-t border-slate-100">B. Monthly Rental Income</h3>
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="Expected monthly rent" value={expectedMonthlyRent} setValue={setExpectedMonthlyRent} />
         <Field label="Expected occupancy %" value={occupancyPercent} setValue={setOccupancyPercent} step="0.1" />
@@ -479,7 +481,7 @@ export function RentRoomTool() {
         <Field label="Other monthly income" value={otherMonthlyIncome} setValue={setOtherMonthlyIncome} />
       </div>
 
-      <p className="text-sm font-medium text-[#0A2540]">C. Monthly Added Costs</p>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-4 mb-1 pt-2 border-t border-slate-100">C. Monthly Added Costs</h3>
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="Utilities increase" value={utilitiesIncrease} setValue={setUtilitiesIncrease} />
         <Field label="Internet increase" value={internetIncrease} setValue={setInternetIncrease} />
@@ -491,7 +493,7 @@ export function RentRoomTool() {
         <Field label="Other monthly cost" value={otherMonthlyCost} setValue={setOtherMonthlyCost} />
       </div>
 
-      <p className="text-sm font-medium text-[#0A2540]">D. Optional Risk/Comfort Inputs</p>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-4 mb-1 pt-2 border-t border-slate-100">D. Optional Risk/Comfort Inputs</h3>
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="Months to find tenant" value={monthsToFindTenant} setValue={setMonthsToFindTenant} />
         <Field label="Vacancy allowance %" value={vacancyAllowancePercent} setValue={setVacancyAllowancePercent} step="0.1" />
@@ -544,10 +546,42 @@ export function RentRoomTool() {
 }
 
 export function DebtPlanTool() {
-  const calc = debtPayoffEstimates([
-    { name: "Card A", type: "credit", balance: 3200, interestRate: 26, monthlyPayment: 200 },
-    { name: "Loan", type: "personal", balance: 8500, interestRate: 12, monthlyPayment: 250 }
-  ]);
+  const [profileData, setProfileData] = useState<ProfilePayload>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProfile() {
+      const token = await getIdentityToken();
+      if (!token) return;
+
+      const response = await fetch("/.netlify/functions/profile-get", {
+        credentials: "same-origin",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok || cancelled) return;
+      const payload = (await response.json()) as Exclude<ProfilePayload, null>;
+      setProfileData(payload);
+    }
+
+    loadProfile().catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const debts =
+    profileData?.debts && profileData.debts.length > 0
+      ? profileData.debts
+      : [
+          { name: "Card A", type: "credit", balance: 3200, interestRate: 26, monthlyPayment: 200 },
+          { name: "Loan", type: "personal", balance: 8500, interestRate: 12, monthlyPayment: 250 }
+        ];
+
+  const calc = debtPayoffEstimates(debts);
+
   return <ToolCard title="Debt Plan Tool" result={`Total debt: $${calc.totalDebt.toFixed(0)} · Estimated payoff: ${calc.estimatedMonths} months`}>
     <p className="text-sm text-slate-600">{calc.snowballNote}</p>
     <p className="text-sm text-slate-600">{calc.avalancheNote}</p>
@@ -555,7 +589,7 @@ export function DebtPlanTool() {
 }
 
 function ToolCard({ title, result, children }: { title: string; result: string; children: React.ReactNode }) {
-  return <div className="card"><h1 className="text-2xl font-semibold">{title}</h1><p className="mt-2 text-slate-600">{result}</p><div className="mt-4 space-y-2">{children}</div></div>;
+  return <div className="card"><h1 className="text-2xl font-semibold">{title}</h1><p className="mt-2 text-2xl font-semibold text-emerald-600">{result}</p><div className="mt-4 space-y-2">{children}</div></div>;
 }
 
 function Field({ label, value, setValue, step = "1" }: { label: string; value: number; setValue: (v: number) => void; step?: string }) {

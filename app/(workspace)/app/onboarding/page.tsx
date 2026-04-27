@@ -421,53 +421,53 @@ export default function OnboardingPage() {
       const profile = savedData?.profile;
       const complete = Boolean(profile?.country_or_market && profile?.preferred_currency && profile?.employment_type);
       return complete
-        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
-        : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+        ? { label: "Complete", classes: "border-green-300 bg-green-100 text-green-800" }
+        : { label: "Needs update", classes: "border-amber-300 bg-amber-100 text-amber-800" };
     }
     if (title === "Loan & Prequalification Details") {
       const profile = savedData?.profile;
       const complete = Boolean(profile?.nationality && profile?.loan_purpose && profile?.requested_loan_amount);
       return complete
-        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
-        : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+        ? { label: "Complete", classes: "border-green-300 bg-green-100 text-green-800" }
+        : { label: "Needs update", classes: "border-amber-300 bg-amber-100 text-amber-800" };
     }
     if (title === "Income") {
       const complete = (savedData?.incomeSources.length ?? 0) > 0;
       return complete
-        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
-        : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+        ? { label: "Complete", classes: "border-green-300 bg-green-100 text-green-800" }
+        : { label: "Needs update", classes: "border-amber-300 bg-amber-100 text-amber-800" };
     }
     if (title === "Expenses") {
       const complete = Boolean(savedData?.expenseProfile);
       return complete
-        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
-        : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+        ? { label: "Complete", classes: "border-green-300 bg-green-100 text-green-800" }
+        : { label: "Needs update", classes: "border-amber-300 bg-amber-100 text-amber-800" };
     }
     if (title === "Debt (optional)") {
       const complete = (savedData?.debts.length ?? 0) > 0;
       return complete
-        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
+        ? { label: "Complete", classes: "border-green-300 bg-green-100 text-green-800" }
         : { label: "Optional", classes: "border-slate-200 bg-slate-50 text-slate-700" };
     }
     if (title === "Housing") {
       const complete = Boolean(savedData?.housingProfile?.housing_status);
       return complete
-        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
-        : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+        ? { label: "Complete", classes: "border-green-300 bg-green-100 text-green-800" }
+        : { label: "Needs update", classes: "border-amber-300 bg-amber-100 text-amber-800" };
     }
     if (title === "Savings") {
       const complete = Boolean(savedData?.savingsProfile);
       return complete
-        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
-        : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+        ? { label: "Complete", classes: "border-green-300 bg-green-100 text-green-800" }
+        : { label: "Needs update", classes: "border-amber-300 bg-amber-100 text-amber-800" };
     }
     if (title === "Goals") {
       const complete = Boolean(savedData?.goals?.target_goal);
       return complete
-        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
-        : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+        ? { label: "Complete", classes: "border-green-300 bg-green-100 text-green-800" }
+        : { label: "Needs update", classes: "border-amber-300 bg-amber-100 text-amber-800" };
     }
-    return { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+    return { label: "Needs update", classes: "border-amber-300 bg-amber-100 text-amber-800" };
   };
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -555,7 +555,7 @@ export default function OnboardingPage() {
       <form key={formVersion} onSubmit={handleSubmit} className="space-y-5">
         {sections.map((section) => (
           <fieldset key={section.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <legend className="px-1 text-base font-semibold text-[#0A2540]">{section.title}</legend>
+            <legend className="px-1 text-xl font-semibold text-[#0A2540]">{section.title}</legend>
             <p className="mt-1 text-sm text-slate-500">{section.description}</p>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               {section.fields.map((field) => (
@@ -623,7 +623,7 @@ export default function OnboardingPage() {
         ))}
 
         <fieldset className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <legend className="px-1 text-base font-semibold text-[#0A2540]">Credit profile</legend>
+          <legend className="px-1 text-xl font-semibold text-[#0A2540]">Credit profile</legend>
           <p className="mt-1 text-sm text-slate-500">Optional for non-U.S. users. Lending criteria vary by country.</p>
           <div className="mt-4 space-y-3">
             <label className="flex items-center gap-2 text-sm text-slate-700">

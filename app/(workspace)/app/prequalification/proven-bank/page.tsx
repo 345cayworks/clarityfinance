@@ -458,6 +458,14 @@ export default function ProvenBankPrequalificationPage() {
 
   const completion = Math.round(((REQUIRED_FIELDS.length - missingRequired.length) / REQUIRED_FIELDS.length) * 100);
   const summary = `Proven Bank prequalification status: ${approvalScore.band} (${approvalScore.score}/100). Monthly income ${currency(calculations.monthlyIncome)}, living expenses ${currency(calculations.monthlyLivingExpenses)}, housing payment ${currency(calculations.currentHousingPayment)}, debt payments ${currency(calculations.monthlyDebtPayments)}, total obligations ${currency(calculations.totalMonthlyObligations)}, surplus ${currency(calculations.monthlySurplus)}. DTI ${percent(calculations.debtToIncome)}, housing ratio ${percent(calculations.housingRatio)}, down payment ${percent(calculations.downPaymentPercent)}, LTV ${percent(calculations.loanToValue)}.`;
+
+  const bandStyle = (band: string) => {
+    if (band === "Likely Ready")
+      return "bg-emerald-100 text-emerald-800 border border-emerald-200";
+    if (band === "Needs Review")
+      return "bg-amber-100 text-amber-800 border border-amber-200";
+    return "bg-red-100 text-red-800 border border-red-200";
+  };
   const setString = (field: keyof PrequalForm) => (value: string) => setForm((prev) => ({ ...prev, [field]: value }));
   const locked = (field: keyof PrequalForm) => PROFILE_CONTROLLED_FIELDS.has(field);
 
@@ -575,7 +583,7 @@ export default function ProvenBankPrequalificationPage() {
           <h2 className="text-sm font-semibold tracking-wide text-[#0A2540]">Prequalification Summary</h2>
           <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">{summary}</p>
           <div className="mt-3 grid gap-2 text-sm text-slate-700">
-            <div className="rounded-lg border border-slate-200 px-3 py-2">Status: <span className="font-semibold">{approvalScore.band}</span> ({approvalScore.score}/100)</div>
+            <div className="rounded-lg border border-slate-200 px-3 py-2">Status: <span className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${bandStyle(approvalScore.band)}`}>{approvalScore.band}</span> ({approvalScore.score}/100)</div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Estimated mortgage payment: <span className="font-semibold">{currency(calculations.proposedMortgagePayment)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Monthly income: <span className="font-semibold">{currency(calculations.monthlyIncome)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Living expenses (excluding housing): <span className="font-semibold">{currency(calculations.monthlyLivingExpenses)}</span></div>
