@@ -71,7 +71,7 @@ export default function ActionPlanPage() {
     const income = totalIncome(data?.incomeSources ?? []);
     const expenses = totalExpenses(data?.expenseProfile ?? null);
     const debtPayments = monthlyDebtPayments(data?.debts ?? []);
-    const surplus = monthlySurplus(data?.incomeSources ?? [], data?.expenseProfile ?? null) - debtPayments;
+    const surplus = monthlySurplus(data?.incomeSources ?? [], data?.expenseProfile ?? null, data?.housingProfile ?? null) - debtPayments;
     const fundMonths = emergencyFundMonths(data?.savingsProfile ?? null, Math.max(1, expenses));
     const runwayMonths = savingsRunwayMonths(data?.savingsProfile ?? null, data?.expenseProfile ?? null);
     const goal = String(data?.goals?.target_goal ?? "");

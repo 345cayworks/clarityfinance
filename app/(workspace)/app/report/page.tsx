@@ -6,6 +6,7 @@ import { getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
 import { calculateApprovalReadinessScore } from "@/lib/finance/approval-score";
 import {
   debtTotal,
+  housingPayment,
   housingEquity,
   monthlyDebtPayments,
   monthlySurplus,
@@ -176,17 +177,17 @@ export default function ReportPage() {
 
   const income = totalIncome(data?.incomeSources ?? []);
   const expenses = totalExpenses(data?.expenseProfile ?? null);
-  const surplus = monthlySurplus(data?.incomeSources ?? [], data?.expenseProfile ?? null);
+  const housing = housingPayment(data?.housingProfile ?? null);
+  const surplus = monthlySurplus(data?.incomeSources ?? [], data?.expenseProfile ?? null, data?.housingProfile ?? null);
   const debtPayments = monthlyDebtPayments(data?.debts ?? []);
   const totalDebtAmount = debtTotal(data?.debts ?? []);
   const dti = income > 0 ? debtPayments / income : null;
-  const adjustedSurplus = income - expenses - debtPayments;
+  const adjustedSurplus = income - expenses - housing - debtPayments;
 
   const homeValue = toNumber(data?.housingProfile?.estimated_home_value);
   const mortgageBalance = toNumber(data?.housingProfile?.mortgage_balance);
   const mortgagePayment = toNumber(data?.housingProfile?.mortgage_payment);
-  const housingPayment = mortgagePayment || toNumber(data?.housingProfile?.rent_amount);
-  const housingRatio = income > 0 ? housingPayment / income : null;
+  const housingRatio = income > 0 ? housing / income : null;
   const ltv = homeValue > 0 ? mortgageBalance / homeValue : null;
   const equity = housingEquity(data?.housingProfile ?? null);
 
@@ -205,7 +206,6 @@ export default function ReportPage() {
 
   const expenseRows = useMemo(() => {
     const categories = [
-      { label: "Housing", value: toNumber(data?.expenseProfile?.housing) },
       { label: "Utilities", value: toNumber(data?.expenseProfile?.utilities) },
       { label: "Transport", value: toNumber(data?.expenseProfile?.transport) },
       { label: "Groceries", value: toNumber(data?.expenseProfile?.groceries) },
@@ -423,7 +423,7 @@ export default function ReportPage() {
               }}
             />
           </div>
-          <p className="text-sm text-slate-600">Total monthly expenses: {toCurrency(expenses)}</p>
+          <p className="text-sm text-slate-600">Total living expenses (excluding housing): {toCurrency(expenses)}</p>
           <div className="grid gap-2 md:grid-cols-2">
             {expenseRows.map((row) => (
               <div key={row.label} className="rounded-lg border border-slate-200 p-3 text-sm">
@@ -449,8 +449,10 @@ export default function ReportPage() {
                 ["Metric", "Value"],
                 ...borrowerSnapshot,
                 ["Monthly income", toCurrency(income)],
-                ["Monthly expenses", toCurrency(expenses)],
-                ["Monthly debt payments", toCurrency(debtPayments)],
+                ["Living expenses (excluding housing)", toCurrency(expenses)],
+                ["Housing payment", toCurrency(housing)],
+                ["Debt payments", toCurrency(debtPayments)],
+                ["Total monthly obligations", toCurrency(expenses + housing + debtPayments)],
                 ["Debt-to-income ratio", dti === null ? "Missing data" : `${(dti * 100).toFixed(1)}%`],
                 ["Housing ratio", housingRatio === null ? "Missing data" : `${(housingRatio * 100).toFixed(1)}%`],
                 ["Adjusted surplus", toCurrency(adjustedSurplus)],
@@ -497,7 +499,10 @@ export default function ReportPage() {
             <div className="rounded-lg border border-slate-200 p-3 text-sm">
               <h3 className="font-semibold text-[#0A2540]">Expense Position</h3>
               <div className="mt-2 space-y-1 text-slate-600">
-                <p>Total monthly expenses: {toCurrency(expenses)}</p>
+                <p>Living expenses (excluding housing): {toCurrency(expenses)}</p>
+                <p>Housing payment: {toCurrency(housing)}</p>
+                <p>Debt payments: {toCurrency(debtPayments)}</p>
+                <p>Total monthly obligations: {toCurrency(expenses + housing + debtPayments)}</p>
                 {expenseRows.map((row) => (
                   <p key={row.label}>
                     {row.label}: {toCurrency(row.value)}
@@ -522,6 +527,7 @@ export default function ReportPage() {
                 <p>Rent amount: {toCurrency(toNumber(data?.housingProfile?.rent_amount))}</p>
                 <p>Mortgage balance: {mortgageBalance > 0 ? toCurrency(mortgageBalance) : "Missing data"}</p>
                 <p>Mortgage payment: {mortgagePayment > 0 ? toCurrency(mortgagePayment) : "Missing data"}</p>
+                <p>Housing payment used in ratios: {toCurrency(housing)}</p>
                 <p>Mortgage rate: {toNumber(data?.housingProfile?.mortgage_rate) > 0 ? `${toNumber(data?.housingProfile?.mortgage_rate)}%` : "Missing data"}</p>
                 <p>Estimated home value: {homeValue > 0 ? toCurrency(homeValue) : "Missing data"}</p>
                 <p>Estimated equity: {homeValue > 0 ? toCurrency(equity) : "Missing data"}</p>
@@ -696,13 +702,18 @@ export default function ReportPage() {
               csvRows={[
                 ["Metric", "Value"],
                 ["Monthly income", toCurrency(income)],
-                ["Monthly expenses", toCurrency(expenses)],
+                ["Living expenses (excluding housing)", toCurrency(expenses)],
+                ["Housing payment", toCurrency(housing)],
+                ["Debt payments", toCurrency(debtPayments)],
+                ["Total monthly obligations", toCurrency(expenses + housing + debtPayments)],
                 ["Monthly surplus", toCurrency(surplus)],
                 ["Savings balance", toCurrency(savingsBalance)],
                 ["Emergency fund", toCurrency(emergencyFund)],
                 ["Runway months", runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`]
               ]}
-              summaryText={`Savings & Cash Flow: income ${toCurrency(income)}, expenses ${toCurrency(expenses)}, surplus ${toCurrency(
+              summaryText={`Savings & Cash Flow: income ${toCurrency(income)}, living expenses ${toCurrency(expenses)}, housing payment ${toCurrency(
+                housing
+              )}, debt payments ${toCurrency(debtPayments)}, total obligations ${toCurrency(expenses + housing + debtPayments)}, surplus ${toCurrency(
                 surplus
               )}, savings balance ${toCurrency(savingsBalance)}, emergency fund ${toCurrency(emergencyFund)}.`}
               copied={copiedReport === "savings"}
@@ -713,7 +724,10 @@ export default function ReportPage() {
             />
           </div>
           <p className="text-sm text-slate-600">Monthly income: {toCurrency(income)}</p>
-          <p className="text-sm text-slate-600">Monthly expenses: {toCurrency(expenses)}</p>
+          <p className="text-sm text-slate-600">Living expenses (excluding housing): {toCurrency(expenses)}</p>
+          <p className="text-sm text-slate-600">Housing payment: {toCurrency(housing)}</p>
+          <p className="text-sm text-slate-600">Debt payments: {toCurrency(debtPayments)}</p>
+          <p className="text-sm text-slate-600">Total monthly obligations: {toCurrency(expenses + housing + debtPayments)}</p>
           <p className="text-sm text-slate-600">Monthly surplus: {toCurrency(surplus)}</p>
           <p className="text-sm text-slate-600">Savings balance: {toCurrency(savingsBalance)}</p>
           <p className="text-sm text-slate-600">Emergency fund: {toCurrency(emergencyFund)}</p>
