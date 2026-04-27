@@ -74,6 +74,15 @@ const navSections: NavSection[] = [
             <path d="M7 4h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM9 9h6M9 13h6M9 17h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </Icon>
         )
+      },
+      {
+        label: "Proven Bank Prequalification",
+        href: "/app/prequalification/proven-bank",
+        icon: (
+          <Icon>
+            <path d="M4 10h16M6 10V7l6-3 6 3v3M7 20h10M9 10v7M12 10v7M15 10v7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </Icon>
+        )
       }
     ]
   }
