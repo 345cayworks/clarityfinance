@@ -18,20 +18,25 @@ type PrequalForm = {
   fullName: string;
   email: string;
   phone: string;
+  alternatePhone: string;
   dateOfBirth: string;
   countryMarket: string;
   residentialAddress: string;
+  mailingAddress: string;
+  nationality: string;
   citizenshipStatus: string;
   workPermitRequired: "yes" | "no";
   workPermitExpiry: string;
 
   employmentStatus: string;
   employerBusinessName: string;
+  employerAddress: string;
   jobTitle: string;
   lengthOfEmployment: string;
   monthlyGrossIncome: string;
   monthlyNetIncome: string;
   otherIncome: string;
+  otherIncomeDescription: string;
   incomeFrequency: string;
   incomeStability: string;
   selfEmployed: "yes" | "no";
@@ -73,7 +78,8 @@ type PrequalForm = {
 
   creditProfileKnown: "yes" | "no";
   creditScoreProfile: string;
-  existingBankRelationship: string;
+  primaryBankName: string;
+  existingBankRelationship: "yes" | "no";
   bankStatementsAvailable: "yes" | "no";
   missedPayments: "yes" | "no";
   bankruptcyHistory: "yes" | "no";
@@ -95,20 +101,25 @@ const initialForm: PrequalForm = {
   fullName: "",
   email: "",
   phone: "",
+  alternatePhone: "",
   dateOfBirth: "",
   countryMarket: "",
   residentialAddress: "",
+  mailingAddress: "",
+  nationality: "",
   citizenshipStatus: "",
   workPermitRequired: "no",
   workPermitExpiry: "",
 
   employmentStatus: "",
   employerBusinessName: "",
+  employerAddress: "",
   jobTitle: "",
   lengthOfEmployment: "",
   monthlyGrossIncome: "",
   monthlyNetIncome: "",
   otherIncome: "",
+  otherIncomeDescription: "",
   incomeFrequency: "",
   incomeStability: "",
   selfEmployed: "no",
@@ -150,7 +161,8 @@ const initialForm: PrequalForm = {
 
   creditProfileKnown: "no",
   creditScoreProfile: "",
-  existingBankRelationship: "",
+  primaryBankName: "",
+  existingBankRelationship: "no",
   bankStatementsAvailable: "no",
   missedPayments: "no",
   bankruptcyHistory: "no",
@@ -169,29 +181,23 @@ const initialForm: PrequalForm = {
 };
 
 const REQUIRED_FIELDS: Array<keyof PrequalForm> = [
-  "fullName",
-  "email",
-  "phone",
-  "countryMarket",
-  "residentialAddress",
-  "employmentStatus",
-  "monthlyNetIncome",
-  "purchasePrice",
-  "requestedLoanAmount",
-  "downPaymentAvailable",
-  "loanTermYears",
-  "annualRate",
-  "propertyType",
-  "propertyLocation"
+  "fullName", "email", "phone", "countryMarket", "residentialAddress", "nationality", "citizenshipStatus",
+  "employmentStatus", "employerBusinessName", "jobTitle", "monthlyNetIncome", "loanPurpose", "requestedLoanAmount",
+  "propertyType", "propertyLocation", "loanTermYears"
 ];
 
-const toNumber = (value: string) => {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-};
+const PROFILE_CONTROLLED_FIELDS = new Set<keyof PrequalForm>([
+  "fullName", "phone", "alternatePhone", "dateOfBirth", "countryMarket", "residentialAddress", "mailingAddress", "nationality", "citizenshipStatus", "workPermitRequired", "workPermitExpiry",
+  "employmentStatus", "employerBusinessName", "employerAddress", "jobTitle", "lengthOfEmployment", "monthlyGrossIncome", "monthlyNetIncome", "otherIncome", "otherIncomeDescription", "loanPurpose",
+  "requestedLoanAmount", "loanTermYears", "propertyType", "propertyLocation", "propertyIdentified", "purchaseAgreementAvailable", "primaryBankName", "existingBankRelationship", "bankStatementsAvailable",
+  "missedPayments", "bankruptcyHistory", "docId", "docProofOfAddress", "docPayslips", "docEmploymentLetter", "docBankStatements", "docDebtStatements", "docCreditReport", "docPurchaseAgreement",
+  "docPropertyValuation", "docProofDownPayment", "docBusinessFinancials"
+]);
 
+const toNumber = (value: string) => (Number.isFinite(Number(value)) ? Number(value) : 0);
 const currency = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value || 0);
 const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
+const toYesNo = (value: unknown): "yes" | "no" => (value === true || String(value).toLowerCase() === "true" ? "yes" : "no");
 
 function calcMortgagePayment(loanAmount: number, annualRate: number, termYears: number) {
   const monthlyRate = annualRate / 100 / 12;
@@ -201,41 +207,44 @@ function calcMortgagePayment(loanAmount: number, annualRate: number, termYears: 
   return (loanAmount * monthlyRate * (1 + monthlyRate) ** months) / ((1 + monthlyRate) ** months - 1);
 }
 
-function Field({ label, value, onChange, type = "text", required = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean }) {
+function Field({ label, value, onChange, type = "text", required = false, locked = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean; locked?: boolean }) {
   const missing = required && String(value).trim() === "";
   return (
     <label className="text-sm text-slate-700">
       <span className="mb-1 block font-medium">{label} {required ? <span className="text-red-600">*</span> : null}</span>
-      <input type={type} value={value} onChange={(event) => onChange(event.target.value)} className={`w-full rounded-lg border px-3 py-2 ${missing ? "border-red-300 bg-red-50" : "border-slate-300"}`} />
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        readOnly={locked}
+        className={`w-full rounded-lg border px-3 py-2 ${missing ? "border-red-300 bg-red-50" : "border-slate-300"} ${locked ? "bg-slate-100 text-slate-600" : ""}`}
+      />
+      {missing && locked ? <p className="mt-1 text-xs text-red-600">Complete in Profile</p> : null}
     </label>
   );
 }
 
-function SelectField({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[] }) {
+function SelectField({ label, value, onChange, options, locked = false }: { label: string; value: string; onChange: (value: string) => void; options: string[]; locked?: boolean }) {
   return (
     <label className="text-sm text-slate-700">
       <span className="mb-1 block font-medium">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2">
+      <select value={value} onChange={(event) => onChange(event.target.value)} disabled={locked} className={`w-full rounded-lg border border-slate-300 px-3 py-2 ${locked ? "bg-slate-100 text-slate-600" : ""}`}>
         <option value="">Select...</option>
         {options.map((option) => (
           <option key={option} value={option}>{option}</option>
         ))}
       </select>
+      {locked && !value ? <p className="mt-1 text-xs text-red-600">Complete in Profile</p> : null}
     </label>
   );
 }
 
-function YesNoField({ label, value, onChange }: { label: string; value: "yes" | "no"; onChange: (value: "yes" | "no") => void }) {
-  return <SelectField label={label} value={value} onChange={(value) => onChange(value === "yes" ? "yes" : "no")} options={["yes", "no"]} />;
+function YesNoField({ label, value, onChange, locked = false }: { label: string; value: "yes" | "no"; onChange: (value: "yes" | "no") => void; locked?: boolean }) {
+  return <SelectField label={label} value={value} onChange={(value) => onChange(value === "yes" ? "yes" : "no")} options={["yes", "no"]} locked={locked} />;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-4 text-sm font-semibold tracking-wide text-[#0A2540]">{title}</h2>
-      <div className="grid gap-3 md:grid-cols-2">{children}</div>
-    </section>
-  );
+  return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="mb-4 text-sm font-semibold tracking-wide text-[#0A2540]">{title}</h2><div className="grid gap-3 md:grid-cols-2">{children}</div></section>;
 }
 
 export default function ProvenBankPrequalificationPage() {
@@ -246,139 +255,117 @@ export default function ProvenBankPrequalificationPage() {
     const loadProfile = async () => {
       try {
         const user = await getUser();
-        if (!user) {
-          setLoading(false);
-          return;
-        }
-
+        if (!user) return;
         const token = await getIdentityToken(user);
-        if (!token) {
-          setLoading(false);
-          return;
-        }
+        if (!token) return;
 
-        const response = await fetch("/.netlify/functions/profile-get", {
-          method: "GET",
-          credentials: "same-origin",
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!response.ok) {
-          setLoading(false);
-          return;
-        }
+        const response = await fetch("/.netlify/functions/profile-get", { method: "GET", credentials: "same-origin", headers: { Authorization: `Bearer ${token}` } });
+        if (!response.ok) return;
 
         const payload = (await response.json()) as SavedOnboardingData;
+        const profile = payload.profile ?? {};
         const expenseProfile = payload.expenseProfile ?? {};
         const debts = payload.debts ?? [];
         const income = payload.incomeSources?.[0] ?? {};
         const housing = payload.housingProfile ?? {};
         const savings = payload.savingsProfile ?? {};
-        const profile = payload.profile ?? {};
         const goals = payload.goals ?? {};
 
         const debtPayments = debts.reduce<number>((sum, debt) => sum + toNumber(String(debt.monthly_payment ?? "0")), 0);
-        const nonDebtExpense = [
-          expenseProfile.housing,
-          expenseProfile.utilities,
-          expenseProfile.transport,
-          expenseProfile.groceries,
-          expenseProfile.insurance,
-          expenseProfile.childcare,
-          expenseProfile.discretionary,
-          expenseProfile.other
-        ].reduce<number>((sum, item) => sum + toNumber(String(item ?? "0")), 0);
+        const nonDebtExpense = [expenseProfile.housing, expenseProfile.utilities, expenseProfile.transport, expenseProfile.groceries, expenseProfile.insurance, expenseProfile.childcare, expenseProfile.discretionary, expenseProfile.other]
+          .reduce<number>((sum, item) => sum + toNumber(String(item ?? "0")), 0);
 
         setForm((prev) => ({
           ...prev,
           fullName: String(profile.customer_name ?? ""),
           email: user.email ?? "",
           phone: String(profile.phone ?? ""),
+          alternatePhone: String(profile.alternate_phone ?? ""),
           dateOfBirth: String(profile.date_of_birth ?? ""),
           countryMarket: String(profile.country_or_market ?? ""),
           residentialAddress: String(profile.physical_address ?? ""),
+          mailingAddress: String(profile.mailing_address ?? ""),
+          nationality: String(profile.nationality ?? ""),
+          citizenshipStatus: String(profile.citizenship_status ?? ""),
+          workPermitRequired: toYesNo(profile.work_permit_required),
+          workPermitExpiry: String(profile.work_permit_expiry_date ?? ""),
           employmentStatus: String(profile.employment_type ?? ""),
           employerBusinessName: String(profile.employer ?? ""),
+          employerAddress: String(profile.employer_address ?? ""),
           jobTitle: String(profile.job_title ?? ""),
-          monthlyNetIncome: String(income.monthly_amount ?? ""),
+          lengthOfEmployment: String(profile.employment_length ?? ""),
+          monthlyGrossIncome: String(profile.monthly_gross_income ?? ""),
+          monthlyNetIncome: String(profile.monthly_net_income ?? income.monthly_amount ?? ""),
+          otherIncome: String(profile.other_income_amount ?? ""),
+          otherIncomeDescription: String(profile.other_income_description ?? ""),
           incomeFrequency: String(income.frequency ?? ""),
           incomeStability: String(income.stability ?? ""),
+          selfEmployed: String(profile.employment_type ?? "").toLowerCase().includes("self") ? "yes" : "no",
+          businessFinancialsAvailable: toYesNo(profile.has_business_financials),
+          loanPurpose: String(profile.loan_purpose ?? goals.target_goal ?? ""),
           purchasePrice: String(goals.target_home_price ?? ""),
-          downPaymentSavings: String(savings.down_payment_savings ?? ""),
+          requestedLoanAmount: String(profile.requested_loan_amount ?? ""),
           downPaymentAvailable: String(savings.down_payment_savings ?? ""),
+          loanTermYears: String(profile.desired_loan_term_years ?? "30"),
+          propertyType: String(profile.property_type ?? ""),
+          propertyLocation: String(profile.property_location ?? ""),
+          propertyIdentified: toYesNo(profile.property_identified),
+          purchaseAgreementAvailable: toYesNo(profile.purchase_agreement_available),
+          rentOrOwn: String(housing.housing_status ?? ""),
           currentHousingPayment: String(housing.mortgage_payment ?? housing.rent_amount ?? ""),
+          monthlyLivingExpenses: String(nonDebtExpense || ""),
           currentMortgageBalance: String(housing.mortgage_balance ?? ""),
           estimatedHomeValue: String(housing.estimated_home_value ?? ""),
-          monthlyLivingExpenses: String(nonDebtExpense || ""),
           otherDebtMonthlyPayment: String(debtPayments || ""),
           cashSavings: String(savings.cash_savings ?? ""),
           emergencyFund: String(savings.emergency_fund ?? ""),
           investments: String(savings.investments ?? ""),
-          retirementSavings: String(savings.retirement_savings ?? "")
+          retirementSavings: String(savings.retirement_savings ?? ""),
+          downPaymentSavings: String(savings.down_payment_savings ?? ""),
+          primaryBankName: String(profile.primary_bank_name ?? ""),
+          existingBankRelationship: toYesNo(profile.existing_bank_relationship),
+          bankStatementsAvailable: toYesNo(profile.bank_statements_available),
+          missedPayments: toYesNo(profile.missed_payments_history),
+          bankruptcyHistory: toYesNo(profile.bankruptcy_history),
+          docId: Boolean(profile.has_id),
+          docProofOfAddress: Boolean(profile.has_proof_of_address),
+          docPayslips: Boolean(profile.has_payslips),
+          docEmploymentLetter: Boolean(profile.has_employment_letter),
+          docBankStatements: Boolean(profile.has_bank_statements),
+          docDebtStatements: Boolean(profile.has_debt_statements),
+          docCreditReport: Boolean(profile.has_credit_report),
+          docPurchaseAgreement: Boolean(profile.has_purchase_agreement),
+          docPropertyValuation: Boolean(profile.has_valuation),
+          docProofDownPayment: Boolean(profile.has_down_payment_proof),
+          docBusinessFinancials: Boolean(profile.has_business_financials)
         }));
       } finally {
         setLoading(false);
       }
     };
-
     void loadProfile();
   }, []);
 
   const calculations = useMemo(() => {
     const monthlyIncome = toNumber(form.monthlyNetIncome) + toNumber(form.otherIncome);
     const monthlyExpenses = toNumber(form.monthlyLivingExpenses) + toNumber(form.currentHousingPayment);
-    const monthlyDebtPayments =
-      toNumber(form.creditCardMonthlyPayment) +
-      toNumber(form.personalLoanMonthlyPayment) +
-      toNumber(form.autoLoanMonthlyPayment) +
-      toNumber(form.otherDebtMonthlyPayment);
-
+    const monthlyDebtPayments = toNumber(form.creditCardMonthlyPayment) + toNumber(form.personalLoanMonthlyPayment) + toNumber(form.autoLoanMonthlyPayment) + toNumber(form.otherDebtMonthlyPayment);
     const proposedMortgagePayment = calcMortgagePayment(toNumber(form.requestedLoanAmount), toNumber(form.annualRate), toNumber(form.loanTermYears));
     const monthlySurplus = monthlyIncome - monthlyExpenses - monthlyDebtPayments;
-
     const debtToIncome = monthlyIncome > 0 ? monthlyDebtPayments / monthlyIncome : 0;
     const housingRatio = monthlyIncome > 0 ? proposedMortgagePayment / monthlyIncome : 0;
     const downPaymentPercent = toNumber(form.purchasePrice) > 0 ? toNumber(form.downPaymentAvailable) / toNumber(form.purchasePrice) : 0;
     const loanToValue = toNumber(form.purchasePrice) > 0 ? toNumber(form.requestedLoanAmount) / toNumber(form.purchasePrice) : 0;
-
     const liquidSavings = toNumber(form.cashSavings) + toNumber(form.emergencyFund) + toNumber(form.downPaymentSavings);
     const expenseBase = monthlyExpenses + monthlyDebtPayments;
     const savingsRunwayMonths = expenseBase > 0 ? liquidSavings / expenseBase : 0;
-
-    return {
-      monthlyIncome,
-      monthlyExpenses,
-      monthlyDebtPayments,
-      monthlySurplus,
-      proposedMortgagePayment,
-      debtToIncome,
-      housingRatio,
-      downPaymentPercent,
-      loanToValue,
-      savingsRunwayMonths
-    };
+    return { monthlyIncome, monthlyExpenses, monthlyDebtPayments, monthlySurplus, proposedMortgagePayment, debtToIncome, housingRatio, downPaymentPercent, loanToValue, savingsRunwayMonths };
   }, [form]);
 
-  const missingRequired = useMemo(
-    () => REQUIRED_FIELDS.filter((field) => String(form[field] ?? "").trim() === ""),
-    [form]
-  );
-
+  const missingRequired = useMemo(() => REQUIRED_FIELDS.filter((field) => String(form[field] ?? "").trim() === ""), [form]);
   const documentGaps = useMemo(() => {
-    const docs: Array<[boolean, string]> = [
-      [form.docId, "Government ID"],
-      [form.docProofOfAddress, "Proof of address"],
-      [form.docPayslips, "Payslips"],
-      [form.docEmploymentLetter, "Employment letter"],
-      [form.docBankStatements, "Bank statements"],
-      [form.docDebtStatements, "Debt statements"],
-      [form.docCreditReport, "Credit report"],
-      [form.docPurchaseAgreement, "Purchase agreement"],
-      [form.docPropertyValuation, "Property valuation"],
-      [form.docProofDownPayment, "Proof of down payment"]
-    ];
-
+    const docs: Array<[boolean, string]> = [[form.docId, "Government ID"], [form.docProofOfAddress, "Proof of address"], [form.docPayslips, "Payslips"], [form.docEmploymentLetter, "Employment letter"], [form.docBankStatements, "Bank statements"], [form.docDebtStatements, "Debt statements"], [form.docCreditReport, "Credit report"], [form.docPurchaseAgreement, "Purchase agreement"], [form.docPropertyValuation, "Property valuation"], [form.docProofDownPayment, "Proof of down payment"]];
     if (form.selfEmployed === "yes") docs.push([form.docBusinessFinancials || form.businessFinancialsAvailable === "yes", "Business financials"]);
-
     return docs.filter(([available]) => !available).map(([, name]) => name);
   }, [form]);
 
@@ -387,41 +374,16 @@ export default function ProvenBankPrequalificationPage() {
     const hasDownPayment = toNumber(form.downPaymentAvailable) > 0;
     const hasCoreDocs = form.docId && form.docProofOfAddress;
     const dti = calculations.debtToIncome;
-
-    if (!hasIncome || calculations.monthlySurplus < 0 || !hasDownPayment || dti > 0.5) {
-      return "Not Ready Yet" as const;
-    }
-
-    if (hasIncome && dti < 0.4 && hasDownPayment && calculations.monthlySurplus > 0 && form.bankStatementsAvailable === "yes" && hasCoreDocs) {
-      return "Likely Ready" as const;
-    }
-
-    if ((dti >= 0.4 && dti <= 0.5) || calculations.savingsRunwayMonths < 3 || documentGaps.length > 0) {
-      return "Needs Review" as const;
-    }
-
+    if (!hasIncome || calculations.monthlySurplus < 0 || !hasDownPayment || dti > 0.5) return "Not Ready Yet" as const;
+    if (hasIncome && dti < 0.4 && hasDownPayment && calculations.monthlySurplus > 0 && form.bankStatementsAvailable === "yes" && hasCoreDocs) return "Likely Ready" as const;
+    if ((dti >= 0.4 && dti <= 0.5) || calculations.savingsRunwayMonths < 3 || documentGaps.length > 0) return "Needs Review" as const;
     return "Needs Review" as const;
   }, [calculations, documentGaps.length, form]);
 
   const completion = Math.round(((REQUIRED_FIELDS.length - missingRequired.length) / REQUIRED_FIELDS.length) * 100);
-
-  const strengths = [
-    calculations.monthlySurplus > 0 ? `Positive monthly surplus (${currency(calculations.monthlySurplus)}).` : "",
-    calculations.debtToIncome < 0.4 ? `Debt-to-income is ${percent(calculations.debtToIncome)}.` : "",
-    toNumber(form.downPaymentAvailable) > 0 ? `Down payment available (${currency(toNumber(form.downPaymentAvailable))}).` : "",
-    form.bankStatementsAvailable === "yes" ? "Bank statements are available." : ""
-  ].filter(Boolean);
-
-  const riskAreas = [
-    calculations.debtToIncome > 0.5 ? `DTI is high at ${percent(calculations.debtToIncome)}.` : "",
-    calculations.monthlySurplus < 0 ? "Monthly surplus is negative." : "",
-    calculations.savingsRunwayMonths < 3 ? `Savings runway is low (${calculations.savingsRunwayMonths.toFixed(1)} months).` : "",
-    toNumber(form.downPaymentAvailable) <= 0 ? "No down payment entered." : ""
-  ].filter(Boolean);
-
   const summary = `Proven Bank prequalification status: ${readiness}. Monthly income ${currency(calculations.monthlyIncome)}, expenses ${currency(calculations.monthlyExpenses)}, debt payments ${currency(calculations.monthlyDebtPayments)}, surplus ${currency(calculations.monthlySurplus)}. DTI ${percent(calculations.debtToIncome)}, housing ratio ${percent(calculations.housingRatio)}, down payment ${percent(calculations.downPaymentPercent)}, LTV ${percent(calculations.loanToValue)}.`;
-
   const setString = (field: keyof PrequalForm) => (value: string) => setForm((prev) => ({ ...prev, [field]: value }));
+  const locked = (field: keyof PrequalForm) => PROFILE_CONTROLLED_FIELDS.has(field);
 
   if (loading) return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading prequalification profile...</div>;
 
@@ -430,55 +392,50 @@ export default function ProvenBankPrequalificationPage() {
       <div className="rounded-2xl border border-[#0A2540] bg-[#0A2540] p-6 text-white">
         <p className="text-xs uppercase tracking-[0.16em] text-blue-100">Proven Bank</p>
         <h1 className="mt-2 text-2xl font-semibold">Mortgage Prequalification Questionnaire</h1>
-        <div className="mt-4 max-w-xl">
-          <div className="mb-1 flex items-center justify-between text-xs text-blue-100">
-            <span>Completion</span>
-            <span>{completion}%</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-blue-900/60">
-            <div className="h-full bg-emerald-400" style={{ width: `${completion}%` }} />
-          </div>
-        </div>
+        <div className="mt-4 max-w-xl"><div className="mb-1 flex items-center justify-between text-xs text-blue-100"><span>Completion</span><span>{completion}%</span></div><div className="h-2 overflow-hidden rounded-full bg-blue-900/60"><div className="h-full bg-emerald-400" style={{ width: `${completion}%` }} /></div></div>
       </div>
 
       <Section title="A. Applicant Information">
-        <Field label="Full name" value={form.fullName} onChange={setString("fullName")} required />
+        <Field label="Full name" value={form.fullName} onChange={setString("fullName")} required locked={locked("fullName")} />
         <Field label="Email" value={form.email} onChange={setString("email")} required type="email" />
-        <Field label="Phone" value={form.phone} onChange={setString("phone")} required />
-        <Field label="Date of birth" value={form.dateOfBirth} onChange={setString("dateOfBirth")} />
-        <Field label="Country / market" value={form.countryMarket} onChange={setString("countryMarket")} required />
-        <Field label="Residential address" value={form.residentialAddress} onChange={setString("residentialAddress")} required />
-        <Field label="Citizenship / residency status" value={form.citizenshipStatus} onChange={setString("citizenshipStatus")} />
-        <YesNoField label="Work permit required?" value={form.workPermitRequired} onChange={(value) => setForm((prev) => ({ ...prev, workPermitRequired: value }))} />
-        <Field label="Work permit expiry date" value={form.workPermitExpiry} onChange={setString("workPermitExpiry")} type="date" />
+        <Field label="Phone" value={form.phone} onChange={setString("phone")} required locked={locked("phone")} />
+        <Field label="Alternate phone" value={form.alternatePhone} onChange={setString("alternatePhone")} locked={locked("alternatePhone")} />
+        <Field label="Date of birth" value={form.dateOfBirth} onChange={setString("dateOfBirth")} locked={locked("dateOfBirth")} />
+        <Field label="Country / market" value={form.countryMarket} onChange={setString("countryMarket")} required locked={locked("countryMarket")} />
+        <Field label="Residential address" value={form.residentialAddress} onChange={setString("residentialAddress")} required locked={locked("residentialAddress")} />
+        <Field label="Mailing address" value={form.mailingAddress} onChange={setString("mailingAddress")} locked={locked("mailingAddress")} />
+        <Field label="Nationality" value={form.nationality} onChange={setString("nationality")} required locked={locked("nationality")} />
+        <SelectField label="Citizenship / residency status" value={form.citizenshipStatus} onChange={setString("citizenshipStatus")} options={["citizen", "permanent resident", "work permit"]} locked={locked("citizenshipStatus")} />
+        <YesNoField label="Work permit required?" value={form.workPermitRequired} onChange={(value) => setForm((prev) => ({ ...prev, workPermitRequired: value }))} locked={locked("workPermitRequired")} />
+        <Field label="Work permit expiry date" value={form.workPermitExpiry} onChange={setString("workPermitExpiry")} locked={locked("workPermitExpiry")} />
       </Section>
 
       <Section title="B. Employment & Income">
-        <Field label="Employment status" value={form.employmentStatus} onChange={setString("employmentStatus")} required />
-        <Field label="Employer / business name" value={form.employerBusinessName} onChange={setString("employerBusinessName")} />
-        <Field label="Job title" value={form.jobTitle} onChange={setString("jobTitle")} />
-        <Field label="Length of employment" value={form.lengthOfEmployment} onChange={setString("lengthOfEmployment")} />
-        <Field label="Monthly gross income" value={form.monthlyGrossIncome} onChange={setString("monthlyGrossIncome")} type="number" />
-        <Field label="Monthly net income" value={form.monthlyNetIncome} onChange={setString("monthlyNetIncome")} type="number" required />
-        <Field label="Other income" value={form.otherIncome} onChange={setString("otherIncome")} type="number" />
+        <Field label="Employment status" value={form.employmentStatus} onChange={setString("employmentStatus")} required locked={locked("employmentStatus")} />
+        <Field label="Employer / business name" value={form.employerBusinessName} onChange={setString("employerBusinessName")} required locked={locked("employerBusinessName")} />
+        <Field label="Employer address" value={form.employerAddress} onChange={setString("employerAddress")} locked={locked("employerAddress")} />
+        <Field label="Job title" value={form.jobTitle} onChange={setString("jobTitle")} required locked={locked("jobTitle")} />
+        <Field label="Length of employment" value={form.lengthOfEmployment} onChange={setString("lengthOfEmployment")} locked={locked("lengthOfEmployment")} />
+        <Field label="Monthly gross income" value={form.monthlyGrossIncome} onChange={setString("monthlyGrossIncome")} type="number" locked={locked("monthlyGrossIncome")} />
+        <Field label="Monthly net income" value={form.monthlyNetIncome} onChange={setString("monthlyNetIncome")} type="number" required locked={locked("monthlyNetIncome")} />
+        <Field label="Other income" value={form.otherIncome} onChange={setString("otherIncome")} type="number" locked={locked("otherIncome")} />
+        <Field label="Other income description" value={form.otherIncomeDescription} onChange={setString("otherIncomeDescription")} locked={locked("otherIncomeDescription")} />
         <Field label="Income frequency" value={form.incomeFrequency} onChange={setString("incomeFrequency")} />
         <Field label="Income stability" value={form.incomeStability} onChange={setString("incomeStability")} />
-        <YesNoField label="Self-employed?" value={form.selfEmployed} onChange={(value) => setForm((prev) => ({ ...prev, selfEmployed: value }))} />
-        <YesNoField label="Business financials available?" value={form.businessFinancialsAvailable} onChange={(value) => setForm((prev) => ({ ...prev, businessFinancialsAvailable: value }))} />
       </Section>
 
       <Section title="C. Property / Loan Request">
-        <Field label="Loan purpose" value={form.loanPurpose} onChange={setString("loanPurpose")} />
-        <Field label="Property purchase price" value={form.purchasePrice} onChange={setString("purchasePrice")} type="number" required />
-        <Field label="Requested loan amount" value={form.requestedLoanAmount} onChange={setString("requestedLoanAmount")} type="number" required />
-        <Field label="Down payment available" value={form.downPaymentAvailable} onChange={setString("downPaymentAvailable")} type="number" required />
+        <Field label="Loan purpose" value={form.loanPurpose} onChange={setString("loanPurpose")} required locked={locked("loanPurpose")} />
+        <Field label="Property purchase price" value={form.purchasePrice} onChange={setString("purchasePrice")} type="number" />
+        <Field label="Requested loan amount" value={form.requestedLoanAmount} onChange={setString("requestedLoanAmount")} type="number" required locked={locked("requestedLoanAmount")} />
+        <Field label="Down payment available" value={form.downPaymentAvailable} onChange={setString("downPaymentAvailable")} type="number" />
         <Field label="Source of down payment" value={form.downPaymentSource} onChange={setString("downPaymentSource")} />
-        <Field label="Loan term desired (years)" value={form.loanTermYears} onChange={setString("loanTermYears")} type="number" required />
-        <Field label="Estimated annual interest rate (%)" value={form.annualRate} onChange={setString("annualRate")} type="number" required />
-        <Field label="Property type" value={form.propertyType} onChange={setString("propertyType")} required />
-        <Field label="Property location" value={form.propertyLocation} onChange={setString("propertyLocation")} required />
-        <YesNoField label="Property already identified?" value={form.propertyIdentified} onChange={(value) => setForm((prev) => ({ ...prev, propertyIdentified: value }))} />
-        <YesNoField label="Purchase agreement available?" value={form.purchaseAgreementAvailable} onChange={(value) => setForm((prev) => ({ ...prev, purchaseAgreementAvailable: value }))} />
+        <Field label="Loan term desired (years)" value={form.loanTermYears} onChange={setString("loanTermYears")} type="number" required locked={locked("loanTermYears")} />
+        <Field label="Estimated annual interest rate (%)" value={form.annualRate} onChange={setString("annualRate")} type="number" />
+        <Field label="Property type" value={form.propertyType} onChange={setString("propertyType")} required locked={locked("propertyType")} />
+        <Field label="Property location" value={form.propertyLocation} onChange={setString("propertyLocation")} required locked={locked("propertyLocation")} />
+        <YesNoField label="Property already identified?" value={form.propertyIdentified} onChange={(value) => setForm((prev) => ({ ...prev, propertyIdentified: value }))} locked={locked("propertyIdentified")} />
+        <YesNoField label="Purchase agreement available?" value={form.purchaseAgreementAvailable} onChange={(value) => setForm((prev) => ({ ...prev, purchaseAgreementAvailable: value }))} locked={locked("purchaseAgreementAvailable")} />
       </Section>
 
       <Section title="D. Existing Housing">
@@ -510,38 +467,26 @@ export default function ProvenBankPrequalificationPage() {
       </Section>
 
       <Section title="G. Credit & Banking">
+        <Field label="Primary bank name" value={form.primaryBankName} onChange={setString("primaryBankName")} locked={locked("primaryBankName")} />
+        <YesNoField label="Existing bank relationship" value={form.existingBankRelationship} onChange={(value) => setForm((prev) => ({ ...prev, existingBankRelationship: value }))} locked={locked("existingBankRelationship")} />
         <YesNoField label="Credit profile known?" value={form.creditProfileKnown} onChange={(value) => setForm((prev) => ({ ...prev, creditProfileKnown: value }))} />
         <Field label="Credit score/profile" value={form.creditScoreProfile} onChange={setString("creditScoreProfile")} />
-        <Field label="Existing bank relationship" value={form.existingBankRelationship} onChange={setString("existingBankRelationship")} />
-        <YesNoField label="Bank statements available?" value={form.bankStatementsAvailable} onChange={(value) => setForm((prev) => ({ ...prev, bankStatementsAvailable: value }))} />
-        <YesNoField label="Any missed payments?" value={form.missedPayments} onChange={(value) => setForm((prev) => ({ ...prev, missedPayments: value }))} />
-        <YesNoField label="Bankruptcy history?" value={form.bankruptcyHistory} onChange={(value) => setForm((prev) => ({ ...prev, bankruptcyHistory: value }))} />
+        <YesNoField label="Bank statements available?" value={form.bankStatementsAvailable} onChange={(value) => setForm((prev) => ({ ...prev, bankStatementsAvailable: value }))} locked={locked("bankStatementsAvailable")} />
+        <YesNoField label="Any missed payments?" value={form.missedPayments} onChange={(value) => setForm((prev) => ({ ...prev, missedPayments: value }))} locked={locked("missedPayments")} />
+        <YesNoField label="Bankruptcy history?" value={form.bankruptcyHistory} onChange={(value) => setForm((prev) => ({ ...prev, bankruptcyHistory: value }))} locked={locked("bankruptcyHistory")} />
       </Section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="mb-4 text-sm font-semibold tracking-wide text-[#0A2540]">H. Documents Checklist</h2>
         <div className="grid gap-3 md:grid-cols-2">
-          {[
-            ["docId", "ID"],
-            ["docProofOfAddress", "Proof of address"],
-            ["docPayslips", "Payslips"],
-            ["docEmploymentLetter", "Employment letter"],
-            ["docBankStatements", "Bank statements"],
-            ["docDebtStatements", "Debt statements"],
-            ["docCreditReport", "Credit report"],
-            ["docPurchaseAgreement", "Purchase agreement"],
-            ["docPropertyValuation", "Property valuation"],
-            ["docProofDownPayment", "Proof of down payment"],
-            ["docBusinessFinancials", "Business financials (if self-employed)"]
-          ].map(([field, label]) => {
+          {([
+            ["docId", "ID"], ["docProofOfAddress", "Proof of address"], ["docPayslips", "Payslips"], ["docEmploymentLetter", "Employment letter"], ["docBankStatements", "Bank statements"], ["docDebtStatements", "Debt statements"], ["docCreditReport", "Credit report"], ["docPurchaseAgreement", "Purchase agreement"], ["docPropertyValuation", "Property valuation"], ["docProofDownPayment", "Proof of down payment"], ["docBusinessFinancials", "Business financials (if self-employed)"]
+          ] as const).map(([field, label]) => {
             const typedField = field as keyof PrequalForm;
+            const isLocked = locked(typedField);
             return (
               <label key={field} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={Boolean(form[typedField])}
-                  onChange={(event) => setForm((prev) => ({ ...prev, [typedField]: event.target.checked }))}
-                />
+                <input type="checkbox" checked={Boolean(form[typedField])} disabled={isLocked} onChange={(event) => setForm((prev) => ({ ...prev, [typedField]: event.target.checked }))} />
                 {label}
               </label>
             );
@@ -570,42 +515,22 @@ export default function ProvenBankPrequalificationPage() {
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold tracking-wide text-[#0A2540]">Readiness Details</h2>
-
-          <div className="mt-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Strengths</p>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
-              {strengths.length ? strengths.map((item) => <li key={item}>{item}</li>) : <li>No strengths identified yet.</li>}
-            </ul>
-          </div>
-
-          <div className="mt-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Risk areas</p>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
-              {riskAreas.length ? riskAreas.map((item) => <li key={item}>{item}</li>) : <li>No risk flags right now.</li>}
-            </ul>
-          </div>
-
           <div className="mt-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Missing information</p>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
               {missingRequired.length ? missingRequired.map((item) => <li key={item}>{item}</li>) : <li>Required fields complete.</li>}
             </ul>
+            {missingRequired.length ? <p className="mt-2 text-sm text-red-700">Complete in Profile: <Link href="/app/onboarding" className="font-semibold underline">/app/onboarding</Link></p> : null}
           </div>
-
           <div className="mt-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Documents to collect</p>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">
               {documentGaps.length ? documentGaps.map((item) => <li key={item}>{item}</li>) : <li>Document checklist complete.</li>}
             </ul>
           </div>
-
           <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-            Suggested next steps: complete missing fields, upload missing documents, verify debt obligations, and then submit for underwriter review.
-            <div className="mt-2">
-              Missing profile source data? <Link href="/app/onboarding" className="font-semibold underline">Update profile</Link>
-            </div>
+            Suggested next steps: complete missing profile fields/documents and then submit for underwriter review.
           </div>
-
           <div className="mt-3 flex flex-col gap-2">
             <button type="button" onClick={() => window.print()} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Print / Save as PDF</button>
             <button type="button" onClick={async () => navigator.clipboard.writeText(summary)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Copy Prequalification Summary</button>

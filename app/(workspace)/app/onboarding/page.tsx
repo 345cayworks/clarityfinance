@@ -9,7 +9,7 @@ type OnboardingPayload = Record<string, FormDataEntryValue | boolean>;
 type OnboardingField = {
   name: string;
   label: string;
-  type?: "number" | "text";
+  type?: "number" | "text" | "checkbox";
   placeholder?: string;
   options?: readonly string[];
 };
@@ -23,6 +23,29 @@ type SavedOnboardingData = {
   savingsProfile: Record<string, unknown> | null;
   goals: Record<string, unknown> | null;
 };
+
+const checkboxFields = [
+  "creditScoreKnown",
+  "spareRoomAvailable",
+  "workPermitRequired",
+  "propertyIdentified",
+  "purchaseAgreementAvailable",
+  "existingBankRelationship",
+  "bankStatementsAvailable",
+  "missedPaymentsHistory",
+  "bankruptcyHistory",
+  "hasID",
+  "hasProofOfAddress",
+  "hasPayslips",
+  "hasEmploymentLetter",
+  "hasBankStatements",
+  "hasDebtStatements",
+  "hasCreditReport",
+  "hasPurchaseAgreement",
+  "hasValuation",
+  "hasDownPaymentProof",
+  "hasBusinessFinancials"
+] as const;
 
 const sections = [
   {
@@ -63,6 +86,51 @@ const sections = [
       { name: "phone", label: "Phone / Cell Phone" },
       { name: "employer", label: "Employer" },
       { name: "jobTitle", label: "Job title" }
+    ]
+  },
+  {
+    title: "Loan & Prequalification Details",
+    description: "Single source of truth for Proven Bank prequalification fields.",
+    fields: [
+      { name: "nationality", label: "Nationality" },
+      { name: "citizenshipStatus", label: "Citizenship status", options: ["citizen", "permanent resident", "work permit"] },
+      { name: "workPermitRequired", label: "Work permit required", type: "checkbox" },
+      { name: "workPermitExpiryDate", label: "Work permit expiry date", placeholder: "YYYY-MM-DD" },
+      { name: "mailingAddress", label: "Mailing address" },
+      { name: "alternatePhone", label: "Alternate phone" },
+      { name: "employmentLength", label: "Employment length (years/months)" },
+      { name: "employerAddress", label: "Employer address" },
+      { name: "monthlyGrossIncome", label: "Monthly gross income", type: "number" },
+      { name: "monthlyNetIncome", label: "Monthly net income", type: "number" },
+      { name: "otherIncomeAmount", label: "Other income amount", type: "number" },
+      { name: "otherIncomeDescription", label: "Other income description" },
+      {
+        name: "loanPurpose",
+        label: "Loan purpose",
+        options: ["Home purchase", "Refinance", "Construction", "Equity release", "Debt consolidation", "Investment property", "Other"]
+      },
+      { name: "requestedLoanAmount", label: "Requested loan amount", type: "number" },
+      { name: "desiredLoanTermYears", label: "Desired loan term (years)", type: "number" },
+      { name: "propertyType", label: "Property type" },
+      { name: "propertyLocation", label: "Property location" },
+      { name: "propertyIdentified", label: "Property already identified", type: "checkbox" },
+      { name: "purchaseAgreementAvailable", label: "Purchase agreement available", type: "checkbox" },
+      { name: "primaryBankName", label: "Primary bank name" },
+      { name: "existingBankRelationship", label: "Existing bank relationship", type: "checkbox" },
+      { name: "bankStatementsAvailable", label: "Bank statements available", type: "checkbox" },
+      { name: "missedPaymentsHistory", label: "Missed payments history", type: "checkbox" },
+      { name: "bankruptcyHistory", label: "Bankruptcy history", type: "checkbox" },
+      { name: "hasID", label: "Document: ID available", type: "checkbox" },
+      { name: "hasProofOfAddress", label: "Document: Proof of address", type: "checkbox" },
+      { name: "hasPayslips", label: "Document: Payslips", type: "checkbox" },
+      { name: "hasEmploymentLetter", label: "Document: Employment letter", type: "checkbox" },
+      { name: "hasBankStatements", label: "Document: Bank statements", type: "checkbox" },
+      { name: "hasDebtStatements", label: "Document: Debt statements", type: "checkbox" },
+      { name: "hasCreditReport", label: "Document: Credit report", type: "checkbox" },
+      { name: "hasPurchaseAgreement", label: "Document: Purchase agreement", type: "checkbox" },
+      { name: "hasValuation", label: "Document: Property valuation", type: "checkbox" },
+      { name: "hasDownPaymentProof", label: "Document: Down payment proof", type: "checkbox" },
+      { name: "hasBusinessFinancials", label: "Document: Business financials", type: "checkbox" }
     ]
   },
   {
@@ -203,23 +271,59 @@ export default function OnboardingPage() {
         if (cancelled) return;
 
         setSavedData(result);
+        const profile = result.profile ?? {};
         const primaryIncome = result.incomeSources[0] ?? null;
         const primaryDebt = result.debts[0] ?? null;
         setFormDefaults({
-          countryOrMarket: String(result.profile?.country_or_market ?? ""),
-          preferredCurrency: String(result.profile?.preferred_currency ?? ""),
-          ageRange: String(result.profile?.age_range ?? ""),
-          employmentType: String(result.profile?.employment_type ?? ""),
-          householdStatus: String(result.profile?.household_status ?? ""),
-          dependents: String(result.profile?.dependents ?? ""),
-          creditScoreKnown: Boolean(result.profile?.credit_score_known),
-          creditScoreOrProfile: String(result.profile?.credit_score_or_profile ?? ""),
-          customerName: String(result.profile?.customer_name ?? ""),
-          dateOfBirth: String(result.profile?.date_of_birth ?? ""),
-          physicalAddress: String(result.profile?.physical_address ?? ""),
-          phone: String(result.profile?.phone ?? ""),
-          employer: String(result.profile?.employer ?? ""),
-          jobTitle: String(result.profile?.job_title ?? ""),
+          countryOrMarket: String(profile.country_or_market ?? ""),
+          preferredCurrency: String(profile.preferred_currency ?? ""),
+          ageRange: String(profile.age_range ?? ""),
+          employmentType: String(profile.employment_type ?? ""),
+          householdStatus: String(profile.household_status ?? ""),
+          dependents: String(profile.dependents ?? ""),
+          creditScoreKnown: Boolean(profile.credit_score_known),
+          creditScoreOrProfile: String(profile.credit_score_or_profile ?? ""),
+          customerName: String(profile.customer_name ?? ""),
+          dateOfBirth: String(profile.date_of_birth ?? ""),
+          physicalAddress: String(profile.physical_address ?? ""),
+          phone: String(profile.phone ?? ""),
+          employer: String(profile.employer ?? ""),
+          jobTitle: String(profile.job_title ?? ""),
+          nationality: String(profile.nationality ?? ""),
+          citizenshipStatus: String(profile.citizenship_status ?? ""),
+          workPermitRequired: Boolean(profile.work_permit_required),
+          workPermitExpiryDate: String(profile.work_permit_expiry_date ?? ""),
+          mailingAddress: String(profile.mailing_address ?? ""),
+          alternatePhone: String(profile.alternate_phone ?? ""),
+          employmentLength: String(profile.employment_length ?? ""),
+          employerAddress: String(profile.employer_address ?? ""),
+          monthlyGrossIncome: String(profile.monthly_gross_income ?? ""),
+          monthlyNetIncome: String(profile.monthly_net_income ?? ""),
+          otherIncomeAmount: String(profile.other_income_amount ?? ""),
+          otherIncomeDescription: String(profile.other_income_description ?? ""),
+          loanPurpose: String(profile.loan_purpose ?? ""),
+          requestedLoanAmount: String(profile.requested_loan_amount ?? ""),
+          desiredLoanTermYears: String(profile.desired_loan_term_years ?? ""),
+          propertyType: String(profile.property_type ?? ""),
+          propertyLocation: String(profile.property_location ?? ""),
+          propertyIdentified: Boolean(profile.property_identified),
+          purchaseAgreementAvailable: Boolean(profile.purchase_agreement_available),
+          primaryBankName: String(profile.primary_bank_name ?? ""),
+          existingBankRelationship: Boolean(profile.existing_bank_relationship),
+          bankStatementsAvailable: Boolean(profile.bank_statements_available),
+          missedPaymentsHistory: Boolean(profile.missed_payments_history),
+          bankruptcyHistory: Boolean(profile.bankruptcy_history),
+          hasID: Boolean(profile.has_id),
+          hasProofOfAddress: Boolean(profile.has_proof_of_address),
+          hasPayslips: Boolean(profile.has_payslips),
+          hasEmploymentLetter: Boolean(profile.has_employment_letter),
+          hasBankStatements: Boolean(profile.has_bank_statements),
+          hasDebtStatements: Boolean(profile.has_debt_statements),
+          hasCreditReport: Boolean(profile.has_credit_report),
+          hasPurchaseAgreement: Boolean(profile.has_purchase_agreement),
+          hasValuation: Boolean(profile.has_valuation),
+          hasDownPaymentProof: Boolean(profile.has_down_payment_proof),
+          hasBusinessFinancials: Boolean(profile.has_business_financials),
           incomeLabel: String(primaryIncome?.label ?? ""),
           incomeType: String(primaryIncome?.type ?? ""),
           incomeMonthlyAmount: String(primaryIncome?.monthly_amount ?? ""),
@@ -274,6 +378,13 @@ export default function OnboardingPage() {
     if (title === "Market & basics") {
       const profile = savedData?.profile;
       const complete = Boolean(profile?.country_or_market && profile?.preferred_currency && profile?.employment_type);
+      return complete
+        ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
+        : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
+    }
+    if (title === "Loan & Prequalification Details") {
+      const profile = savedData?.profile;
+      const complete = Boolean(profile?.nationality && profile?.loan_purpose && profile?.requested_loan_amount);
       return complete
         ? { label: "Complete", classes: "border-green-200 bg-green-50 text-green-700" }
         : { label: "Needs update", classes: "border-amber-200 bg-amber-50 text-amber-700" };
@@ -334,8 +445,9 @@ export default function OnboardingPage() {
       payload[key] = value === "" && hasDefaultValue ? String(defaultValue) : value;
     }
 
-    payload.creditScoreKnown = formData.get("creditScoreKnown") === "on";
-    payload.spareRoomAvailable = formData.get("spareRoomAvailable") === "on";
+    for (const checkboxField of checkboxFields) {
+      payload[checkboxField] = formData.get(checkboxField) === "on";
+    }
 
     try {
       const user = await getUser();
@@ -406,28 +518,42 @@ export default function OnboardingPage() {
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               {section.fields.map((field) => (
                 <label key={field.name} className="block text-sm">
-                  <span className="mb-1.5 block font-medium text-slate-700">{field.label}</span>
-                  {field.options ? (
-                    <select
-                      name={field.name}
-                      defaultValue={String(formDefaults[field.name] ?? "")}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    >
-                      <option value="">Select...</option>
-                      {field.options.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
+                  {field.type === "checkbox" ? (
+                    <span className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-slate-700">
+                      <input
+                        name={field.name}
+                        type="checkbox"
+                        defaultChecked={Boolean(formDefaults[field.name])}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600"
+                      />
+                      {field.label}
+                    </span>
                   ) : (
-                    <input
-                      name={field.name}
-                      type={field.type ?? "text"}
-                      placeholder={field.placeholder}
-                      defaultValue={typeof formDefaults[field.name] === "boolean" ? "" : String(formDefaults[field.name] ?? "")}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    />
+                    <>
+                      <span className="mb-1.5 block font-medium text-slate-700">{field.label}</span>
+                      {field.options ? (
+                        <select
+                          name={field.name}
+                          defaultValue={String(formDefaults[field.name] ?? "")}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        >
+                          <option value="">Select...</option>
+                          {field.options.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          name={field.name}
+                          type={field.type ?? "text"}
+                          placeholder={field.placeholder}
+                          defaultValue={typeof formDefaults[field.name] === "boolean" ? "" : String(formDefaults[field.name] ?? "")}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        />
+                      )}
+                    </>
                   )}
                 </label>
               ))}

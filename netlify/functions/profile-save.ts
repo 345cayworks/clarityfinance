@@ -89,8 +89,28 @@ export const handler: Handler = async (event) => {
     if (!userId) return json(500, { error: "Profile could not be saved. Please try again." });
 
     await sql`
-    INSERT INTO profiles (id, user_id, country_or_market, preferred_currency, age_range, employment_type, household_status, dependents, credit_score_known, credit_score_or_profile, customer_name, date_of_birth, physical_address, phone, employer, job_title)
-    VALUES (${randomId("pro")}, ${userId}, ${String(body.countryOrMarket ?? "")}, ${String(body.preferredCurrency ?? "")}, ${String(body.ageRange ?? "")}, ${String(body.employmentType ?? "")}, ${String(body.householdStatus ?? "")}, ${toNumber(body.dependents)}, ${toBoolean(body.creditScoreKnown)}, ${String(body.creditScoreOrProfile ?? "") || null}, ${String(body.customerName ?? "")}, ${String(body.dateOfBirth ?? "")}, ${String(body.physicalAddress ?? "")}, ${String(body.phone ?? "")}, ${String(body.employer ?? "")}, ${String(body.jobTitle ?? "")})
+    INSERT INTO profiles (
+      id, user_id, country_or_market, preferred_currency, age_range, employment_type, household_status, dependents,
+      credit_score_known, credit_score_or_profile, customer_name, date_of_birth, physical_address, phone, employer, job_title,
+      nationality, citizenship_status, work_permit_required, work_permit_expiry_date, mailing_address, alternate_phone,
+      employment_length, employer_address, monthly_gross_income, monthly_net_income, other_income_amount, other_income_description,
+      loan_purpose, requested_loan_amount, desired_loan_term_years, property_type, property_location, property_identified,
+      purchase_agreement_available, primary_bank_name, existing_bank_relationship, bank_statements_available,
+      missed_payments_history, bankruptcy_history, has_id, has_proof_of_address, has_payslips, has_employment_letter,
+      has_bank_statements, has_debt_statements, has_credit_report, has_purchase_agreement, has_valuation,
+      has_down_payment_proof, has_business_financials
+    )
+    VALUES (
+      ${randomId("pro")}, ${userId}, ${String(body.countryOrMarket ?? "")}, ${String(body.preferredCurrency ?? "")}, ${String(body.ageRange ?? "")}, ${String(body.employmentType ?? "")}, ${String(body.householdStatus ?? "")}, ${toNumber(body.dependents)},
+      ${toBoolean(body.creditScoreKnown)}, ${String(body.creditScoreOrProfile ?? "") || null}, ${String(body.customerName ?? "")}, ${String(body.dateOfBirth ?? "")}, ${String(body.physicalAddress ?? "")}, ${String(body.phone ?? "")}, ${String(body.employer ?? "")}, ${String(body.jobTitle ?? "")},
+      ${String(body.nationality ?? "")}, ${String(body.citizenshipStatus ?? "")}, ${toBoolean(body.workPermitRequired)}, ${String(body.workPermitExpiryDate ?? "")}, ${String(body.mailingAddress ?? "")}, ${String(body.alternatePhone ?? "")},
+      ${String(body.employmentLength ?? "")}, ${String(body.employerAddress ?? "")}, ${toNumber(body.monthlyGrossIncome)}, ${toNumber(body.monthlyNetIncome)}, ${toNumber(body.otherIncomeAmount)}, ${String(body.otherIncomeDescription ?? "")},
+      ${String(body.loanPurpose ?? "")}, ${toNumber(body.requestedLoanAmount)}, ${Math.trunc(toNumber(body.desiredLoanTermYears)) || null}, ${String(body.propertyType ?? "")}, ${String(body.propertyLocation ?? "")}, ${toBoolean(body.propertyIdentified)},
+      ${toBoolean(body.purchaseAgreementAvailable)}, ${String(body.primaryBankName ?? "")}, ${toBoolean(body.existingBankRelationship)}, ${toBoolean(body.bankStatementsAvailable)},
+      ${toBoolean(body.missedPaymentsHistory)}, ${toBoolean(body.bankruptcyHistory)}, ${toBoolean(body.hasID)}, ${toBoolean(body.hasProofOfAddress)}, ${toBoolean(body.hasPayslips)}, ${toBoolean(body.hasEmploymentLetter)},
+      ${toBoolean(body.hasBankStatements)}, ${toBoolean(body.hasDebtStatements)}, ${toBoolean(body.hasCreditReport)}, ${toBoolean(body.hasPurchaseAgreement)}, ${toBoolean(body.hasValuation)},
+      ${toBoolean(body.hasDownPaymentProof)}, ${toBoolean(body.hasBusinessFinancials)}
+    )
     ON CONFLICT (user_id) DO UPDATE SET
       country_or_market = EXCLUDED.country_or_market,
       preferred_currency = EXCLUDED.preferred_currency,
@@ -106,6 +126,41 @@ export const handler: Handler = async (event) => {
       phone = EXCLUDED.phone,
       employer = EXCLUDED.employer,
       job_title = EXCLUDED.job_title,
+      nationality = EXCLUDED.nationality,
+      citizenship_status = EXCLUDED.citizenship_status,
+      work_permit_required = EXCLUDED.work_permit_required,
+      work_permit_expiry_date = EXCLUDED.work_permit_expiry_date,
+      mailing_address = EXCLUDED.mailing_address,
+      alternate_phone = EXCLUDED.alternate_phone,
+      employment_length = EXCLUDED.employment_length,
+      employer_address = EXCLUDED.employer_address,
+      monthly_gross_income = EXCLUDED.monthly_gross_income,
+      monthly_net_income = EXCLUDED.monthly_net_income,
+      other_income_amount = EXCLUDED.other_income_amount,
+      other_income_description = EXCLUDED.other_income_description,
+      loan_purpose = EXCLUDED.loan_purpose,
+      requested_loan_amount = EXCLUDED.requested_loan_amount,
+      desired_loan_term_years = EXCLUDED.desired_loan_term_years,
+      property_type = EXCLUDED.property_type,
+      property_location = EXCLUDED.property_location,
+      property_identified = EXCLUDED.property_identified,
+      purchase_agreement_available = EXCLUDED.purchase_agreement_available,
+      primary_bank_name = EXCLUDED.primary_bank_name,
+      existing_bank_relationship = EXCLUDED.existing_bank_relationship,
+      bank_statements_available = EXCLUDED.bank_statements_available,
+      missed_payments_history = EXCLUDED.missed_payments_history,
+      bankruptcy_history = EXCLUDED.bankruptcy_history,
+      has_id = EXCLUDED.has_id,
+      has_proof_of_address = EXCLUDED.has_proof_of_address,
+      has_payslips = EXCLUDED.has_payslips,
+      has_employment_letter = EXCLUDED.has_employment_letter,
+      has_bank_statements = EXCLUDED.has_bank_statements,
+      has_debt_statements = EXCLUDED.has_debt_statements,
+      has_credit_report = EXCLUDED.has_credit_report,
+      has_purchase_agreement = EXCLUDED.has_purchase_agreement,
+      has_valuation = EXCLUDED.has_valuation,
+      has_down_payment_proof = EXCLUDED.has_down_payment_proof,
+      has_business_financials = EXCLUDED.has_business_financials,
       updated_at = NOW()
   `;
 

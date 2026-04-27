@@ -114,7 +114,7 @@ export function mapProfileToCNBApplication(profileData: ProfilePayload) {
       phone: toText(profile.phone),
       maritalStatus: toText(profile.household_status),
       dependents: toNumber(profile.dependents),
-      nationality: toText(profile.country_or_market),
+      nationality: toText(profile.nationality, toText(profile.country_or_market)),
       countryMarket: toText(profile.country_or_market),
       address: toText(profile.physical_address),
       creditProfile: toText(profile.credit_score_or_profile),
@@ -124,7 +124,7 @@ export function mapProfileToCNBApplication(profileData: ProfilePayload) {
     employment: {
       employer: toText(profile.employer),
       jobTitle: toText(profile.job_title),
-      lengthOfService: toText(profile.length_of_service),
+      lengthOfService: toText(profile.employment_length, toText(profile.length_of_service)),
       income: applicantIncome,
       employmentType: toText(profile.employment_type),
       incomeStability: toText(primaryIncome.stability),
@@ -133,13 +133,13 @@ export function mapProfileToCNBApplication(profileData: ProfilePayload) {
       incomeLabel: toText(primaryIncome.label)
     },
     banking: {
-      primaryBanker: toText(profile.primary_banker),
+      primaryBanker: toText(profile.primary_bank_name, toText(profile.primary_banker)),
       accounts: toText(profile.bank_accounts),
       creditCards: debts.filter((debt) => toText(debt.type).toLowerCase().includes("credit")).length
     },
     loan: {
-      purpose: toText(goals.target_goal),
-      amountRequested: toNumber(goals.target_home_price),
+      purpose: toText(profile.loan_purpose, toText(goals.target_goal)),
+      amountRequested: toNumber(profile.requested_loan_amount) || toNumber(goals.target_home_price),
       purchasePrice: toNumber(goals.target_home_price),
       contribution: toNumber(savings.down_payment_savings),
       securityValue: toNumber(housing.estimated_home_value),
