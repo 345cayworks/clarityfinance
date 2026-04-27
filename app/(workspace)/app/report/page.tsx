@@ -16,6 +16,7 @@ import {
   totalExpenses,
   totalIncome
 } from "@/lib/finance/calculations";
+import { calculateRentRoomProfitability } from "@/lib/finance/rent-room";
 import { buildLoanReadinessProfile } from "@/lib/finance/loan-readiness-mapper";
 
 type ProfileData = {
@@ -26,6 +27,15 @@ type ProfileData = {
   housingProfile: Record<string, unknown> | null;
   savingsProfile: Record<string, unknown> | null;
   goals: Record<string, unknown> | null;
+};
+
+type RentRoomScenario = {
+  id: string;
+  setup_json: Record<string, unknown>;
+  income_json: Record<string, unknown>;
+  costs_json: Record<string, unknown>;
+  result_json: Record<string, unknown>;
+  updated_at: string;
 };
 
 type ReportId =
@@ -125,6 +135,8 @@ export default function ReportPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeReport, setActiveReport] = useState<ReportId>("snapshot");
   const [copiedReport, setCopiedReport] = useState<ReportId | null>(null);
+  const [rentRoomScenario, setRentRoomScenario] = useState<RentRoomScenario | null>(null);
+  const [rentRoomLoading, setRentRoomLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,6 +187,62 @@ export default function ReportPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadRentRoomScenario = async () => {
+      if (activeReport !== "rent-room") return;
+      setRentRoomLoading(true);
+      try {
+        const user = await getUser();
+        if (!user) {
+          if (!cancelled) {
+            setRentRoomScenario(null);
+            setRentRoomLoading(false);
+          }
+          return;
+        }
+
+        const token = await getIdentityToken(user);
+        if (!token) {
+          if (!cancelled) {
+            setRentRoomScenario(null);
+            setRentRoomLoading(false);
+          }
+          return;
+        }
+
+        const response = await fetch("/.netlify/functions/rent-room-get", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+          if (!cancelled) {
+            setRentRoomScenario(null);
+            setRentRoomLoading(false);
+          }
+          return;
+        }
+
+        const payload = (await response.json()) as { scenario: RentRoomScenario | null };
+        if (!cancelled) {
+          setRentRoomScenario(payload.scenario ?? null);
+          setRentRoomLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setRentRoomScenario(null);
+          setRentRoomLoading(false);
+        }
+      }
+    };
+
+    void loadRentRoomScenario();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeReport]);
+
   const income = totalIncome(data?.incomeSources ?? []);
   const expenses = totalExpenses(data?.expenseProfile ?? null);
   const housing = housingPayment(data?.housingProfile ?? null);
@@ -223,12 +291,20 @@ export default function ReportPage() {
 
   const topExpenseRows = [...expenseRows].sort((a, b) => b.value - a.value).slice(0, 3);
 
-  const rentEstimate = toNumber(data?.housingProfile?.estimated_room_rental_income);
-  const rentReportHasData = rentEstimate > 0;
-  const defaultSetup = 3000;
-  const defaultMonthlyAddedCosts = 220;
-  const rentMonthlyProfit = rentEstimate - defaultMonthlyAddedCosts;
-  const rentBreakEven = rentMonthlyProfit > 0 ? defaultSetup / rentMonthlyProfit : null;
+  const rentRoomSetup = (rentRoomScenario?.setup_json ?? {}) as Record<string, unknown>;
+  const rentRoomIncome = (rentRoomScenario?.income_json ?? {}) as Record<string, unknown>;
+  const rentRoomCosts = (rentRoomScenario?.costs_json ?? {}) as Record<string, unknown>;
+  const rentRoomCalculated = rentRoomScenario
+    ? calculateRentRoomProfitability({
+        setup: rentRoomSetup,
+        income: rentRoomIncome,
+        costs: rentRoomCosts
+      })
+    : null;
+  const rentRoomResult = {
+    ...(rentRoomCalculated ?? {}),
+    ...((rentRoomScenario?.result_json ?? {}) as Record<string, unknown>)
+  } as Record<string, unknown>;
 
   const loanStatus = {
     dti: toStatus(dti === null ? null : dti <= 0.36),
@@ -658,16 +734,31 @@ export default function ReportPage() {
               reportName="rent-a-room-profitability"
               csvRows={[
                 ["Metric", "Value"],
-                ["Estimated setup cost", toCurrency(defaultSetup)],
-                ["Estimated rent", toCurrency(rentEstimate)],
-                ["Monthly profit", toCurrency(rentMonthlyProfit)],
-                ["Break-even timeline", rentBreakEven === null ? "Not profitable" : `${rentBreakEven.toFixed(1)} months`]
+                ["Total setup cost", toCurrency(toNumber(rentRoomResult.totalSetupCost))],
+                ["Construction/repair cost", toCurrency(toNumber(rentRoomSetup.basicRepairs) + toNumber(rentRoomSetup.painting) + toNumber(rentRoomSetup.electricalPlumbing))],
+                ["Furnishings cost", toCurrency(toNumber(rentRoomSetup.beddingFurniture) + toNumber(rentRoomSetup.deskChairStorage) + toNumber(rentRoomSetup.miniFridgeMicrowave) + toNumber(rentRoomSetup.decorStaging))],
+                ["Other setup costs", toCurrency(toNumber(rentRoomSetup.otherSetupCost) + toNumber(rentRoomSetup.permitsLegalAdmin) + toNumber(rentRoomSetup.wifiUpgrade) + toNumber(rentRoomSetup.cleaningDeepClean) + toNumber(rentRoomSetup.bathroomPrep) + toNumber(rentRoomSetup.doorLockSecurity) + toNumber(rentRoomSetup.airConditioningFan))],
+                ["Expected monthly rent", toCurrency(toNumber(rentRoomIncome.expectedMonthlyRent))],
+                ["Occupancy %", `${toNumber(rentRoomIncome.occupancyPercent).toFixed(1)}%`],
+                ["Monthly added costs", toCurrency(toNumber(rentRoomResult.monthlyAddedCosts))],
+                ["Net monthly profit", toCurrency(toNumber(rentRoomResult.netMonthlyProfit))],
+                [
+                  "Break-even timeline",
+                  toNumber(rentRoomResult.breakEvenMonths) > 0 ? `${toNumber(rentRoomResult.breakEvenMonths).toFixed(1)} months` : "Not profitable"
+                ],
+                ["First-year net result", toCurrency(toNumber(rentRoomResult.firstYearNet))],
+                ["Annual profit after break-even", toCurrency(toNumber(rentRoomResult.annualProfitAfterBreakEven))],
+                ["Status label", String(rentRoomResult.statusLabel ?? "Missing data")]
               ]}
-              summaryText={`Rent-a-Room report: setup ${toCurrency(defaultSetup)}, rent estimate ${toCurrency(
-                rentEstimate
-              )}, monthly profit ${toCurrency(rentMonthlyProfit)}, break-even ${
-                rentBreakEven === null ? "not profitable" : `${rentBreakEven.toFixed(1)} months`
-              }.`}
+              summaryText={`Rent-a-Room report: setup ${toCurrency(toNumber(rentRoomResult.totalSetupCost))}, expected monthly rent ${toCurrency(
+                toNumber(rentRoomIncome.expectedMonthlyRent)
+              )}, occupancy ${toNumber(rentRoomIncome.occupancyPercent).toFixed(1)}%, monthly added costs ${toCurrency(
+                toNumber(rentRoomResult.monthlyAddedCosts)
+              )}, net monthly profit ${toCurrency(toNumber(rentRoomResult.netMonthlyProfit))}, break-even ${
+                toNumber(rentRoomResult.breakEvenMonths) > 0 ? `${toNumber(rentRoomResult.breakEvenMonths).toFixed(1)} months` : "not profitable"
+              }, first-year net ${toCurrency(toNumber(rentRoomResult.firstYearNet))}, annual after break-even ${toCurrency(
+                toNumber(rentRoomResult.annualProfitAfterBreakEven)
+              )}, status ${String(rentRoomResult.statusLabel ?? "Missing data")}.`}
               copied={copiedReport === "rent-room"}
               onCopy={() => {
                 setCopiedReport("rent-room");
@@ -675,17 +766,30 @@ export default function ReportPage() {
               }}
             />
           </div>
-          {rentReportHasData ? (
+          {rentRoomLoading ? (
+            <p className="text-sm text-slate-600">Loading saved scenario…</p>
+          ) : rentRoomScenario ? (
             <>
-              <p className="text-sm text-slate-600">Estimated setup cost: {toCurrency(defaultSetup)} (placeholder guidance)</p>
-              <p className="text-sm text-slate-600">Estimated rent: {toCurrency(rentEstimate)}</p>
-              <p className="text-sm text-slate-600">Monthly profit: {toCurrency(rentMonthlyProfit)}</p>
+              <p className="text-sm text-slate-600">Total setup cost: {toCurrency(toNumber(rentRoomResult.totalSetupCost))}</p>
+              <p className="text-sm text-slate-600">Construction/repair cost: {toCurrency(toNumber(rentRoomSetup.basicRepairs) + toNumber(rentRoomSetup.painting) + toNumber(rentRoomSetup.electricalPlumbing))}</p>
+              <p className="text-sm text-slate-600">Furnishings cost: {toCurrency(toNumber(rentRoomSetup.beddingFurniture) + toNumber(rentRoomSetup.deskChairStorage) + toNumber(rentRoomSetup.miniFridgeMicrowave) + toNumber(rentRoomSetup.decorStaging))}</p>
+              <p className="text-sm text-slate-600">Other setup costs: {toCurrency(toNumber(rentRoomSetup.otherSetupCost) + toNumber(rentRoomSetup.permitsLegalAdmin) + toNumber(rentRoomSetup.wifiUpgrade) + toNumber(rentRoomSetup.cleaningDeepClean) + toNumber(rentRoomSetup.bathroomPrep) + toNumber(rentRoomSetup.doorLockSecurity) + toNumber(rentRoomSetup.airConditioningFan))}</p>
+              <p className="text-sm text-slate-600">Expected monthly rent: {toCurrency(toNumber(rentRoomIncome.expectedMonthlyRent))}</p>
+              <p className="text-sm text-slate-600">Occupancy %: {toNumber(rentRoomIncome.occupancyPercent).toFixed(1)}%</p>
+              <p className="text-sm text-slate-600">Monthly added costs: {toCurrency(toNumber(rentRoomResult.monthlyAddedCosts))}</p>
+              <p className="text-sm text-slate-600">Net monthly profit: {toCurrency(toNumber(rentRoomResult.netMonthlyProfit))}</p>
               <p className="text-sm text-slate-600">
-                Break-even timeline: {rentBreakEven === null ? "Not profitable with current assumptions." : `${rentBreakEven.toFixed(1)} months`}
+                Break-even timeline:{" "}
+                {toNumber(rentRoomResult.breakEvenMonths) > 0
+                  ? `${toNumber(rentRoomResult.breakEvenMonths).toFixed(1)} months`
+                  : "Not profitable with current assumptions."}
               </p>
+              <p className="text-sm text-slate-600">First-year net result: {toCurrency(toNumber(rentRoomResult.firstYearNet))}</p>
+              <p className="text-sm text-slate-600">Annual profit after break-even: {toCurrency(toNumber(rentRoomResult.annualProfitAfterBreakEven))}</p>
+              <p className="text-sm text-slate-600">Status label: {String(rentRoomResult.statusLabel ?? "Missing data")}</p>
             </>
           ) : (
-            <p className="text-sm text-slate-600">Use Rent-a-Room Tool to generate this report.</p>
+            <p className="text-sm text-slate-600">Use the Rent-a-Room Tool to create and save a scenario.</p>
           )}
           <Link href="/app/tools/rent-a-room" className="inline-flex rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400">
             Open Rent-a-Room Tool

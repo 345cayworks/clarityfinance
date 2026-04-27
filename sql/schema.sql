@@ -152,6 +152,17 @@ CREATE TABLE IF NOT EXISTS scenarios (
   updated_at timestamp DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS rent_room_scenarios (
+  id text PRIMARY KEY,
+  user_id text UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  setup_json jsonb DEFAULT '{}'::jsonb,
+  income_json jsonb DEFAULT '{}'::jsonb,
+  costs_json jsonb DEFAULT '{}'::jsonb,
+  result_json jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp DEFAULT now(),
+  updated_at timestamp DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS action_plans (
   id text PRIMARY KEY,
   user_id text REFERENCES users(id) ON DELETE CASCADE,
@@ -179,5 +190,6 @@ CREATE INDEX IF NOT EXISTS idx_housing_profiles_user_id ON housing_profiles(user
 CREATE INDEX IF NOT EXISTS idx_savings_profiles_user_id ON savings_profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id);
 CREATE INDEX IF NOT EXISTS idx_scenarios_user_id ON scenarios(user_id);
+CREATE INDEX IF NOT EXISTS idx_rent_room_scenarios_user_id ON rent_room_scenarios(user_id);
 CREATE INDEX IF NOT EXISTS idx_action_plans_user_id ON action_plans(user_id);
 CREATE INDEX IF NOT EXISTS idx_reports_user_id ON reports(user_id);

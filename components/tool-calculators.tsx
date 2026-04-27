@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
 import { debtPayoffEstimates, rentRoomImpact } from "@/lib/calculations/finance";
+import { calculateRentRoomProfitability } from "@/lib/finance/rent-room";
 
 type Frequency = "Monthly" | "Bi-weekly" | "Weekly";
 
@@ -300,6 +301,9 @@ export function RentRoomTool() {
   const [vacancyAllowancePercent, setVacancyAllowancePercent] = useState(0);
   const [oneTimeContingencyPercent, setOneTimeContingencyPercent] = useState(10);
   const [profileData, setProfileData] = useState<ProfilePayload>(null);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [savingScenario, setSavingScenario] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -329,57 +333,42 @@ export function RentRoomTool() {
 
   const currency = String(profileData?.profile?.preferred_currency ?? "USD") || "USD";
 
-  const calc = useMemo(() => {
-    const baseSetupCost =
-      basicRepairs +
-      painting +
-      electricalPlumbing +
-      airConditioningFan +
-      bathroomPrep +
-      doorLockSecurity +
-      wifiUpgrade +
-      cleaningDeepClean +
-      beddingFurniture +
-      deskChairStorage +
-      miniFridgeMicrowave +
-      decorStaging +
-      permitsLegalAdmin +
-      otherSetupCost;
-
-    const contingencyAmount = baseSetupCost * (oneTimeContingencyPercent / 100);
-    const totalSetupCost = baseSetupCost + contingencyAmount;
-
-    const occupancyFactor = occupancyPercent / 100;
-    const vacancyFactor = Math.max(0, 1 - vacancyAllowancePercent / 100);
-    const tenantSearchFactor = Math.max(0, (12 - monthsToFindTenant) / 12);
-
-    const effectiveMonthlyRent = expectedMonthlyRent * occupancyFactor * vacancyFactor;
-
-    const monthlyAddedCosts =
-      utilitiesIncrease +
-      internetIncrease +
-      cleaningMonthly +
-      maintenanceReserve +
-      insuranceIncrease +
-      managementHelp +
-      supplies +
-      otherMonthlyCost;
-
-    const netMonthlyProfit = effectiveMonthlyRent + otherMonthlyIncome - monthlyAddedCosts;
-    const breakEvenMonths = netMonthlyProfit > 0 ? totalSetupCost / netMonthlyProfit : null;
-    const firstYearNet = netMonthlyProfit * 12 * tenantSearchFactor - totalSetupCost;
-    const annualProfitAfterBreakEven = netMonthlyProfit * 12;
-
-    return {
-      totalSetupCost,
-      effectiveMonthlyRent,
-      monthlyAddedCosts,
-      netMonthlyProfit,
-      breakEvenMonths,
-      firstYearNet,
-      annualProfitAfterBreakEven
-    };
-  }, [
+  const rentRoomInput = useMemo(() => ({
+    setup: {
+      basicRepairs,
+      painting,
+      electricalPlumbing,
+      airConditioningFan,
+      bathroomPrep,
+      doorLockSecurity,
+      wifiUpgrade,
+      cleaningDeepClean,
+      beddingFurniture,
+      deskChairStorage,
+      miniFridgeMicrowave,
+      decorStaging,
+      permitsLegalAdmin,
+      otherSetupCost,
+      oneTimeContingencyPercent
+    },
+    income: {
+      expectedMonthlyRent,
+      occupancyPercent,
+      monthsToFindTenant,
+      vacancyAllowancePercent,
+      otherMonthlyIncome
+    },
+    costs: {
+      utilitiesIncrease,
+      internetIncrease,
+      cleaningMonthly,
+      maintenanceReserve,
+      insuranceIncrease,
+      managementHelp,
+      supplies,
+      otherMonthlyCost
+    }
+  }), [
     basicRepairs,
     painting,
     electricalPlumbing,
@@ -410,16 +399,47 @@ export function RentRoomTool() {
     otherMonthlyIncome
   ]);
 
-  const statusLabel =
-    calc.netMonthlyProfit <= 0 || calc.breakEvenMonths === null
-      ? "Not recommended as structured"
-      : calc.breakEvenMonths < 6
-        ? "Strong opportunity"
-        : calc.breakEvenMonths <= 12
-          ? "Reasonable opportunity"
-          : calc.breakEvenMonths <= 24
-            ? "Longer payback"
-            : "Review carefully";
+  const calc = useMemo(() => calculateRentRoomProfitability(rentRoomInput), [rentRoomInput]);
+
+  const onSaveScenario = async () => {
+    setSaveMessage(null);
+    setSaveError(null);
+    setSavingScenario(true);
+    const token = await getIdentityToken();
+
+    if (!token) {
+      setSavingScenario(false);
+      setSaveError("Your session has expired. Please sign in again.");
+      return;
+    }
+
+    const response = await fetch("/.netlify/functions/rent-room-save", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        input: {
+          ...rentRoomInput,
+          income: {
+            ...rentRoomInput.income,
+            securityDepositCollected
+          }
+        },
+        result: calc
+      })
+    });
+
+    setSavingScenario(false);
+    if (!response.ok) {
+      setSaveError(response.status === 401 ? "Your session has expired. Please sign in again." : "Failed to save scenario.");
+      return;
+    }
+
+    setSaveMessage("Rent-a-room scenario saved.");
+  };
 
   return (
     <ToolCard
@@ -491,7 +511,20 @@ export function RentRoomTool() {
         <p>Security deposit collected: {formatMoney(securityDepositCollected, currency)} (cash collected, not profit).</p>
       </div>
 
-      <p className="text-sm font-medium text-[#0A2540]">Status: {statusLabel}</p>
+      <p className="text-sm font-medium text-[#0A2540]">Status: {calc.statusLabel}</p>
+
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => void onSaveScenario()}
+          disabled={savingScenario}
+          className="rounded-lg bg-[#0A2540] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0e3160] disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {savingScenario ? "Saving…" : "Save Rent-a-Room Scenario"}
+        </button>
+        {saveMessage ? <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{saveMessage}</p> : null}
+        {saveError ? <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{saveError}</p> : null}
+      </div>
 
       <div className="rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
         <p className="font-medium text-[#0A2540]">Suggested next steps</p>
