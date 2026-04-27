@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
 import { calculateApprovalReadinessScore } from "@/lib/finance/approval-score";
 import { CNBApplication, mapProfileToCNBApplication } from "@/lib/finance/cnb-mapper";
+import { formatMoney, formatNumber, formatPercent } from "@/lib/finance/format";
 import { buildLoanReadinessProfile } from "@/lib/finance/loan-readiness-mapper";
 
 type SavedOnboardingData = {
@@ -16,9 +17,6 @@ type SavedOnboardingData = {
   goals: Record<string, unknown> | null;
 };
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(value || 0));
-const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 const documentChecklistItems = [
   "Government-issued ID",
   "Proof of address",
@@ -80,9 +78,9 @@ export default function LoanApplicationPage() {
 
   if (!appData || !readinessProfile || !approvalScore) return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading application...</div>;
 
-  const bankSummary = `Loan readiness ${approvalScore.band} (${approvalScore.score}/100). Income ${formatCurrency(readinessProfile.financials.monthlyIncomeUsed)}, expenses ${formatCurrency(
+  const bankSummary = `Loan readiness ${approvalScore.band} (${approvalScore.score}/100). Income ${formatMoney(readinessProfile.financials.monthlyIncomeUsed)}, expenses ${formatMoney(
     readinessProfile.financials.monthlyExpenses
-  )}, debt payments ${formatCurrency(readinessProfile.financials.monthlyDebtPayments)}, surplus ${formatCurrency(
+  )}, debt payments ${formatMoney(readinessProfile.financials.monthlyDebtPayments)}, surplus ${formatMoney(
     readinessProfile.financials.monthlySurplus
   )}, DTI ${formatPercent((readinessProfile.ratios.debtToIncome ?? 0) * 100)}.`;
 
@@ -99,7 +97,7 @@ export default function LoanApplicationPage() {
       <div className="rounded-2xl border border-black bg-white p-6 text-black">
         <p className="text-xs uppercase tracking-[0.16em]">Loan Application Preparation Form</p>
         <h1 className="mt-2 text-2xl font-semibold">Prepared for bank review. Applicant must verify all details before submission.</h1>
-        <p className="mt-2 text-sm">Readiness: <span className="font-semibold">{approvalScore.band}</span> ({approvalScore.score}/100)</p>
+        <p className="mt-2 text-sm">Readiness: <span className="font-semibold">{approvalScore.band}</span> ({formatNumber(approvalScore.score)}/100)</p>
         <p className="mt-1 text-xs">This score is an estimate only and does not represent a bank decision.</p>
       </div>
 
@@ -125,8 +123,8 @@ export default function LoanApplicationPage() {
         <Row label="Employer" value={readinessProfile.employment.employer} />
         <Row label="Job title" value={readinessProfile.employment.jobTitle} />
         <Row label="Employment length" value={readinessProfile.employment.employmentLength} />
-        <Row label="Gross income" value={formatCurrency(readinessProfile.financials.monthlyGrossIncome)} />
-        <Row label="Net income" value={formatCurrency(readinessProfile.financials.monthlyNetIncome)} />
+        <Row label="Gross income" value={formatMoney(readinessProfile.financials.monthlyGrossIncome)} />
+        <Row label="Net income" value={formatMoney(readinessProfile.financials.monthlyNetIncome)} />
       </Section>
 
       <Section title="3. Co-applicant Section (Placeholder)">
@@ -142,37 +140,42 @@ export default function LoanApplicationPage() {
 
       <Section title="5. Loan Details">
         <Row label="Loan purpose" value={readinessProfile.loan.loanPurpose} />
-        <Row label="Requested amount" value={formatCurrency(readinessProfile.loan.requestedLoanAmount)} />
-        <Row label="Purchase price" value={formatCurrency(readinessProfile.loan.purchasePrice)} />
-        <Row label="Down payment available" value={formatCurrency(readinessProfile.loan.downPaymentAvailable)} />
+        <Row label="Requested amount" value={formatMoney(readinessProfile.loan.requestedLoanAmount)} />
+        <Row label="Purchase price" value={formatMoney(readinessProfile.loan.purchasePrice)} />
+        <Row label="Down payment available" value={formatMoney(readinessProfile.loan.downPaymentAvailable)} />
         <Row label="Down payment %" value={formatPercent(readinessProfile.loan.downPaymentPercent * 100)} />
         <Row label="Loan-to-value" value={formatPercent((readinessProfile.loan.loanToValue ?? 0) * 100)} />
       </Section>
 
       <Section title="6. Statement of Affairs">
-        <Row label="Monthly income used" value={formatCurrency(readinessProfile.financials.monthlyIncomeUsed)} />
-        <Row label="Monthly expenses" value={formatCurrency(readinessProfile.financials.monthlyExpenses)} />
-        <Row label="Monthly debt payments" value={formatCurrency(readinessProfile.financials.monthlyDebtPayments)} />
-        <Row label="Monthly surplus" value={formatCurrency(readinessProfile.financials.monthlySurplus)} />
+        <Row label="Monthly income used" value={formatMoney(readinessProfile.financials.monthlyIncomeUsed)} />
+        <Row label="Monthly expenses" value={formatMoney(readinessProfile.financials.monthlyExpenses)} />
+        <Row label="Housing payment" value={formatMoney(readinessProfile.financials.housingPayment)} />
+        <Row label="Monthly debt payments" value={formatMoney(readinessProfile.financials.monthlyDebtPayments)} />
+        <Row label="Monthly surplus" value={formatMoney(readinessProfile.financials.monthlySurplus)} />
       </Section>
 
       <Section title="7. Assets">
-        <Row label="Cash savings" value={formatCurrency(readinessProfile.financials.savingsCash)} />
-        <Row label="Emergency fund" value={formatCurrency(readinessProfile.financials.emergencyFund)} />
-        <Row label="Investments" value={formatCurrency(readinessProfile.financials.investments)} />
-        <Row label="Retirement savings" value={formatCurrency(readinessProfile.financials.retirementSavings)} />
+        <Row label="Bank balances" value={formatMoney(readinessProfile.financials.bankBalances)} />
+        <Row label="Investments" value={formatMoney(readinessProfile.financials.totalInvestments)} />
+        <Row label="Real estate" value={formatMoney(readinessProfile.housing.estimatedHomeValue)} />
+        <Row label="Total assets" value={formatMoney(readinessProfile.financials.totalAssets)} />
       </Section>
 
       <Section title="8. Liabilities" breakBefore>
-        <Row label="Total debt" value={formatCurrency(readinessProfile.financials.totalDebt)} />
+        <Row label="Mortgages" value={formatMoney(readinessProfile.financials.mortgages)} />
+        <Row label="Other debts" value={formatMoney(readinessProfile.financials.otherDebt)} />
+        <Row label="Total liabilities" value={formatMoney(readinessProfile.financials.totalLiabilities)} />
+        <Row label="Net worth" value={formatMoney(readinessProfile.financials.netWorth)} />
         <Row label="DTI ratio" value={formatPercent((readinessProfile.ratios.debtToIncome ?? 0) * 100)} />
+        <Row label="Housing ratio" value={formatPercent((readinessProfile.ratios.housingRatio ?? 0) * 100)} />
       </Section>
 
       <Section title="9. Property Held">
         <Row label="Housing status" value={readinessProfile.housing.housingStatus} />
-        <Row label="Estimated home value" value={formatCurrency(readinessProfile.housing.estimatedHomeValue)} />
-        <Row label="Mortgage balance" value={formatCurrency(readinessProfile.housing.mortgageBalance)} />
-        <Row label="Estimated equity" value={formatCurrency(readinessProfile.housing.equity)} />
+        <Row label="Estimated home value" value={formatMoney(readinessProfile.housing.estimatedHomeValue)} />
+        <Row label="Mortgage balance" value={formatMoney(readinessProfile.housing.mortgageBalance)} />
+        <Row label="Estimated equity" value={formatMoney(readinessProfile.housing.equity)} />
       </Section>
 
       <Section title="10. Documents Checklist">

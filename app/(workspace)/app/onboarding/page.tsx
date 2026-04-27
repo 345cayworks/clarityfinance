@@ -24,6 +24,40 @@ type SavedOnboardingData = {
   goals: Record<string, unknown> | null;
 };
 
+const percentageFields = new Set(["mortgageRate", "debtInterestRate", "occupancyPercent", "downPaymentPercent", "loanToValue"]);
+const wholeNumberFields = new Set(["dependents", "desiredLoanTermYears"]);
+const moneyFields = new Set([
+  "monthlyGrossIncome",
+  "monthlyNetIncome",
+  "otherIncomeAmount",
+  "requestedLoanAmount",
+  "incomeMonthlyAmount",
+  "expenseHousing",
+  "expenseUtilities",
+  "expenseTransport",
+  "expenseGroceries",
+  "expenseInsurance",
+  "expenseChildcare",
+  "expenseDiscretionary",
+  "expenseOther",
+  "debtBalance",
+  "debtMonthlyPayment",
+  "rentAmount",
+  "mortgageBalance",
+  "mortgagePayment",
+  "estimatedHomeValue",
+  "estimatedRoomRentalIncome",
+  "cashSavings",
+  "emergencyFund",
+  "investments",
+  "retirementSavings",
+  "downPaymentSavings",
+  "targetHomePrice",
+  "targetSavingsGoal",
+  "targetDebtReduction",
+  "targetMonthlyCashFlow"
+]);
+
 const checkboxFields = [
   "creditScoreKnown",
   "spareRoomAvailable",
@@ -100,17 +134,17 @@ const sections = [
       { name: "alternatePhone", label: "Alternate phone" },
       { name: "employmentLength", label: "Employment length (years/months)" },
       { name: "employerAddress", label: "Employer address" },
-      { name: "monthlyGrossIncome", label: "Monthly gross income", type: "number" },
-      { name: "monthlyNetIncome", label: "Monthly net income", type: "number" },
-      { name: "otherIncomeAmount", label: "Other income amount", type: "number" },
+      { name: "monthlyGrossIncome", label: "Monthly gross income", type: "number", placeholder: "2500.00" },
+      { name: "monthlyNetIncome", label: "Monthly income", type: "number", placeholder: "2500.00" },
+      { name: "otherIncomeAmount", label: "Other income amount", type: "number", placeholder: "2500.00" },
       { name: "otherIncomeDescription", label: "Other income description" },
       {
         name: "loanPurpose",
         label: "Loan purpose",
         options: ["Home purchase", "Refinance", "Construction", "Equity release", "Debt consolidation", "Investment property", "Other"]
       },
-      { name: "requestedLoanAmount", label: "Requested loan amount", type: "number" },
-      { name: "desiredLoanTermYears", label: "Desired loan term (years)", type: "number" },
+      { name: "requestedLoanAmount", label: "Requested loan amount", type: "number", placeholder: "2500.00" },
+      { name: "desiredLoanTermYears", label: "Loan term years", type: "number", placeholder: "30" },
       { name: "propertyType", label: "Property type" },
       { name: "propertyLocation", label: "Property location" },
       { name: "propertyIdentified", label: "Property already identified", type: "checkbox" },
@@ -143,7 +177,7 @@ const sections = [
         label: "Income type",
         options: ["Salary", "Hourly wages", "Business income", "Self-employed income", "Rental income", "Pension / retirement", "Investment income", "Other"]
       },
-      { name: "incomeMonthlyAmount", label: "Monthly amount", type: "number", placeholder: "5000" },
+      { name: "incomeMonthlyAmount", label: "Monthly income", type: "number", placeholder: "2500.00" },
       {
         name: "incomeFrequency",
         label: "Frequency",
@@ -156,14 +190,14 @@ const sections = [
     title: "Expenses",
     description: "Average monthly outgoings by category. Estimates are fine.",
     fields: [
-      { name: "expenseHousing", label: "Housing", type: "number" },
-      { name: "expenseUtilities", label: "Utilities", type: "number" },
-      { name: "expenseTransport", label: "Transport", type: "number" },
-      { name: "expenseGroceries", label: "Groceries", type: "number" },
-      { name: "expenseInsurance", label: "Insurance", type: "number" },
-      { name: "expenseChildcare", label: "Childcare", type: "number" },
-      { name: "expenseDiscretionary", label: "Discretionary", type: "number" },
-      { name: "expenseOther", label: "Other", type: "number" }
+      { name: "expenseHousing", label: "Expenses", type: "number", placeholder: "2500.00" },
+      { name: "expenseUtilities", label: "Utilities", type: "number", placeholder: "2500.00" },
+      { name: "expenseTransport", label: "Transport", type: "number", placeholder: "2500.00" },
+      { name: "expenseGroceries", label: "Groceries", type: "number", placeholder: "2500.00" },
+      { name: "expenseInsurance", label: "Insurance", type: "number", placeholder: "2500.00" },
+      { name: "expenseChildcare", label: "Childcare", type: "number", placeholder: "2500.00" },
+      { name: "expenseDiscretionary", label: "Discretionary", type: "number", placeholder: "2500.00" },
+      { name: "expenseOther", label: "Other", type: "number", placeholder: "2500.00" }
     ]
   },
   {
@@ -176,9 +210,9 @@ const sections = [
         label: "Debt type",
         options: ["Credit card", "Personal loan", "Auto loan", "Student loan", "Mortgage", "Medical debt", "Family/friend loan", "Other"]
       },
-      { name: "debtBalance", label: "Balance", type: "number" },
-      { name: "debtInterestRate", label: "Interest rate %", type: "number" },
-      { name: "debtMonthlyPayment", label: "Monthly payment", type: "number" }
+      { name: "debtBalance", label: "Balance", type: "number", placeholder: "2500.00" },
+      { name: "debtInterestRate", label: "Debt interest rate %", type: "number", placeholder: "6.25" },
+      { name: "debtMonthlyPayment", label: "Monthly payment", type: "number", placeholder: "2500.00" }
     ]
   },
   {
@@ -190,23 +224,23 @@ const sections = [
         label: "Housing status",
         options: ["Renting", "Own with mortgage", "Own mortgage-free", "Living with family", "Shared housing", "Employer-provided housing", "Other"]
       },
-      { name: "rentAmount", label: "Rent amount", type: "number" },
-      { name: "mortgageBalance", label: "Mortgage balance", type: "number" },
-      { name: "mortgageRate", label: "Mortgage rate %", type: "number" },
-      { name: "mortgagePayment", label: "Mortgage payment", type: "number" },
-      { name: "estimatedHomeValue", label: "Estimated home value", type: "number" },
-      { name: "estimatedRoomRentalIncome", label: "Estimated room rental income", type: "number" }
+      { name: "rentAmount", label: "Rent amount", type: "number", placeholder: "2500.00" },
+      { name: "mortgageBalance", label: "Mortgage balance", type: "number", placeholder: "2500.00" },
+      { name: "mortgageRate", label: "Mortgage rate %", type: "number", placeholder: "6.25" },
+      { name: "mortgagePayment", label: "Mortgage payment", type: "number", placeholder: "2500.00" },
+      { name: "estimatedHomeValue", label: "Estimated home value", type: "number", placeholder: "2500.00" },
+      { name: "estimatedRoomRentalIncome", label: "Estimated room rental income", type: "number", placeholder: "2500.00" }
     ]
   },
   {
     title: "Savings",
     description: "What you've already set aside.",
     fields: [
-      { name: "cashSavings", label: "Cash savings", type: "number" },
-      { name: "emergencyFund", label: "Emergency fund", type: "number" },
-      { name: "investments", label: "Investments", type: "number" },
-      { name: "retirementSavings", label: "Retirement savings", type: "number" },
-      { name: "downPaymentSavings", label: "Down payment savings", type: "number" }
+      { name: "cashSavings", label: "Cash savings", type: "number", placeholder: "2500.00" },
+      { name: "emergencyFund", label: "Emergency fund", type: "number", placeholder: "2500.00" },
+      { name: "investments", label: "Investments", type: "number", placeholder: "2500.00" },
+      { name: "retirementSavings", label: "Retirement savings", type: "number", placeholder: "2500.00" },
+      { name: "downPaymentSavings", label: "Down payment savings", type: "number", placeholder: "2500.00" }
     ]
   },
   {
@@ -230,14 +264,22 @@ const sections = [
           "Other"
         ]
       },
-      { name: "targetHomePrice", label: "Target home price", type: "number" },
-      { name: "targetSavingsGoal", label: "Target savings", type: "number" },
-      { name: "targetDebtReduction", label: "Target debt reduction", type: "number" },
-      { name: "targetMonthlyCashFlow", label: "Target monthly cash flow", type: "number" },
+      { name: "targetHomePrice", label: "Purchase price", type: "number", placeholder: "2500.00" },
+      { name: "targetSavingsGoal", label: "Target savings", type: "number", placeholder: "2500.00" },
+      { name: "targetDebtReduction", label: "Target debt reduction", type: "number", placeholder: "2500.00" },
+      { name: "targetMonthlyCashFlow", label: "Target monthly cash flow", type: "number", placeholder: "2500.00" },
       { name: "goalTimeframe", label: "Timeframe", options: ["30 days", "90 days", "6 months", "12 months", "2 years", "3–5 years"] }
     ]
   }
 ] satisfies ReadonlyArray<{ title: string; description: string; fields: readonly OnboardingField[] }>;
+
+const getNumberPlaceholder = (field: OnboardingField) => {
+  if (field.placeholder) return field.placeholder;
+  if (percentageFields.has(field.name)) return "6.25";
+  if (wholeNumberFields.has(field.name)) return "1";
+  if (moneyFields.has(field.name)) return "2500.00";
+  return "2500.00";
+};
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -548,7 +590,15 @@ export default function OnboardingPage() {
                         <input
                           name={field.name}
                           type={field.type ?? "text"}
-                          placeholder={field.placeholder}
+                          placeholder={field.type === "number" ? getNumberPlaceholder(field) : field.placeholder}
+                          step={
+                            field.type === "number"
+                              ? wholeNumberFields.has(field.name)
+                                ? "1"
+                                : "0.01"
+                              : undefined
+                          }
+                          inputMode={field.type === "number" ? "decimal" : undefined}
                           defaultValue={typeof formDefaults[field.name] === "boolean" ? "" : String(formDefaults[field.name] ?? "")}
                           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                         />

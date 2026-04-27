@@ -1,4 +1,4 @@
-import { toNumber } from "@/lib/finance/calculations";
+import { debtTotal, monthlyDebtPayments, toNumber } from "@/lib/finance/calculations";
 import { buildLoanReadinessProfile, type LoanReadinessPayload } from "@/lib/finance/loan-readiness-mapper";
 
 const toText = (value: unknown, fallback = "") => {
@@ -12,6 +12,8 @@ export const CNB_MAPPING_AUDIT = true;
 export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
   const readiness = buildLoanReadinessProfile(profileData);
   const debts = profileData.debts ?? [];
+  const debtPayments = monthlyDebtPayments(debts);
+  const otherDebtBalances = debtTotal(debts);
 
   const loanPayments = debts
     .filter((debt) => {
@@ -39,14 +41,16 @@ export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
     })
     .reduce((acc, debt) => acc + toNumber(debt.balance), 0);
 
-  const bankBalances = readiness.financials.savingsCash + readiness.financials.emergencyFund;
+  // Canonical source order: assets
+  const bankBalances = readiness.financials.savingsCash + readiness.financials.emergencyFund + readiness.financials.downPaymentSavings;
   const investments = readiness.financials.investments + readiness.financials.retirementSavings;
   const realEstate = readiness.housing.estimatedHomeValue;
   const vehicles = 0;
   const totalAssets = bankBalances + investments + realEstate + vehicles;
 
+  // Canonical source order: liabilities
   const mortgages = readiness.housing.mortgageBalance;
-  const totalLiabilities = loans + mortgages + creditCards + otherDebts;
+  const totalLiabilities = mortgages + otherDebtBalances;
 
   return {
     customer: {
@@ -96,6 +100,7 @@ export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
       interestRate: toNumber(debts[0]?.interest_rate),
       monthlyPayment: toNumber(debts[0]?.monthly_payment)
     },
+    // Canonical source order: income
     income: {
       applicantIncome: readiness.financials.monthlyIncomeUsed,
       rentalIncome: readiness.housing.estimatedRoomRentalIncome,
@@ -103,8 +108,9 @@ export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
       otherIncome: readiness.financials.monthlyNetIncome > 0 ? toNumber(profileData.profile?.other_income_amount) : 0,
       totalIncome: readiness.financials.monthlyIncomeUsed + readiness.housing.estimatedRoomRentalIncome
     },
+    // Canonical source order: expenses
     expenses: {
-      housing: toNumber(profileData.expenseProfile?.housing) || readiness.housing.mortgagePayment || readiness.housing.rentAmount,
+      housing: readiness.financials.housingPayment,
       loanPayments,
       creditCards: cardPayments,
       insurance: toNumber(profileData.expenseProfile?.insurance),
@@ -114,7 +120,7 @@ export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
       childcare: toNumber(profileData.expenseProfile?.childcare),
       discretionary: toNumber(profileData.expenseProfile?.discretionary),
       other: toNumber(profileData.expenseProfile?.other),
-      totalExpenses: readiness.financials.monthlyExpenses + loanPayments + cardPayments
+      totalExpenses: readiness.financials.monthlyExpenses + readiness.financials.housingPayment + debtPayments
     },
     assets: {
       bankBalances,
