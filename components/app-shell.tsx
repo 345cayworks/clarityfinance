@@ -120,7 +120,7 @@ function NavList({ pathname, onNavigate, isAdmin }: { pathname: string; onNaviga
         <div key={section.title}>
           <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{section.title}</p>
           <div className="flex flex-col gap-0.5 text-sm">
-            {[...section.items, ...(isAdmin ? [{ label: "Admin Accounts", href: "/app/admin/accounts" as Route, icon: (<Icon><path d="M12 3l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V7l8-4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></Icon>) }] : [])].map((item) => {
+            {[...section.items, ...(isAdmin ? [{ label: "Admin Dashboard", href: "/app/admin/accounts" as Route, icon: (<Icon><path d="M12 3l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V7l8-4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></Icon>) }] : [])].map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link

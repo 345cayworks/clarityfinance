@@ -1,11 +1,19 @@
+import type { HandlerEvent } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
-import type { IdentityUser } from "./_identity";
-import { isIdentityAdmin } from "./_approval";
+import { getIdentityUser, type IdentityUser } from "./_identity";
 
 type RoleRow = { role: string | null };
 
-export async function requireAdmin(identityUser: IdentityUser): Promise<boolean> {
-  if (isIdentityAdmin(identityUser.role)) return true;
+export async function requireAdmin(event: HandlerEvent): Promise<{ ok: true; identityUser: IdentityUser } | { ok: false; statusCode: number; body: { error: string } }> {
+  const identityUser = getIdentityUser(event);
+  if (!identityUser?.email) {
+    return { ok: false, statusCode: 401, body: { error: "Unauthorized" } };
+  }
+
   const rows = (await sql`SELECT role FROM users WHERE email = ${identityUser.email} LIMIT 1`) as RoleRow[];
-  return rows[0]?.role === "admin";
+  if (rows[0]?.role !== "admin") {
+    return { ok: false, statusCode: 403, body: { error: "Forbidden" } };
+  }
+
+  return { ok: true, identityUser };
 }
