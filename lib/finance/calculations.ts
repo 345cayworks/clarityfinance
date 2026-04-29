@@ -19,32 +19,36 @@ export const totalNonHousingExpenses = (expenseProfile: Record<string, unknown> 
   );
 };
 
-export const totalExpenses = (expenseProfile: Record<string, unknown> | null) => {
-  if (!expenseProfile) return 0;
-  return (
-    toNumber(expenseProfile.housing) +
-    toNumber(expenseProfile.utilities) +
-    toNumber(expenseProfile.transport) +
-    toNumber(expenseProfile.groceries) +
-    toNumber(expenseProfile.insurance) +
-    toNumber(expenseProfile.childcare) +
-    toNumber(expenseProfile.discretionary) +
-    toNumber(expenseProfile.other)
-  );
-};
+
+export const totalExpenses = (expenseProfile: Record<string, unknown> | null) => totalNonHousingExpenses(expenseProfile);
 
 export const housingPayment = (housingProfile: Record<string, unknown> | null) => {
   if (!housingProfile) return 0;
   return toNumber(housingProfile.mortgage_payment) || toNumber(housingProfile.rent_amount) || 0;
 };
 
+export const totalLivingExpenses = (
+  expenseProfile: Record<string, unknown> | null,
+  housingProfile: Record<string, unknown> | null
+) => totalNonHousingExpenses(expenseProfile) + housingPayment(housingProfile);
+
 export const debtTotal = (debts: Array<Record<string, unknown>>) => debts.reduce((sum, row) => sum + toNumber(row.balance), 0);
+
+export const monthlyDebtPayments = (debts: Array<Record<string, unknown>>) =>
+  debts.reduce((sum, row) => sum + toNumber(row.monthly_payment), 0);
+
+export const totalMonthlyObligations = (
+  expenseProfile: Record<string, unknown> | null,
+  housingProfile: Record<string, unknown> | null,
+  debts: Array<Record<string, unknown>>
+) => totalLivingExpenses(expenseProfile, housingProfile) + monthlyDebtPayments(debts);
 
 export const monthlySurplus = (
   incomeSources: Array<Record<string, unknown>>,
   expenseProfile: Record<string, unknown> | null,
-  housingProfile: Record<string, unknown> | null
-) => totalIncome(incomeSources) - totalExpenses(expenseProfile) - housingPayment(housingProfile);
+  housingProfile: Record<string, unknown> | null,
+  debts: Array<Record<string, unknown>> = []
+) => totalIncome(incomeSources) - totalMonthlyObligations(expenseProfile, housingProfile, debts);
 
 export const emergencyFundMonths = (savingsProfile: Record<string, unknown> | null, expenses: number) => {
   if (!savingsProfile || expenses <= 0) return 0;
@@ -57,11 +61,12 @@ export const housingEquity = (housingProfile: Record<string, unknown> | null) =>
   return toNumber(housingProfile.estimated_home_value) - toNumber(housingProfile.mortgage_balance);
 };
 
-export const monthlyDebtPayments = (debts: Array<Record<string, unknown>>) =>
-  debts.reduce((sum, row) => sum + toNumber(row.monthly_payment), 0);
-
-export const savingsRunwayMonths = (savingsProfile: Record<string, unknown> | null, expenseProfile: Record<string, unknown> | null) => {
-  const monthlyExpenses = totalExpenses(expenseProfile);
+export const savingsRunwayMonths = (
+  savingsProfile: Record<string, unknown> | null,
+  expenseProfile: Record<string, unknown> | null,
+  housingProfile: Record<string, unknown> | null = null
+) => {
+  const monthlyExpenses = totalLivingExpenses(expenseProfile, housingProfile);
   if (monthlyExpenses <= 0) return null;
   const cashAvailable = toNumber(savingsProfile?.cash_savings) + toNumber(savingsProfile?.emergency_fund);
   return cashAvailable / monthlyExpenses;
@@ -83,9 +88,7 @@ export const financialStabilityScore = (cashFlow: number, dti: number, runwayMon
   return Math.round(cashScore + dtiScore + runwayScore);
 };
 
-export const homeReadinessScore = (
-  input: Record<string, unknown>
-): number => {
+export const homeReadinessScore = (input: Record<string, unknown>): number => {
   const targetHomePrice = toNumber(input.targetHomePrice);
   const target = targetHomePrice > 0 ? targetHomePrice : 350000;
   const downPaymentSavings = toNumber(input.downPaymentSavings);
@@ -105,22 +108,12 @@ export const debtPayoffEstimates = (debts: Array<Record<string, unknown>>) => {
   const totalDebt = debts.reduce((sum, debt) => sum + toNumber(debt.balance), 0);
   const payment = debts.reduce((sum, debt) => sum + toNumber(debt.monthlyPayment ?? debt.monthly_payment), 0);
   const months = payment > 0 ? totalDebt / payment : 0;
-  return {
-    totalDebt,
-    estimatedMonths: Math.ceil(months),
-    snowballNote: "Snowball targets smallest balances first for momentum.",
-    avalancheNote: "Avalanche targets highest rates first to minimize interest."
-  };
+  return { totalDebt, estimatedMonths: Math.ceil(months), snowballNote: "Snowball targets smallest balances first for momentum.", avalancheNote: "Avalanche targets highest rates first to minimize interest." };
 };
+
+export const toCurrency = (value: number, currency = "USD") =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 
 export const rentRoomImpact = (cashFlow: number, roomIncome: number): { newCashFlow: number; improvement: number } => {
   return { newCashFlow: cashFlow + roomIncome, improvement: roomIncome };
 };
-
-export const toCurrency = (value: number, currency = "USD") =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(value);

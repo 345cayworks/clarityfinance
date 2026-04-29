@@ -4,8 +4,8 @@ import {
   monthlyDebtPayments,
   savingsRunwayMonths,
   toNumber,
-  totalExpenses,
-  totalIncome
+  totalIncome,
+  totalLivingExpenses
 } from "@/lib/finance/calculations";
 
 type GenericRow = Record<string, unknown>;
@@ -51,13 +51,13 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
           : "fallback.0";
 
   // Canonical source order: expenses
-  const monthlyExpenses = totalExpenses(data.expenseProfile ?? null);
-  // Canonical source order: housing
-  const monthlyHousingPayment = housingPayment(data.housingProfile ?? null);
-  // Canonical source order: debt
+  const nonHousingLivingExpenses = totalLivingExpenses(data.expenseProfile ?? null, null);
+  const housingExpense = housingPayment(data.housingProfile ?? null);
+  const livingExpenses = nonHousingLivingExpenses + housingExpense;
   const debtPayments = monthlyDebtPayments(debts);
   const totalDebt = debtTotal(debts);
-  const monthlySurplus = monthlyIncomeUsed - monthlyExpenses - monthlyHousingPayment - debtPayments;
+  const totalMonthlyObligations = livingExpenses + debtPayments;
+  const monthlySurplus = monthlyIncomeUsed - totalMonthlyObligations;
 
   // Canonical source order: assets
   const cashSavings = toNumber(savings.cash_savings);
@@ -88,8 +88,9 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
   const loanToValue = purchasePrice > 0 ? requestedLoanAmount / purchasePrice : null;
 
   const debtToIncome = monthlyIncomeUsed > 0 ? debtPayments / monthlyIncomeUsed : null;
-  const housingRatio = monthlyIncomeUsed > 0 ? monthlyHousingPayment / monthlyIncomeUsed : null;
-  const runwayMonths = savingsRunwayMonths(data.savingsProfile ?? null, data.expenseProfile ?? null);
+  const housingRatio = monthlyIncomeUsed > 0 ? housingExpense / monthlyIncomeUsed : null;
+  const totalObligationsRatio = monthlyIncomeUsed > 0 ? totalMonthlyObligations / monthlyIncomeUsed : null;
+  const runwayMonths = savingsRunwayMonths(data.savingsProfile ?? null, data.expenseProfile ?? null, data.housingProfile ?? null);
 
   return {
     applicant: {
@@ -118,9 +119,13 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
       monthlyNetIncome,
       monthlyIncomeUsed,
       monthlyIncomeSource,
-      monthlyExpenses,
-      housingPayment: monthlyHousingPayment,
+      nonHousingLivingExpenses,
+      housingExpense,
+      livingExpenses,
+      monthlyExpenses: nonHousingLivingExpenses,
+      housingPayment: housingExpense,
       monthlyDebtPayments: debtPayments,
+      totalMonthlyObligations,
       monthlySurplus,
       totalDebt,
       savingsCash: cashSavings,
@@ -135,7 +140,8 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
       otherDebt: totalDebt,
       totalLiabilities,
       netWorth,
-      savingsRunwayMonths: runwayMonths
+      savingsRunwayMonths: runwayMonths,
+      totalObligationsRatio
     },
     housing: {
       housingStatus: toText(housing.housing_status),
@@ -177,7 +183,8 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
       debtToIncome,
       housingRatio,
       loanToValue,
-      savingsRunwayMonths: runwayMonths
+      savingsRunwayMonths: runwayMonths,
+      totalObligationsRatio
     }
   };
 }

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Script from "next/script";
 import { getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
 
 export default function AdvisorRequestPage(){
@@ -13,6 +14,6 @@ return <div className="card max-w-3xl"><h1 className="text-2xl font-semibold tex
 <select value={form.urgency} onChange={e=>setForm({...form,urgency:e.target.value})} className="rounded-lg border border-slate-300 px-3 py-2"><option value='low'>Low</option><option value='medium'>Medium</option><option value='high'>High</option></select>
 <textarea value={form.message} onChange={e=>setForm({...form,message:e.target.value})} className="md:col-span-2 rounded-lg border border-slate-300 px-3 py-2" rows={5} placeholder="Message"/>
 <label className="md:col-span-2 text-sm"><input type='checkbox' checked={form.consentToReview} onChange={e=>setForm({...form,consentToReview:e.target.checked})} className="mr-2"/>I agree to allow an advisor to review my financial profile and reports.</label>
-<button className="md:col-span-2 rounded-lg bg-[#0A2540] px-4 py-2 text-white">Submit advisor request</button>{saved?<p className="md:col-span-2 text-emerald-700">Request submitted.</p>:null}
+<button className="md:col-span-2 rounded-lg bg-[#0A2540] px-4 py-2 text-white">Submit advisor request</button>{saved?<div className="md:col-span-2"><p className="text-emerald-700">Request submitted.</p><p className="mt-2 text-sm text-slate-600">Advisor session payment is processed securely through Fygaro.</p><Script src="https://api.fygaro.com/api/v1/payments/payment-button/dc86510d-39bc-4910-b8a8-b8f829967219/render/" strategy="afterInteractive" /></div>:null}
 </form></div>
 }
