@@ -38,6 +38,7 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: "deactivated", label: "🚫 Deactivated" },
   { key: "invite", label: "➕ Invite User" }
 ];
+const PRIMARY_ADMIN_EMAIL = "info@cayworks.com";
 
 function Badge({ tone, children }: { tone: string; children: string }) {
   return <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${tone}`}>{children}</span>;
@@ -60,6 +61,8 @@ export default function Page() {
   const [advisorRequests, setAdvisor] = useState<AdvisorRequest[]>([]);
   const [invite, setInvite] = useState({ name: "", email: "", role: "user" });
   const [msg, setMsg] = useState("");
+  const [toast, setToast] = useState("");
+  const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
@@ -70,6 +73,11 @@ export default function Page() {
     const d = await r.json();
     setUsers(d.users ?? []);
     setAdvisor(d.advisorRequests ?? []);
+    setRoleDrafts(
+      Object.fromEntries(
+        (d.users ?? []).map((u: User) => [u.id, u.role || "user"])
+      )
+    );
     setLoading(false);
   };
 
@@ -77,15 +85,16 @@ export default function Page() {
     void load();
   }, [user]);
 
-  const act = async (path: string, payload: Record<string, unknown>) => {
+  const act = async (path: string, payload: Record<string, unknown>, shouldReload = true) => {
     const token = await getIdentityToken(user);
     if (!token) return;
-    await fetch(`/.netlify/functions/${path}`, {
+    const response = await fetch(`/.netlify/functions/${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload)
     });
-    await load();
+    if (shouldReload) await load();
+    return response.ok;
   };
 
   const pending = useMemo(() => users.filter((u) => u.approval_status === "pending"), [users]);
@@ -172,6 +181,7 @@ export default function Page() {
             </button>
           ))}
         </div>
+        {toast && <p className="mb-4 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{toast}</p>}
 
         {loading && <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded bg-slate-100" />)}</div>}
 
@@ -209,7 +219,7 @@ export default function Page() {
           </div>
         )}
 
-        {!loading && tab === "users" && (active.length ? <div className="space-y-3">{active.map((u) => {const a = activity(u.last_active_at); return <div key={u.id} className="rounded-xl border p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p></div><div className="flex gap-2">{statusBadge(u.account_status, "account")}{statusBadge(u.role || "user", "role")}</div></div><div className="mt-2 text-sm text-slate-600"><span className={`mr-2 inline-block h-2.5 w-2.5 rounded-full ${a.dot}`} /> <span className={a.tone}>{a.label}</span> • Last active: {u.last_active_at ? new Date(u.last_active_at).toLocaleString() : "-"} • Last login: {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : "-"}</div><div className="mt-3 flex gap-2"><button className="rounded border px-3 py-1" onClick={() => act("admin-user-deactivate", { userId: u.id })}>Deactivate</button><button className="rounded border px-3 py-1" onClick={() => act("admin-user-role-update", { userId: u.id, role: u.role === "advisor" ? "user" : "advisor" })}>Change Role</button></div></div>;})}</div> : <EmptyState title="No active users" helper="Approved users will appear here." />)}
+        {!loading && tab === "users" && (active.length ? <div className="space-y-3">{active.map((u) => {const a = activity(u.last_active_at); const isPrimaryAdmin = u.email.toLowerCase() === PRIMARY_ADMIN_EMAIL; const selectedRole = roleDrafts[u.id] || u.role || "user"; return <div key={u.id} className="rounded-xl border p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p></div><div className="flex gap-2">{statusBadge(u.account_status, "account")}{statusBadge(u.role || "user", "role")}{isPrimaryAdmin && <Badge tone="bg-purple-200 text-purple-900">Primary Admin</Badge>}</div></div><div className="mt-2 text-sm text-slate-600"><span className={`mr-2 inline-block h-2.5 w-2.5 rounded-full ${a.dot}`} /> <span className={a.tone}>{a.label}</span> • Last active: {u.last_active_at ? new Date(u.last_active_at).toLocaleString() : "-"} • Last login: {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : "-"}</div><div className="mt-3 flex flex-wrap items-center gap-2"><button className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50" disabled={isPrimaryAdmin} onClick={() => act("admin-user-deactivate", { userId: u.id })}>Deactivate</button><label className="text-sm text-slate-600">Select Role:</label><select className="rounded border px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50" disabled={isPrimaryAdmin} value={selectedRole} onChange={(e) => setRoleDrafts((prev) => ({ ...prev, [u.id]: e.target.value }))}><option value="user">user</option><option value="advisor">advisor</option><option value="admin">admin</option></select><button className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50" disabled={isPrimaryAdmin || selectedRole === (u.role || "user")} onClick={async () => {const ok = await act("admin-user-role-update", { userId: u.id, role: selectedRole }, false); if (ok) {setUsers((prev) => prev.map((item) => item.id === u.id ? { ...item, role: selectedRole } : item)); setToast(`Role updated to ${selectedRole.charAt(0).toUpperCase()}${selectedRole.slice(1)}`);}}}>Update Role</button></div></div>;})}</div> : <EmptyState title="No active users" helper="Approved users will appear here." />)}
 
         {!loading && tab === "deactivated" && (deactivated.length ? <div className="space-y-3">{deactivated.map((u) => <div key={u.id} className="rounded-xl border p-4"><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p><div className="mt-2 flex gap-2">{statusBadge("deactivated", "account")}{statusBadge(u.role || "user", "role")}</div><p className="mt-2 text-sm text-slate-600">Deactivated: {u.deactivated_at ? new Date(u.deactivated_at).toLocaleString() : "-"}</p><button className="mt-3 rounded bg-green-600 px-3 py-1 text-white" onClick={() => act("admin-user-activate", { userId: u.id })}>Reactivate</button></div>)}</div> : <EmptyState title="No deactivated users" helper="When users are deactivated, they will show here for reactivation." />)}
 
