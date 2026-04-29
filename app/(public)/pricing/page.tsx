@@ -81,6 +81,19 @@ export default function PricingPage() {
         </article>
       </section>
 
+      <section className="card">
+        <h2 className="text-xl font-semibold text-[#0A2540]">Advisor Session Payment</h2>
+        <p className="mt-2 text-sm text-slate-600">Fygaro payment button will be added here.</p>
+        <a
+          href="https://www.fygaro.com/en/pb/dc86510d-39bc-4910-b8a8-b8f829967219/"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-block rounded-lg bg-[#0A2540] px-4 py-2 text-sm font-semibold text-white"
+        >
+          Open payment link
+        </a>
+      </section>
+
       <section id="contact" className="card scroll-mt-24">
         <h2 className="text-2xl font-semibold text-[#0A2540]">Request Advisor Support</h2>
         <p className="mt-2 text-sm text-slate-600">Submit the form and we&apos;ll follow up shortly.</p>
