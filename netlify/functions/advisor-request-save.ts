@@ -3,6 +3,7 @@ import { sql } from "../../lib/db/neon";
 import { getIdentityUser } from "./_identity";
 import { getUserApprovalStatus } from "./_approval";
 import { json, parseJsonBody, randomId } from "./_utils";
+import { notifyAdmin, notifyUser } from "../../lib/notifications/notify";
 
 type UserIdRow = { id: string };
 
@@ -16,7 +17,12 @@ export const handler: Handler = async (event) => {
   const body = parseJsonBody<Record<string, unknown>>(event) ?? {};
   const existing = await sql`SELECT id FROM users WHERE email = ${identityUser.email} LIMIT 1` as UserIdRow[];
   const userId = existing[0]?.id ?? identityUser.id;
+  const requestId = randomId("adv");
+  const urgency = String(body.urgency ?? "medium");
   await sql`INSERT INTO advisor_requests (id,user_id,name,email,phone,preferred_contact_method,topic,urgency,message,consent_to_review,source_context,recommendation_json)
-  VALUES (${randomId("adv")},${userId},${String(body.name ?? identityUser.name ?? "")},${String(body.email ?? identityUser.email)},${String(body.phone ?? "")},${String(body.preferredContactMethod ?? "")},${String(body.topic ?? "")},${String(body.urgency ?? "medium")},${String(body.message ?? "")},${Boolean(body.consentToReview)},${String(body.sourceContext ?? "")},${JSON.stringify(body.recommendation ?? {})}::jsonb)`;
+  VALUES (${requestId},${userId},${String(body.name ?? identityUser.name ?? "")},${String(body.email ?? identityUser.email)},${String(body.phone ?? "")},${String(body.preferredContactMethod ?? "")},${String(body.topic ?? "")},${urgency},${String(body.message ?? "")},${Boolean(body.consentToReview)},${String(body.sourceContext ?? "")},${JSON.stringify(body.recommendation ?? {})}::jsonb)`;
+  await notifyAdmin("advisor_request_created", { requestId, topic: String(body.topic ?? ""), urgency, email: String(body.email ?? identityUser.email) });
+  if (urgency === "high") await notifyAdmin("high_value_lead_detected", { requestId, topic: String(body.topic ?? ""), email: String(body.email ?? identityUser.email) });
+  await notifyUser(userId, "advisor_request_created", { requestId, status: "new" });
   return json(200, { success: true });
 };

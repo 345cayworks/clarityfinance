@@ -3,6 +3,7 @@ import { sql } from "../../lib/db/neon";
 import { getIdentityUser } from "./_identity";
 import { getUserApprovalStatus } from "./_approval";
 import { json, parseJsonBody, randomId } from "./_utils";
+import { notifyAdmin } from "../../lib/notifications/notify";
 
 type AnyRecord = Record<string, unknown>;
 
@@ -91,6 +92,8 @@ export const handler: Handler = async (event) => {
     const approval = await getUserApprovalStatus(identityUser);
 
     if (!userId) return json(500, { error: "Profile could not be saved. Please try again." });
+
+    if (!approval.approved) { await notifyAdmin("user_pending_approval", { userId, email: identityUser.email, name: identityUser.name }); }
 
     await sql`
     INSERT INTO profiles (
