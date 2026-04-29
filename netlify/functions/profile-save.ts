@@ -3,6 +3,7 @@ import { sql } from "../../lib/db/neon";
 import { getIdentityUser } from "./_identity";
 import { getUserApprovalStatus } from "./_approval";
 import { json, parseJsonBody, randomId } from "./_utils";
+import { notifyAdmin } from "../../lib/notifications/notify";
 
 type AnyRecord = Record<string, unknown>;
 
@@ -92,6 +93,8 @@ export const handler: Handler = async (event) => {
 
     if (!userId) return json(500, { error: "Profile could not be saved. Please try again." });
 
+    if (!approval.approved) { await notifyAdmin("user_pending_approval", { userId, email: identityUser.email, name: identityUser.name }); }
+
     await sql`
     INSERT INTO profiles (
       id, user_id, country_or_market, preferred_currency, age_range, employment_type, household_status, dependents,
@@ -102,7 +105,7 @@ export const handler: Handler = async (event) => {
       purchase_agreement_available, primary_bank_name, existing_bank_relationship, bank_statements_available,
       missed_payments_history, bankruptcy_history, has_id, has_proof_of_address, has_payslips, has_employment_letter,
       has_bank_statements, has_debt_statements, has_credit_report, has_purchase_agreement, has_valuation,
-      has_down_payment_proof, has_business_financials
+      has_down_payment_proof, has_business_financials, marital_status, other_assets, source_of_down_payment, purchase_price, borrower_contribution, security_offered, security_value, has_tax_returns
     )
     VALUES (
       ${randomId("pro")}, ${userId}, ${String(body.countryOrMarket ?? "")}, ${String(body.preferredCurrency ?? "")}, ${String(body.ageRange ?? "")}, ${String(body.employmentType ?? "")}, ${String(body.householdStatus ?? "")}, ${toNumber(body.dependents)},
@@ -113,7 +116,7 @@ export const handler: Handler = async (event) => {
       ${toBoolean(body.purchaseAgreementAvailable)}, ${String(body.primaryBankName ?? "")}, ${toBoolean(body.existingBankRelationship)}, ${toBoolean(body.bankStatementsAvailable)},
       ${toBoolean(body.missedPaymentsHistory)}, ${toBoolean(body.bankruptcyHistory)}, ${toBoolean(body.hasID)}, ${toBoolean(body.hasProofOfAddress)}, ${toBoolean(body.hasPayslips)}, ${toBoolean(body.hasEmploymentLetter)},
       ${toBoolean(body.hasBankStatements)}, ${toBoolean(body.hasDebtStatements)}, ${toBoolean(body.hasCreditReport)}, ${toBoolean(body.hasPurchaseAgreement)}, ${toBoolean(body.hasValuation)},
-      ${toBoolean(body.hasDownPaymentProof)}, ${toBoolean(body.hasBusinessFinancials)}
+      ${toBoolean(body.hasDownPaymentProof)}, ${toBoolean(body.hasBusinessFinancials)}, ${String(body.maritalStatus ?? "")}, ${toNumber(body.otherAssets)}, ${String(body.sourceOfDownPayment ?? "")}, ${toNumber(body.purchasePrice)}, ${toNumber(body.borrowerContribution)}, ${String(body.securityOffered ?? "")}, ${toNumber(body.securityValue)}, ${toBoolean(body.hasTaxReturns)}
     )
     ON CONFLICT (user_id) DO UPDATE SET
       country_or_market = EXCLUDED.country_or_market,
@@ -165,6 +168,14 @@ export const handler: Handler = async (event) => {
       has_valuation = EXCLUDED.has_valuation,
       has_down_payment_proof = EXCLUDED.has_down_payment_proof,
       has_business_financials = EXCLUDED.has_business_financials,
+      marital_status = EXCLUDED.marital_status,
+      other_assets = EXCLUDED.other_assets,
+      source_of_down_payment = EXCLUDED.source_of_down_payment,
+      purchase_price = EXCLUDED.purchase_price,
+      borrower_contribution = EXCLUDED.borrower_contribution,
+      security_offered = EXCLUDED.security_offered,
+      security_value = EXCLUDED.security_value,
+      has_tax_returns = EXCLUDED.has_tax_returns,
       updated_at = NOW()
   `;
 
