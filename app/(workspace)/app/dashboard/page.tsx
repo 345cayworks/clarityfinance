@@ -5,6 +5,8 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
 import { DebtBreakdownChart, IncomeExpenseChart } from "@/components/charts";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
+import { AdvisorCta } from "@/components/advisor/advisor-cta";
+import { getAdvisorRecommendation } from "@/lib/advisor/recommendations";
 import {
   clarityScore,
   debtPayoffEstimates,
@@ -178,10 +180,12 @@ export default function DashboardPage() {
     }))
   );
 
+  const advisorRecommendation = getAdvisorRecommendation({approvalScore: clarity, dti, monthlySurplus: cashFlow, savingsRunwayMonths: runway ?? 0, goal: String(goal?.target_goal ?? "")});
   const isEmpty = !loading && !data;
 
   return (
     <div className="space-y-5">
+      {advisorRecommendation.shouldRecommend ? <AdvisorCta context="dashboard" title="Request Advisor Review" description="Your profile has items a bank may question. Request an advisor review before submitting." recommendedPackage={advisorRecommendation.package} urgencyLevel={advisorRecommendation.urgency} /> : null}
       <section className="card flex flex-col gap-6 bg-gradient-to-br from-white to-blue-50/40 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-5">
           <ProgressRing value={clarity || 0} />

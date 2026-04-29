@@ -76,6 +76,24 @@ const navSections: NavSection[] = [
         )
       },
       {
+        label: "Advisor Support",
+        href: "/app/advisor/request",
+        icon: (
+          <Icon>
+            <path d="M12 3l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V7l8-4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+          </Icon>
+        )
+      },
+      {
+        label: "My Advisor Requests",
+        href: "/app/advisor/status",
+        icon: (
+          <Icon>
+            <path d="M7 4h10v16H7zM9 8h6M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </Icon>
+        )
+      },
+      {
         label: "Bank Prequalification",
         href: "/app/prequalification/proven-bank",
         icon: (
