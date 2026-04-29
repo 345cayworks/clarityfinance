@@ -1,6 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
 import { getIdentityUser } from "./_identity";
+import { getUserApprovalStatus } from "./_approval";
 import { json, parseJsonBody, randomId } from "./_utils";
 
 type AnyRecord = Record<string, unknown>;
@@ -53,23 +54,25 @@ const upsertUser = async (userId: string, identityUser: ReturnType<typeof getIde
 
   try {
     await sql`
-      INSERT INTO users (id, email, name, role)
-      VALUES (${effectiveUserId}, ${identityUser.email}, ${identityUser.name}, ${identityUser.role})
+      INSERT INTO users (id, email, name, role, approval_status)
+      VALUES (${effectiveUserId}, ${identityUser.email}, ${identityUser.name}, ${identityUser.role}, 'pending')
       ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         name = EXCLUDED.name,
         role = EXCLUDED.role,
+        approval_status = COALESCE(users.approval_status, 'pending'),
         updated_at = NOW()
     `;
   } catch (error) {
     if (!isMissingRoleColumnError(error)) throw error;
 
     await sql`
-      INSERT INTO users (id, email, name)
-      VALUES (${effectiveUserId}, ${identityUser.email}, ${identityUser.name})
+      INSERT INTO users (id, email, name, approval_status)
+      VALUES (${effectiveUserId}, ${identityUser.email}, ${identityUser.name}, 'pending')
       ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         name = EXCLUDED.name,
+        approval_status = COALESCE(users.approval_status, 'pending'),
         updated_at = NOW()
     `;
   }
@@ -85,6 +88,7 @@ export const handler: Handler = async (event) => {
 
     const body = (parseJsonBody<AnyRecord>(event) ?? {}) as AnyRecord;
     const userId = await upsertUser(identityUser.id, identityUser);
+    const approval = await getUserApprovalStatus(identityUser);
 
     if (!userId) return json(500, { error: "Profile could not be saved. Please try again." });
 
@@ -235,7 +239,7 @@ export const handler: Handler = async (event) => {
     `;
     }
 
-    return json(200, { success: true, redirectTo: "/app/dashboard" });
+    return json(200, { success: true, redirectTo: approval.approved ? "/app/dashboard" : "/app/pending-approval" });
   } catch (error) {
     logSaveError(error);
     return json(500, { error: "Profile could not be saved. Please try again." });

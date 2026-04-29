@@ -113,14 +113,14 @@ function getInitials(nameOrEmail: string) {
   return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
 }
 
-function NavList({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+function NavList({ pathname, onNavigate, isAdmin }: { pathname: string; onNavigate?: () => void; isAdmin: boolean }) {
   return (
     <nav className="flex flex-col gap-5">
       {navSections.map((section) => (
         <div key={section.title}>
           <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{section.title}</p>
           <div className="flex flex-col gap-0.5 text-sm">
-            {section.items.map((item) => {
+            {[...section.items, ...(isAdmin ? [{ label: "Admin Accounts", href: "/app/admin/accounts" as Route, icon: (<Icon><path d="M12 3l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V7l8-4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></Icon>) }] : [])].map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link
@@ -160,7 +160,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { user } = useWorkspaceUser();
+  const { user, accountStatus } = useWorkspaceUser();
 
   const displayName = user?.name || user?.email || "Account";
   const subtitle = user?.email ?? "Signed in";
@@ -177,7 +177,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <aside className="sticky top-4 hidden h-[calc(100vh-2rem)] w-[260px] flex-none flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:flex">
           <Logo />
           <div className="mt-6 flex-1 overflow-y-auto pr-1">
-            <NavList pathname={pathname} />
+            <NavList pathname={pathname} isAdmin={accountStatus?.role === "admin"} />
           </div>
           <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
             <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-[#0A2540] text-xs font-semibold text-white">
@@ -249,7 +249,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </svg>
               </button>
             </div>
-            <NavList pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+            <NavList pathname={pathname} onNavigate={() => setMobileOpen(false)} isAdmin={accountStatus?.role === "admin"} />
             <button
               onClick={onLogout}
               className="mt-auto rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
