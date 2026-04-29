@@ -24,7 +24,6 @@ const advisorTopics = [
 export default function PricingPage() {
   return (
     <div className="space-y-10 pt-10">
-      <Script async src="https://js.stripe.com/v3/buy-button.js" />
 
       <header className="text-center">
         <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Pricing</p>
@@ -83,15 +82,13 @@ export default function PricingPage() {
 
       <section className="card">
         <h2 className="text-xl font-semibold text-[#0A2540]">Advisor Session Payment</h2>
-        <p className="mt-2 text-sm text-slate-600">Fygaro payment button will be added here.</p>
-        <a
-          href="https://www.fygaro.com/en/pb/dc86510d-39bc-4910-b8a8-b8f829967219/"
-          target="_blank"
-          rel="noreferrer"
-          className="mt-3 inline-block rounded-lg bg-[#0A2540] px-4 py-2 text-sm font-semibold text-white"
-        >
-          Open payment link
-        </a>
+        <p className="mt-2 text-sm text-slate-600">Advisor session payment is processed securely through Fygaro.</p>
+        <div className="mt-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3">
+          <Script
+            src="https://api.fygaro.com/api/v1/payments/payment-button/dc86510d-39bc-4910-b8a8-b8f829967219/render/"
+            strategy="afterInteractive"
+          />
+        </div>
       </section>
 
       <section id="contact" className="card scroll-mt-24">
