@@ -3,15 +3,14 @@ import { sql } from "../../lib/db/neon";
 import { requireAdmin } from "./_admin";
 import { json, parseJsonBody } from "./_utils";
 
-const allowedRoles = new Set(["user", "advisor", "admin"]);
-
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
   const admin = await requireAdmin(event);
   if (!admin.ok) return json(admin.statusCode, admin.body);
-  const body = parseJsonBody<{ userId?: string; role?: string }>(event) ?? {};
-  if (!body.userId || !body.role || !allowedRoles.has(body.role)) return json(400, { error: "Valid userId and role are required" });
 
-  await sql`UPDATE users SET role=${body.role}, updated_at=NOW() WHERE id=${body.userId}`;
+  const body = parseJsonBody<{ userId?: string }>(event) ?? {};
+  if (!body.userId) return json(400, { error: "userId is required" });
+
+  await sql`UPDATE users SET approval_status='approved', account_status='active', activated_at=NOW(), deactivated_at=NULL, updated_at=NOW() WHERE id=${body.userId}`;
   return json(200, { success: true });
 };
