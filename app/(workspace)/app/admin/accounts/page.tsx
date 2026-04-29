@@ -17,6 +17,8 @@ type User = {
   created_at: string;
 };
 
+type AdvisorOption = { id: string; name: string | null; email: string; role: string };
+
 type AdvisorRequest = {
   id: string;
   name: string;
@@ -27,6 +29,9 @@ type AdvisorRequest = {
   status: string;
   message?: string;
   created_at: string;
+  assigned_advisor_id?: string | null;
+  assigned_advisor_email?: string | null;
+  assigned_at?: string | null;
 };
 
 type TabKey = "action" | "users" | "advisor" | "deactivated" | "invite";
@@ -60,6 +65,8 @@ export default function Page() {
   const [users, setUsers] = useState<User[]>([]);
   const [advisorRequests, setAdvisor] = useState<AdvisorRequest[]>([]);
   const [invite, setInvite] = useState({ name: "", email: "", role: "user" });
+  const [advisorOptions, setAdvisorOptions] = useState<AdvisorOption[]>([]);
+  const [assignmentDrafts, setAssignmentDrafts] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState("");
   const [toast, setToast] = useState("");
   const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
@@ -78,6 +85,8 @@ export default function Page() {
         (d.users ?? []).map((u: User) => [u.id, u.role || "user"])
       )
     );
+    const advisorsResp = await fetch("/.netlify/functions/admin-advisors-list", { headers: { Authorization: `Bearer ${token}` } });
+    if (advisorsResp.ok) { const a = await advisorsResp.json(); setAdvisorOptions(a.advisors ?? []); }
     setLoading(false);
   };
 
@@ -223,7 +232,7 @@ export default function Page() {
 
         {!loading && tab === "deactivated" && (deactivated.length ? <div className="space-y-3">{deactivated.map((u) => <div key={u.id} className="rounded-xl border p-4"><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p><div className="mt-2 flex gap-2">{statusBadge("deactivated", "account")}{statusBadge(u.role || "user", "role")}</div><p className="mt-2 text-sm text-slate-600">Deactivated: {u.deactivated_at ? new Date(u.deactivated_at).toLocaleString() : "-"}</p><button className="mt-3 rounded bg-green-600 px-3 py-1 text-white" onClick={() => act("admin-user-activate", { userId: u.id })}>Reactivate</button></div>)}</div> : <EmptyState title="No deactivated users" helper="When users are deactivated, they will show here for reactivation." />)}
 
-        {!loading && tab === "advisor" && (advisorRequests.length ? <div className="space-y-3">{advisorRequests.map((r) => <div key={r.id} className="rounded-xl border p-4"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-medium">{r.topic}</p><div className="flex gap-2">{statusBadge(r.urgency, "urgency")}{statusBadge(r.status || "new", "advisor")}</div></div><p className="mt-1 text-sm text-slate-500">{(r.message || "").slice(0, 120) || `${r.name} • ${r.email} • ${r.phone}`}</p><div className="mt-3 flex gap-2"><button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "reviewing" })}>Mark Reviewing</button><button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "contacted" })}>Mark Contacted</button><button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "closed" })}>Close Request</button></div></div>)}</div> : <EmptyState title="No advisor requests yet" helper="New advisor requests will appear here." />)}
+        {!loading && tab === "advisor" && (advisorRequests.length ? <div className="space-y-3">{advisorRequests.map((r) => <div key={r.id} className="rounded-xl border p-4"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-medium">{r.topic}</p><div className="flex gap-2">{statusBadge(r.urgency, "urgency")}{statusBadge(r.status || "new", "advisor")}{r.assigned_advisor_email ? <Badge tone="bg-green-100 text-green-800">Assigned</Badge> : <Badge tone="bg-amber-100 text-amber-800">Unassigned</Badge>}</div></div><p className="mt-1 text-sm text-slate-500">{(r.message || "").slice(0, 120) || `${r.name} • ${r.email} • ${r.phone}`}</p><p className="mt-2 text-xs text-slate-500">Assigned advisor: {r.assigned_advisor_email || "-"}</p><div className="mt-3 flex flex-wrap gap-2"><select className="rounded border px-2 py-1 text-sm" value={assignmentDrafts[r.id] || ""} onChange={(e) => setAssignmentDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))}><option value="">Assign advisor...</option>{advisorOptions.map((a) => <option key={a.id} value={a.id}>{a.name || a.email} ({a.role})</option>)}</select><button className="rounded bg-[#0A2540] px-3 py-1 text-white" onClick={async () => {const advisorId = assignmentDrafts[r.id]; const advisor = advisorOptions.find((a) => a.id === advisorId); if (!advisor) return; const ok = await act("admin-advisor-request-assign", { requestId: r.id, advisorId: advisor.id, advisorEmail: advisor.email }, false); if (!ok) return; setAdvisor((prev) => prev.map((item) => item.id === r.id ? { ...item, assigned_advisor_id: advisor.id, assigned_advisor_email: advisor.email, assigned_at: new Date().toISOString(), status: "reviewing" } : item)); setToast(`Assigned ${advisor.name || advisor.email}`);}}>Assign</button><button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "reviewing" })}>Mark Reviewing</button><button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "contacted" })}>Mark Contacted</button><button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "closed" })}>Close Request</button></div></div>)}</div> : <EmptyState title="No advisor requests yet" helper="New advisor requests will appear here." />)}
 
         {!loading && tab === "invite" && (
           <form
