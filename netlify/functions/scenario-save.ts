@@ -1,36 +1,67 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
 import { getIdentityUser } from "./_identity";
-import { json, parseJsonBody, randomId } from "./_utils";
+import { json, parseJsonBody } from "./_utils";
+
+type UserRow = { id: string };
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
   const identityUser = getIdentityUser(event);
   if (!identityUser) return json(401, { error: "Unauthorized" });
 
-  const userId = identityUser.id;
+  const existingUser = (await sql`
+    SELECT id FROM users WHERE email = ${identityUser.email} LIMIT 1
+  `) as UserRow[];
+
+  if (!existingUser[0]) {
+    return json(400, { error: "User not found in database" });
+  }
+
+  const userId = existingUser[0].id;
 
   const body = parseJsonBody<Record<string, unknown>>(event) ?? {};
-  const adjustments = {
-    incomeIncrease: Number(body.incomeIncrease ?? 0),
-    expenseReduction: Number(body.expenseReduction ?? 0),
-    debtPaydown: Number(body.debtPaydown ?? 0),
-    rentalIncome: Number(body.rentalIncome ?? 0),
-    lowerRate: Number(body.lowerRate ?? 0),
-    savingsIncrease: Number(body.savingsIncrease ?? 0)
-  };
+  const name = String(body.name ?? "Scenario");
+  const adjustments = (body.adjustments as Record<string, unknown> | undefined) ?? {};
+  const result = (body.result as Record<string, unknown> | undefined) ?? {};
+
+  const safeAdjustments = JSON.parse(JSON.stringify(adjustments));
+  const safeResult = JSON.parse(JSON.stringify(result));
 
   try {
     await sql`
-      INSERT INTO scenarios (id, user_id, name, adjustments_json, result_json)
-      VALUES (${randomId("scn")}, ${userId}, ${String(body.name ?? "Scenario")}, ${JSON.stringify(adjustments)}::jsonb, ${JSON.stringify(adjustments)}::jsonb)
+      INSERT INTO scenarios (
+        id,
+        user_id,
+        name,
+        adjustments_json,
+        result_json,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        ${crypto.randomUUID()},
+        ${userId},
+        ${name},
+        ${safeAdjustments},
+        ${safeResult},
+        NOW(),
+        NOW()
+      )
     `;
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error("scenario-save database write failed", { name: error.name, message: error.message });
+  } catch (err) {
+    if (err instanceof Error) {
+      console.error("scenario-save database write failed", {
+        name: err.name,
+        message: err.message
+      });
     } else {
-      console.error("scenario-save database write failed", { name: "UnknownError", message: String(error) });
+      console.error("scenario-save database write failed", {
+        name: "UnknownError",
+        message: String(err)
+      });
     }
+
     return json(500, { error: "Failed to save scenario." });
   }
 
