@@ -1,27 +1,240 @@
 "use client";
+
 import { useEffect, useMemo, useState } from "react";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
 
-type User = { id:string; name:string|null; email:string; role:string|null; approval_status:string|null; account_status:string|null; last_active_at:string|null; last_login_at:string|null; deactivated_at:string|null; created_at:string };
-type AdvisorRequest = { id:string; name:string; email:string; phone:string; topic:string; urgency:string; status:string; created_at:string };
+type User = {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string | null;
+  approval_status: string | null;
+  account_status: string | null;
+  last_active_at: string | null;
+  last_login_at: string | null;
+  deactivated_at: string | null;
+  created_at: string;
+};
 
-export default function Page(){
+type AdvisorRequest = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  topic: string;
+  urgency: string;
+  status: string;
+  message?: string;
+  created_at: string;
+};
+
+type TabKey = "action" | "users" | "advisor" | "deactivated" | "invite";
+
+const tabs: { key: TabKey; label: string }[] = [
+  { key: "action", label: "🔔 Action Required" },
+  { key: "users", label: "👥 Users" },
+  { key: "advisor", label: "📥 Advisor Requests" },
+  { key: "deactivated", label: "🚫 Deactivated" },
+  { key: "invite", label: "➕ Invite User" }
+];
+
+function Badge({ tone, children }: { tone: string; children: string }) {
+  return <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${tone}`}>{children}</span>;
+}
+
+function EmptyState({ title, helper }: { title: string; helper: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+      <div className="text-2xl">✨</div>
+      <p className="mt-2 font-medium text-slate-700">{title}</p>
+      <p className="text-sm text-slate-500">{helper}</p>
+    </div>
+  );
+}
+
+export default function Page() {
   const { user, accountStatus } = useWorkspaceUser();
-  const [tab,setTab]=useState("pending"); const [users,setUsers]=useState<User[]>([]); const [advisorRequests,setAdvisor]=useState<AdvisorRequest[]>([]);
-  const [invite,setInvite]=useState({name:"",email:"",role:"user"}); const [msg,setMsg]=useState("");
-  const load=async()=>{const token=await getIdentityToken(user); if(!token)return; const r=await fetch('/.netlify/functions/admin-users-list',{headers:{Authorization:`Bearer ${token}`}}); const d=await r.json(); setUsers(d.users??[]); setAdvisor(d.advisorRequests??[]);};
-  useEffect(()=>{load();},[user]);
-  const act=async(path:string,payload:Record<string,unknown>)=>{const token=await getIdentityToken(user); if(!token)return; await fetch(`/.netlify/functions/${path}`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(payload)}); await load();};
-  const pending=useMemo(()=>users.filter(u=>u.approval_status==='pending'),[users]);
-  const active=useMemo(()=>users.filter(u=>u.account_status==='active').sort((a,b)=>(b.last_active_at||"").localeCompare(a.last_active_at||"")),[users]);
-  const deactivated=useMemo(()=>users.filter(u=>u.account_status==='deactivated'),[users]);
-  if(accountStatus?.role!=="admin") return <div className="card">Admin access required.</div>;
-  return <div className="card"><h1 className="text-2xl font-semibold mb-4">Admin Dashboard</h1><div className="flex gap-2 mb-4">{[["pending","Pending Approval"],["active","Active Users"],["deactivated","Deactivated Users"],["advisor","Advisor Requests"],["invite","Invite User"]].map(([k,l])=><button key={k} onClick={()=>setTab(k)} className="px-3 py-1 border rounded">{l}</button>)}</div>
-  {tab==='pending' && <table><tbody>{pending.map(u=><tr key={u.id}><td>{u.name||'-'}</td><td>{u.email}</td><td>{u.role||'user'}</td><td>{new Date(u.created_at).toLocaleString()}</td><td><button onClick={()=>act('admin-user-activate',{userId:u.id})}>Approve</button><button onClick={()=>act('admin-user-reject',{userId:u.id,reason:'Rejected'})}>Reject</button><button onClick={()=>act('admin-user-role-update',{userId:u.id,role:'advisor'})}>Make Advisor</button></td></tr>)}</tbody></table>}
-  {tab==='active' && <table><tbody>{active.map(u=><tr key={u.id}><td>{u.name||'-'}</td><td>{u.email}</td><td>{u.role}</td><td>{u.approval_status}</td><td>{u.last_active_at?new Date(u.last_active_at).toLocaleString():'-'}</td><td>{u.last_login_at?new Date(u.last_login_at).toLocaleString():'-'}</td><td>{new Date(u.created_at).toLocaleString()}</td><td><button onClick={()=>act('admin-user-deactivate',{userId:u.id})}>Deactivate</button><button onClick={()=>act('admin-user-role-update',{userId:u.id,role:u.role==='advisor'?'user':'advisor'})}>Change Role</button></td></tr>)}</tbody></table>}
-  {tab==='deactivated' && <table><tbody>{deactivated.map(u=><tr key={u.id}><td>{u.name||'-'}</td><td>{u.email}</td><td>{u.role}</td><td>{u.deactivated_at?new Date(u.deactivated_at).toLocaleString():'-'}</td><td><button onClick={()=>act('admin-user-activate',{userId:u.id})}>Reactivate</button></td></tr>)}</tbody></table>}
-  {tab==='advisor' && <table><tbody>{advisorRequests.map(r=><tr key={r.id}><td>{r.name}</td><td>{r.email}</td><td>{r.phone}</td><td>{r.topic}</td><td>{r.urgency}</td><td>{r.status}</td><td>{new Date(r.created_at).toLocaleString()}</td><td><button onClick={()=>act('admin-advisor-request-update',{id:r.id,status:'reviewing'})}>Mark Reviewing</button><button onClick={()=>act('admin-advisor-request-update',{id:r.id,status:'contacted'})}>Mark Contacted</button><button onClick={()=>act('admin-advisor-request-update',{id:r.id,status:'closed'})}>Mark Closed</button></td></tr>)}</tbody></table>}
-  {tab==='invite' && <form onSubmit={async(e)=>{e.preventDefault();await act('admin-user-invite',invite);setMsg('User approved in app. Send invite through Netlify Identity or ask them to sign up with this email.');}}><input placeholder="Name" value={invite.name} onChange={e=>setInvite({...invite,name:e.target.value})}/><input placeholder="Email" value={invite.email} onChange={e=>setInvite({...invite,email:e.target.value})}/><select value={invite.role} onChange={e=>setInvite({...invite,role:e.target.value})}><option value="user">user</option><option value="advisor">advisor</option><option value="admin">admin</option></select><button type="submit">Invite</button><p>{msg}</p></form>}
-  </div>;
+  const [tab, setTab] = useState<TabKey>("action");
+  const [users, setUsers] = useState<User[]>([]);
+  const [advisorRequests, setAdvisor] = useState<AdvisorRequest[]>([]);
+  const [invite, setInvite] = useState({ name: "", email: "", role: "user" });
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    const token = await getIdentityToken(user);
+    if (!token) return;
+    setLoading(true);
+    const r = await fetch("/.netlify/functions/admin-users-list", { headers: { Authorization: `Bearer ${token}` } });
+    const d = await r.json();
+    setUsers(d.users ?? []);
+    setAdvisor(d.advisorRequests ?? []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    void load();
+  }, [user]);
+
+  const act = async (path: string, payload: Record<string, unknown>) => {
+    const token = await getIdentityToken(user);
+    if (!token) return;
+    await fetch(`/.netlify/functions/${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload)
+    });
+    await load();
+  };
+
+  const pending = useMemo(() => users.filter((u) => u.approval_status === "pending"), [users]);
+  const active = useMemo(
+    () => users.filter((u) => u.account_status === "active").sort((a, b) => (b.last_active_at || "").localeCompare(a.last_active_at || "")),
+    [users]
+  );
+  const deactivated = useMemo(() => users.filter((u) => u.account_status === "deactivated"), [users]);
+  const newAdvisor = useMemo(() => advisorRequests.filter((r) => (r.status || "new") === "new"), [advisorRequests]);
+
+  const prioritizedRequests = useMemo(() => {
+    const urgencyScore: Record<string, number> = { high: 0, medium: 1, low: 2 };
+    return [...newAdvisor].sort((a, b) => {
+      const urgencyDelta = (urgencyScore[a.urgency] ?? 3) - (urgencyScore[b.urgency] ?? 3);
+      if (urgencyDelta !== 0) return urgencyDelta;
+      return (b.created_at || "").localeCompare(a.created_at || "");
+    });
+  }, [newAdvisor]);
+
+  const highUrgencyCount = prioritizedRequests.filter((r) => r.urgency === "high").length;
+
+  const statusBadge = (status: string | null, type: "approval" | "account" | "role" | "urgency" | "advisor") => {
+    const map: Record<string, string> = {
+      pending: "bg-amber-100 text-amber-800",
+      approved: "bg-green-100 text-green-800",
+      rejected: "bg-red-100 text-red-800",
+      active: "bg-green-100 text-green-800",
+      deactivated: "bg-red-100 text-red-800",
+      admin: "bg-purple-100 text-purple-800",
+      advisor: "bg-blue-100 text-blue-800",
+      user: "bg-slate-200 text-slate-700",
+      high: "bg-red-100 text-red-800",
+      medium: "bg-amber-100 text-amber-800",
+      low: "bg-green-100 text-green-800",
+      new: "bg-amber-100 text-amber-800",
+      reviewing: "bg-blue-100 text-blue-800",
+      contacted: "bg-green-100 text-green-800",
+      closed: "bg-slate-200 text-slate-700"
+    };
+    return <Badge tone={map[status || ""] || "bg-slate-200 text-slate-700"}>{status || (type === "approval" ? "pending" : "-")}</Badge>;
+  };
+
+  const activity = (lastActive: string | null) => {
+    if (!lastActive) return { label: "Inactive", tone: "text-red-600", dot: "bg-red-500" };
+    const mins = (Date.now() - new Date(lastActive).getTime()) / 60000;
+    if (mins <= 5) return { label: "Active now", tone: "text-green-700", dot: "bg-green-500" };
+    if (mins <= 1440) return { label: "Active today", tone: "text-amber-700", dot: "bg-amber-500" };
+    const days = Math.floor(mins / 1440);
+    return { label: `Inactive (${days}d ago)`, tone: "text-red-700", dot: "bg-red-500" };
+  };
+
+  if (accountStatus?.role !== "admin") return <div className="card">Admin access required.</div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="card">
+        <h1 className="text-2xl font-semibold text-[#0A2540]">Admin Dashboard</h1>
+        <p className="mt-1 text-sm text-slate-600">Manage users, approvals, and advisory requests</p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-4">
+        {[
+          ["Pending Approvals", pending.length, "action"],
+          ["Active Users", active.length, "users"],
+          ["Advisor Requests", newAdvisor.length, "advisor"],
+          ["Deactivated Users", deactivated.length, "deactivated"]
+        ].map(([label, count, goto]) => (
+          <button key={label as string} className="card text-left hover:border-[#1A3A5F]" onClick={() => setTab(goto as TabKey)}>
+            <p className="text-sm text-slate-500">{label as string}</p>
+            <p className="text-3xl font-semibold text-[#0A2540]">{count as number}</p>
+          </button>
+        ))}
+      </div>
+
+      <div className="card">
+        <div className="mb-4 flex flex-wrap gap-2">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`rounded-lg border px-3 py-2 text-sm ${tab === t.key ? "border-[#1A3A5F] bg-[#F2F7FC] text-[#0A2540]" : "border-slate-300 text-slate-600"}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {loading && <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded bg-slate-100" />)}</div>}
+
+        {!loading && tab === "action" && (
+          <div className="space-y-5">
+            <p className="text-sm font-medium text-slate-700">{highUrgencyCount} high urgency requests need attention</p>
+            {pending.length === 0 && prioritizedRequests.length === 0 ? (
+              <EmptyState title="No pending approvals" helper="You're caught up. New approvals and urgent requests will appear here." />
+            ) : (
+              <div className="space-y-3">
+                {pending.map((u) => (
+                  <div key={u.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
+                    <div>
+                      <p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p>
+                      <div className="mt-2 flex gap-2">{statusBadge(u.approval_status, "approval")}{statusBadge(u.role || "user", "role")}</div>
+                    </div>
+                    <div className="flex gap-2"><button className="rounded bg-green-600 px-3 py-1 text-white" onClick={() => act("admin-user-approve", { userId: u.id })}>Approve</button></div>
+                  </div>
+                ))}
+                {prioritizedRequests.map((r) => (
+                  <div key={r.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 ${r.urgency === "high" ? "border-red-200 bg-red-50" : ""}`}>
+                    <div>
+                      <p className="font-medium">{r.topic}</p>
+                      <p className="text-sm text-slate-500">{(r.message || "").slice(0, 110) || `${r.name} • ${r.email}`}</p>
+                      <div className="mt-2 flex gap-2">{statusBadge(r.urgency, "urgency")}{statusBadge(r.status || "new", "advisor")}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "reviewing" })}>Mark Reviewing</button>
+                      <button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "contacted" })}>Mark Contacted</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!loading && tab === "users" && (active.length ? <div className="space-y-3">{active.map((u) => {const a = activity(u.last_active_at); return <div key={u.id} className="rounded-xl border p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p></div><div className="flex gap-2">{statusBadge(u.account_status, "account")}{statusBadge(u.role || "user", "role")}</div></div><div className="mt-2 text-sm text-slate-600"><span className={`mr-2 inline-block h-2.5 w-2.5 rounded-full ${a.dot}`} /> <span className={a.tone}>{a.label}</span> • Last active: {u.last_active_at ? new Date(u.last_active_at).toLocaleString() : "-"} • Last login: {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : "-"}</div><div className="mt-3 flex gap-2"><button className="rounded border px-3 py-1" onClick={() => act("admin-user-deactivate", { userId: u.id })}>Deactivate</button><button className="rounded border px-3 py-1" onClick={() => act("admin-user-role-update", { userId: u.id, role: u.role === "advisor" ? "user" : "advisor" })}>Change Role</button></div></div>;})}</div> : <EmptyState title="No active users" helper="Approved users will appear here." />)}
+
+        {!loading && tab === "deactivated" && (deactivated.length ? <div className="space-y-3">{deactivated.map((u) => <div key={u.id} className="rounded-xl border p-4"><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p><div className="mt-2 flex gap-2">{statusBadge("deactivated", "account")}{statusBadge(u.role || "user", "role")}</div><p className="mt-2 text-sm text-slate-600">Deactivated: {u.deactivated_at ? new Date(u.deactivated_at).toLocaleString() : "-"}</p><button className="mt-3 rounded bg-green-600 px-3 py-1 text-white" onClick={() => act("admin-user-activate", { userId: u.id })}>Reactivate</button></div>)}</div> : <EmptyState title="No deactivated users" helper="When users are deactivated, they will show here for reactivation." />)}
+
+        {!loading && tab === "advisor" && (advisorRequests.length ? <div className="space-y-3">{advisorRequests.map((r) => <div key={r.id} className="rounded-xl border p-4"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-medium">{r.topic}</p><div className="flex gap-2">{statusBadge(r.urgency, "urgency")}{statusBadge(r.status || "new", "advisor")}</div></div><p className="mt-1 text-sm text-slate-500">{(r.message || "").slice(0, 120) || `${r.name} • ${r.email} • ${r.phone}`}</p><div className="mt-3 flex gap-2"><button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "reviewing" })}>Mark Reviewing</button><button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "contacted" })}>Mark Contacted</button><button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "closed" })}>Close Request</button></div></div>)}</div> : <EmptyState title="No advisor requests yet" helper="New advisor requests will appear here." />)}
+
+        {!loading && tab === "invite" && (
+          <form
+            className="mx-auto max-w-xl rounded-xl border p-4"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              await act("admin-user-invite", invite);
+              setMsg("User added. Send them the signup link or Netlify invite.");
+            }}
+          >
+            <h2 className="mb-3 text-lg font-semibold">Invite User</h2>
+            <div className="grid gap-3">
+              <input className="rounded border px-3 py-2" placeholder="Name" value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} />
+              <input className="rounded border px-3 py-2" placeholder="Email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} />
+              <select className="rounded border px-3 py-2" value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}><option value="user">user</option><option value="advisor">advisor</option><option value="admin">admin</option></select>
+              <div className="flex gap-2"><button type="submit" className="rounded bg-[#0A2540] px-3 py-2 text-white">Add User</button><button type="button" className="rounded border px-3 py-2" onClick={() => navigator.clipboard.writeText(`Hi ${invite.name || "there"}, you've been added to ClarityFinance. Please use your email (${invite.email}) to sign up or accept your Netlify invite.`)}>Copy invite message</button></div>
+            </div>
+            {msg && <p className="mt-3 text-sm text-green-700">{msg}</p>}
+          </form>
+        )}
+      </div>
+    </div>
+  );
 }
