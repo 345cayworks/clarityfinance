@@ -1,6 +1,6 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
-import { requireAdmin } from "./_admin";
+import { requireAdmin } from "./_access";
 import { json, parseJsonBody } from "./_utils";
 
 export const handler: Handler = async (event) => {
@@ -13,7 +13,7 @@ export const handler: Handler = async (event) => {
   const advisor = await sql`SELECT id,name,email,role FROM users WHERE id=${body.advisorId} AND email=${body.advisorEmail} LIMIT 1` as Array<{id:string;email:string;role:string;name:string}>;
   if (!advisor[0] || !["advisor", "admin"].includes(advisor[0].role)) return json(400, { error: "Advisor not eligible" });
 
-  const updated = await sql`UPDATE advisor_requests SET assigned_advisor_id=${advisor[0].id},assigned_advisor_email=${advisor[0].email},assigned_at=NOW(),assigned_by=${admin.identityUser.email},status='reviewing',updated_at=NOW() WHERE id=${body.requestId} RETURNING id,name,topic,urgency,message,prequalification_share_url` as Array<Record<string, string>>;
+  const updated = await sql`UPDATE advisor_requests SET assigned_advisor_id=${advisor[0].id},assigned_advisor_email=${advisor[0].email},assigned_at=NOW(),assigned_by=${admin.user.email},status='reviewing',updated_at=NOW() WHERE id=${body.requestId} RETURNING id,name,topic,urgency,message,prequalification_share_url` as Array<Record<string, string>>;
   if (!updated[0]) return json(404, { error: "Request not found" });
 
   // TODO: PDF attachment phase: generate prequalification PDF and attach in outbound email via Resend.

@@ -1,9 +1,9 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
-import { requireAdmin } from "./_admin";
+import { requireAdmin } from "./_access";
 import { json, parseJsonBody, randomId } from "./_utils";
 
-const allowedRoles = new Set(["user", "advisor", "admin"]);
+const allowedRoles = new Set(["user", "premium_user", "advisor", "admin", "superadmin", "premium"]);
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -18,7 +18,7 @@ export const handler: Handler = async (event) => {
 
   await sql`
     INSERT INTO users (id, email, name, role, approval_status, account_status, invited_by, invited_at)
-    VALUES (${randomId("usr")}, ${email}, ${name || null}, ${role}, 'approved', 'active', ${admin.identityUser.email}, NOW())
+    VALUES (${randomId("usr")}, ${email}, ${name || null}, ${role}, 'approved', 'active', ${admin.user.email}, NOW())
     ON CONFLICT (email)
     DO UPDATE SET
       name = EXCLUDED.name,

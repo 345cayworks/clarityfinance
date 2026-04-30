@@ -16,8 +16,8 @@ Legend route types: `PUBLIC`, `USER_CORE`, `SCENARIO`, `LOAN_READINESS`, `ADVISO
 | `/reset-password` | `app/(auth)/reset-password/page.tsx` | Password reset completion | PUBLIC | visitor+ | identity auth | auth components | keep |
 | `/app` | `app/(workspace)/app/page.tsx` | Workspace entry/redirect shell | UTILITY | authenticated | account-status/me via guards | workspace layout | keep |
 | `/app/pending-approval` | `app/(workspace)/app/pending-approval/page.tsx` | Waiting room for gated approval | UTILITY | pending_user | account-status | workspace guard | keep |
-| `/app/onboarding` | `app/(workspace)/app/onboarding/page.tsx` | Capture financial profile baseline | USER_CORE | active_user+ | `profile-get`, `profile-save` | onboarding form | keep |
-| `/app/profile` | `app/(workspace)/app/profile/page.tsx` | Profile summary/edit | USER_CORE | active_user+ | likely profile endpoints | profile UI | improve consistency |
+| `/app/onboarding` | `app/(workspace)/app/onboarding/page.tsx` | Capture financial profile baseline | USER_CORE | pending_user+ | `profile-get`, `profile-save` | onboarding form | keep |
+| `/app/profile` | `app/(workspace)/app/profile/page.tsx` | Profile summary/edit | USER_CORE | pending_user+ | likely profile endpoints | profile UI | improve consistency |
 | `/app/dashboard` | `app/(workspace)/app/dashboard/page.tsx` | Core money position dashboard | USER_CORE | active_user+ | `profile-get` | charts/widgets | keep |
 | `/app/scenarios` | `app/(workspace)/app/scenarios/page.tsx` | Scenario planning controls | SCENARIO | active_user+ | `scenario-save` | scenario cards | keep |
 | `/app/tools` | `app/(workspace)/app/tools/page.tsx` | Tool launcher | SCENARIO | active_user+ | none | links to calculators | keep |
@@ -44,4 +44,4 @@ Legend route types: `PUBLIC`, `USER_CORE`, `SCENARIO`, `LOAN_READINESS`, `ADVISO
 ## Fail-closed gating behavior
 - Unauthenticated users are redirected to `/login`.
 - Authenticated users with unresolved or non-active status are redirected to `/app/pending-approval` (with profile/onboarding exceptions).
-- Unauthorized role access is redirected to `/app/dashboard`.
+- Unauthorized role access is redirected to `/app/dashboard` (or to `/app/pending-approval` for pending users).

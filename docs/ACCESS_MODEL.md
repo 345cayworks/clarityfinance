@@ -1,61 +1,89 @@
 # Clarity Finance Access Model
 
-## Roles
+## Canonical model (role vs status vs computed state)
 
-### 1) visitor
-- **Allowed routes:** Public marketing routes (`/`, `/about`, `/features`, `/pricing`, `/contact`, `/success`) and auth routes (`/login`, `/signup`, `/forgot-password`, `/reset-password`).
-- **Denied routes:** All `/app/**` workspace routes.
-- **Allowed functions:** None directly; must authenticate first.
-- **Monetization/access:** Not onboarded; no product access.
-- **Upgrade/approval path:** Sign up -> becomes `pending_user`.
+Clarity uses **three separate concepts** for authorization:
 
-### 2) pending_user
-- **Allowed routes:** Auth routes + `/app/pending-approval` + limited onboarding/profile save flow if enabled.
-- **Denied routes:** Dashboard, scenarios, reports, advisor/admin dashboards until approved.
-- **Allowed functions:** `account-status`, `activity-ping`, `me`, `profile-get`, `profile-save` (as configured).
-- **Monetization/access:** Registered but gated from full product value.
-- **Upgrade/approval path:** Admin approval -> `active_user` (or rejection/deactivation).
+1. **Stored role** (`users.role`) — long-lived permission identity.
+2. **Approval/account status** (`users.approval_status`, `users.account_status`) — lifecycle gating.
+3. **Computed access state** — runtime state derived from auth + statuses.
 
-### 3) active_user
-- **Allowed routes:** Core `/app` routes (dashboard, onboarding, profile, scenarios, tools, report/action-plan, settings).
-- **Denied routes:** Premium-only features, advisor dashboard routes, admin routes.
-- **Allowed functions:** Core profile/scenario/report functions + own advisor request creation/status.
-- **Monetization/access:** Approved base-tier access.
-- **Upgrade/approval path:** Payment/plan upgrade -> `premium_user`.
+These must not be conflated.
 
-### 4) premium_user
-- **Allowed routes:** All `active_user` routes plus premium-gated modules (loan readiness and advanced workflows as enabled).
-- **Denied routes:** Admin and advisor operational routes unless dual role assigned.
-- **Allowed functions:** Core + premium scenario/readiness endpoints.
-- **Monetization/access:** Paid tier.
-- **Upgrade/approval path:** Admin or billing upgrade from `active_user`.
+---
 
-### 5) advisor
-- **Allowed routes:** Advisor workflows (`/app/advisor`, `/app/advisor/dashboard`, `/app/advisor/status`) and assigned-case tools.
-- **Denied routes:** Admin governance routes unless additional admin role.
-- **Allowed functions:** `advisor-requests-assigned`, `advisor-request-update`, advisor request detail/list functions as scoped.
-- **Monetization/access:** Staff/partner operational role.
-- **Upgrade/approval path:** Admin role assignment.
+## 1) Stored roles (database values)
 
-### 6) admin
-- **Allowed routes:** Admin routes (`/app/admin`, `/app/admin/accounts`, `/app/admin/notifications`) plus broad oversight.
-- **Denied routes:** Superadmin-only governance (if separately implemented).
-- **Allowed functions:** Admin user lifecycle + advisor assignment/request triage endpoints.
-- **Monetization/access:** Internal platform operator.
-- **Upgrade/approval path:** Elevated by superadmin/owner.
+Canonical stored role values are:
+- `user`
+- `premium_user`
+- `advisor`
+- `admin`
+- `superadmin`
 
-### 7) superadmin
-- **Allowed routes:** All routes.
-- **Denied routes:** None by default.
-- **Allowed functions:** All functions including role mutation and access governance.
-- **Monetization/access:** Full tenancy control.
-- **Upgrade/approval path:** Manual owner-level provisioning only.
+Legacy compatibility:
+- `premium` may still exist in older rows and is treated as a temporary alias for `premium_user` in access checks.
+- `pending_user` and `active_user` are **not** stored role values.
 
-## Enforcement Notes
-- Route guards should evaluate both **authentication** and **account status/role**.
-- API functions should mirror route access with explicit JWT role/status checks.
-- Premium modules should fail closed when plan status is missing.
+---
 
+## 2) Status fields (database values)
 
-## Shared enforcement helper
-- `netlify/functions/_access.ts` centralizes auth/role/status gates (`getCurrentUser`, `requireAuth`, `requireActiveUser`, `requirePremiumUser`, `requireAdvisor`, `requireAdmin`, `requireAssignedAdvisorOrAdmin`) and is the default path for function-level access checks.
+`users.approval_status`:
+- `pending`
+- `approved`
+- `rejected`
+
+`users.account_status`:
+- `active`
+- `inactive`
+- `deactivated`
+
+These fields determine whether an authenticated user can access full workspace capabilities.
+
+---
+
+## 3) Computed access states (runtime only)
+
+### `visitor`
+- Not authenticated.
+- Allowed: public/auth routes.
+- Denied: all `/app/**` routes.
+
+### `pending_user`
+Derived when authenticated and either:
+- `approval_status != approved`, or
+- `account_status != active`.
+
+Allowed routes:
+- `/app/pending-approval`
+- `/app/onboarding`
+- `/app/profile`
+
+Denied routes:
+- dashboard, scenarios, tools, reports, loan readiness, advisor dashboard, admin routes.
+
+### `active_user`
+Derived when authenticated and both:
+- `approval_status = approved`, and
+- `account_status = active`.
+
+Allowed routes:
+- dashboard, onboarding, profile, scenarios, tools, rent-room, reports, action plan, settings.
+
+Role-specific overlays for active users:
+- `premium_user` (or legacy `premium`) unlocks premium loan routes.
+- `advisor` unlocks advisor-assigned workflows.
+- `admin`/`superadmin` unlock admin operations.
+
+---
+
+## Enforcement helpers
+
+`netlify/functions/_access.ts` is the centralized helper for API enforcement:
+- `requireAuth`
+- `requireActiveUser`
+- `requirePremiumUser` (canonical `premium_user`, temporary `premium` alias)
+- `requireAdvisor`
+- `requireAdmin`
+- `requireAssignedAdvisorOrAdmin`
