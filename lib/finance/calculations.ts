@@ -36,6 +36,15 @@ export const monthlyDebtPayments = (debts: Array<Record<string, unknown>>) => ge
 export const totalMonthlyObligations = (expenseProfile: Record<string, unknown> | null, housingProfile: Record<string, unknown> | null, debts: Array<Record<string, unknown>>) => totalLivingExpenses(expenseProfile, housingProfile)+monthlyDebtPayments(debts);
 export const monthlySurplus = (incomeSources: Array<Record<string, unknown>>, expenseProfile: Record<string, unknown> | null, housingProfile: Record<string, unknown> | null, debts: Array<Record<string, unknown>> = []) => totalIncome(incomeSources)-totalMonthlyObligations(expenseProfile,housingProfile,debts);
 export const savingsRunwayMonths = (savingsProfile: Record<string, unknown> | null, expenseProfile: Record<string, unknown> | null, housingProfile: Record<string, unknown> | null = null) => getSavingsRunwayMonths(savingsProfile, expenseProfile, housingProfile);
+export const emergencyFundMonths = (
+  savingsProfile: Record<string, unknown> | null,
+  totalLivingExpensesAmount: number
+) => {
+  if (!savingsProfile || totalLivingExpensesAmount <= 0) return 0;
+  const emergencyFund = numberValue(savingsProfile.emergency_fund ?? savingsProfile.emergencyFund);
+  return emergencyFund / totalLivingExpensesAmount;
+};
+
 export const housingEquity = (housingProfile: Record<string, unknown> | null) => numberValue(housingProfile?.estimated_home_value)-numberValue(housingProfile?.mortgage_balance);
 export const monthlyCashFlow = (income:number, expenses:number, debtPayments:number) => income-expenses-debtPayments;
 export const debtToIncomeRatio = (totalDebtPayments:number, income:number) => income<=0 ? 0 : totalDebtPayments/income;
