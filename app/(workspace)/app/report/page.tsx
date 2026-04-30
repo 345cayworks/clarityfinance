@@ -276,6 +276,7 @@ export default function ReportPage() {
 
   const expenseRows = useMemo(() => {
     const categories = [
+      { label: "Housing", value: housing },
       { label: "Utilities", value: toNumber(data?.expenseProfile?.utilities) },
       { label: "Transport", value: toNumber(data?.expenseProfile?.transport) },
       { label: "Groceries", value: toNumber(data?.expenseProfile?.groceries) },
@@ -289,7 +290,7 @@ export default function ReportPage() {
       ...row,
       pct: expenses > 0 ? (row.value / expenses) * 100 : 0
     }));
-  }, [data?.expenseProfile, expenses]);
+  }, [data?.expenseProfile, expenses, housing]);
 
   const topExpenseRows = [...expenseRows].sort((a, b) => b.value - a.value).slice(0, 3);
 
