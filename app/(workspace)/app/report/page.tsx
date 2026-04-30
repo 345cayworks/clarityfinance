@@ -456,11 +456,11 @@ export default function ReportPage() {
                 csvRows={[
                   ["Metric", "Value"],
                   ["Monthly Income", toCurrency(income, currency)],
-                  ["Monthly Expenses", toCurrency(expenses, currency)],
+                  ["Monthly Expenses", toCurrency(totalExpenseWithHousing, currency)],
                   ["Monthly Surplus", toCurrency(surplus, currency)],
                   ["Savings Runway", runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`]
                 ]}
-                summaryText={`Financial Snapshot: income ${toCurrency(income, currency)}, expenses ${toCurrency(expenses, currency)}, surplus ${toCurrency(
+                summaryText={`Financial Snapshot: income ${toCurrency(income, currency)}, expenses ${toCurrency(totalExpenseWithHousing, currency)}, surplus ${toCurrency(
                   surplus
                 , currency)}, savings runway ${runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`}, debt ${toCurrency(totalDebtAmount, currency)}.`}
                 copied={copiedReport === "snapshot"}
@@ -480,7 +480,9 @@ export default function ReportPage() {
           </div>
           <div className="card">
             <h2 className="text-lg font-semibold text-[#0A2540]">Expense summary</h2>
-            <p className="mt-2 text-sm text-slate-600">Total monthly expenses: {toCurrency(expenses, currency)}</p>
+            <p className="mt-2 text-sm text-slate-600">Total monthly expenses: {toCurrency(totalExpenseWithHousing, currency)}</p>
+            <p className="mt-1 text-sm text-slate-600">Housing included: {toCurrency(housing, currency)}</p>
+            <p className="mt-1 text-xs text-slate-500">Housing is sourced from mortgage or rent details.</p>
             <div className="mt-2">
               <StatusBadge status={snapshotStatus.expenses} />
             </div>
