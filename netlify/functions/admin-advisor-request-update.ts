@@ -1,6 +1,6 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
-import { requireAdmin } from "./_admin";
+import { requireAdmin } from "./_access";
 import { json, parseJsonBody } from "./_utils";
 import { notifyUser } from "../../lib/notifications/notify";
 

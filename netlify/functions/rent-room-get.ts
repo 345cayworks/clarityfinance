@@ -1,6 +1,6 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
-import { getIdentityUser } from "./_identity";
+import { requireActiveUser } from "./_access";
 import { json } from "./_utils";
 
 type UserIdRow = { id: string };
@@ -23,15 +23,14 @@ const safeLog = (error: unknown) => {
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" });
-
-  const identityUser = getIdentityUser(event);
-  if (!identityUser) return json(401, { error: "Unauthorized" });
+  const access = await requireActiveUser(event);
+  if (!access.ok) return json(access.statusCode, access.body);
 
   try {
     const existingUserByEmail = (await sql`
-      SELECT id FROM users WHERE email = ${identityUser.email} LIMIT 1
+      SELECT id FROM users WHERE email = ${access.user.email} LIMIT 1
     `) as UserIdRow[];
-    const userId = existingUserByEmail[0]?.id ?? identityUser.id;
+    const userId = existingUserByEmail[0]?.id ?? access.user.id;
 
     const scenarios = (await sql`
       SELECT id, setup_json, income_json, costs_json, result_json, updated_at
