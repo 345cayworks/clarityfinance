@@ -1,6 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
-import { ADMIN_EMAIL, requireAdmin } from "./_admin";
+import { requireAdmin } from "./_access";
+import { ADMIN_EMAIL } from "./_admin";
 import { json, parseJsonBody } from "./_utils";
 import { notifyUser } from "../../lib/notifications/notify";
 

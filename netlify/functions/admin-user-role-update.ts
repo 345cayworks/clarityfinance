@@ -1,9 +1,10 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
-import { ADMIN_EMAIL, requireAdmin } from "./_admin";
+import { requireAdmin } from "./_access";
+import { ADMIN_EMAIL } from "./_admin";
 import { json, parseJsonBody } from "./_utils";
 
-const allowedRoles = new Set(["user", "advisor", "admin"]);
+const allowedRoles = new Set(["user", "premium_user", "advisor", "admin", "superadmin"]);
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });

@@ -1,16 +1,15 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
-import { getIdentityUser } from "./_identity";
+import { requireAdvisor } from "./_access";
 import { json } from "./_utils";
 
 export const handler: Handler = async (event) => {
-  const identityUser = getIdentityUser(event);
-  if (!identityUser?.email) return json(401, { error: "Unauthorized" });
-  if (!["advisor", "admin"].includes(identityUser.role)) return json(403, { error: "Forbidden" });
+  const access = await requireAdvisor(event);
+  if (!access.ok) return json(access.statusCode, access.body);
 
   const assignedOnly = (event.queryStringParameters?.assignedOnly ?? "false") === "true";
 
-  const requests = identityUser.role === "admin"
+  const requests = ["admin", "superadmin"].includes(access.user.role)
     ? await sql`
       SELECT id,user_id,name,email,phone,topic,urgency,message,status,created_at,updated_at,assigned_at,assigned_advisor_id,assigned_advisor_email,advisor_notes
       FROM advisor_requests
@@ -20,7 +19,7 @@ export const handler: Handler = async (event) => {
     : await sql`
       SELECT id,user_id,name,email,phone,topic,urgency,message,status,created_at,updated_at,assigned_at,assigned_advisor_id,assigned_advisor_email,advisor_notes
       FROM advisor_requests
-      WHERE assigned_advisor_email = ${identityUser.email}
+      WHERE assigned_advisor_email = ${access.user.email}
       ORDER BY created_at DESC
       LIMIT 250`;
 
