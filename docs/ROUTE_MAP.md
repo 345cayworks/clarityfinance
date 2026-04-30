@@ -39,3 +39,9 @@ Legend route types: `PUBLIC`, `USER_CORE`, `SCENARIO`, `LOAN_READINESS`, `ADVISO
 | `/app/admin/accounts` | `app/(workspace)/app/admin/accounts/page.tsx` | User approval/roles/assignment | ADMIN | admin+ | `admin-users-list`, `admin-advisors-list`, admin-user* | admin account table | keep |
 | `/app/admin/notifications` | `app/(workspace)/app/admin/notifications/page.tsx` | Admin notifications workflow | ADMIN | admin+ | (verify linkage) | notifications UI | improve / wire fully |
 | `/app/settings` | `app/(workspace)/app/settings/page.tsx` | User settings | USER_CORE | active_user+ | none/limited | settings UI | keep |
+
+
+## Fail-closed gating behavior
+- Unauthenticated users are redirected to `/login`.
+- Authenticated users with unresolved or non-active status are redirected to `/app/pending-approval` (with profile/onboarding exceptions).
+- Unauthorized role access is redirected to `/app/dashboard`.

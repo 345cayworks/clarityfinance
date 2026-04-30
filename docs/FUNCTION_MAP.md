@@ -35,3 +35,7 @@
 - Keep deployed endpoints `rent-room-get` and `rent-room-save` intact.
 - Introduce **conceptual/UI naming** as `room-rental-scenario-get/save` in docs and labels first.
 - If future refactor occurs, add backward-compatible aliases before changing callers.
+
+
+## Shared enforcement helper
+- `netlify/functions/_access.ts` centralizes auth/role/status gates (`getCurrentUser`, `requireAuth`, `requireActiveUser`, `requirePremiumUser`, `requireAdvisor`, `requireAdmin`, `requireAssignedAdvisorOrAdmin`) and is the default path for function-level access checks.
