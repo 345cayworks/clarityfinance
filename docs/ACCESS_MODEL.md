@@ -55,3 +55,7 @@
 - Route guards should evaluate both **authentication** and **account status/role**.
 - API functions should mirror route access with explicit JWT role/status checks.
 - Premium modules should fail closed when plan status is missing.
+
+
+## Shared enforcement helper
+- `netlify/functions/_access.ts` centralizes auth/role/status gates (`getCurrentUser`, `requireAuth`, `requireActiveUser`, `requirePremiumUser`, `requireAdvisor`, `requireAdmin`, `requireAssignedAdvisorOrAdmin`) and is the default path for function-level access checks.
