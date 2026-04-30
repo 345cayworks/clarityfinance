@@ -17,23 +17,8 @@ type SavedOnboardingData = {
   goals: Record<string, unknown> | null;
 };
 
-const documentChecklistItems = [
-  "Government-issued ID",
-  "Proof of address",
-  "Employment letter",
-  "Recent payslips",
-  "3–6 months bank statements",
-  "Existing loan/debt statements",
-  "Credit report / credit profile",
-  "Proof/source of down payment",
-  "Purchase agreement or property details",
-  "Property valuation/appraisal",
-  "Insurance estimate",
-  "Mortgage statement if refinancing",
-  "Business registration and financials if self-employed",
-  "Tax returns if required",
-  "Work permit if applicable",
-];
+
+const toYesNoNotProvided = (value: unknown) => (value === true ? "Yes" : value === false ? "No" : "Not provided");
 
 function Section({ title, children, breakBefore = false }: { title: string; children: React.ReactNode; breakBefore?: boolean }) {
   return (
@@ -189,9 +174,23 @@ export default function LoanApplicationPage() {
 
       <Section title="10. Documents Checklist">
         <div className="md:col-span-2 space-y-2 rounded border border-slate-300 bg-white p-3 text-black">
-          {documentChecklistItems.map((item) => (
-            <p key={item} className="border-b border-slate-200 py-2 text-sm last:border-b-0 print:py-3">
-              ☐ {item}
+          {[
+            ["Government-issued ID", payload?.profile?.has_id],
+            ["Proof of address", payload?.profile?.has_proof_of_address],
+            ["Employment letter", payload?.profile?.has_employment_letter],
+            ["Recent payslips", payload?.profile?.has_payslips],
+            ["3–6 months bank statements", payload?.profile?.has_bank_statements],
+            ["Existing loan/debt statements", payload?.profile?.has_debt_statements],
+            ["Credit report / credit profile", payload?.profile?.has_credit_report],
+            ["Proof/source of down payment", payload?.profile?.has_down_payment_proof],
+            ["Purchase agreement or property details", payload?.profile?.has_purchase_agreement],
+            ["Property valuation/appraisal", payload?.profile?.has_valuation],
+            ["Business registration and financials if self-employed", payload?.profile?.has_business_financials],
+            ["Tax returns if required", payload?.profile?.has_tax_returns],
+            ["Work permit if applicable", payload?.profile?.work_permit_required],
+          ].map(([item, value]) => (
+            <p key={String(item)} className="border-b border-slate-200 py-2 text-sm last:border-b-0 print:py-3">
+              {String(item)}: <span className="font-medium">{toYesNoNotProvided(value)}</span>
             </p>
           ))}
         </div>
