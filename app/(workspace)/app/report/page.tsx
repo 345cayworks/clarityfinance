@@ -55,7 +55,7 @@ const reportOptions: Array<{ id: ReportId; label: string }> = [
   { id: "expense", label: "Expense Report" },
   { id: "loan", label: "Bank Loan Readiness Report" },
   { id: "loan-docs", label: "Loan Document Checklist" },
-  { id: "rent-room", label: "Rent-a-Room Profitability Report" },
+  { id: "rent-room", label: "Rent a Room Scenario Report" },
   { id: "savings", label: "Savings & Cash Flow Report" },
   { id: "debt", label: "Debt & Liability Report" },
   { id: "housing", label: "Housing & Equity Report" }
@@ -773,7 +773,7 @@ export default function ReportPage() {
       {activeReport === "rent-room" ? (
         <section className="card space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <h2 className="text-lg font-semibold text-[#0A2540]">Rent-a-Room Profitability Report</h2>
+            <h2 className="text-lg font-semibold text-[#0A2540]">Rent a Room Scenario Report</h2>
             {rentRoomScenario ? (
               <ReportActions
                 reportName="rent-a-room-profitability"
