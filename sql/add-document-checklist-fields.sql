@@ -1,0 +1,10 @@
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS has_proof_of_address boolean;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS has_payslips boolean;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS has_employment_letter boolean;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS has_bank_statements boolean;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS has_debt_statements boolean;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS has_credit_report boolean;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS has_purchase_agreement boolean;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS has_valuation boolean;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS has_business_financials boolean;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS has_tax_returns boolean;
