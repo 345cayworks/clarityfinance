@@ -22,7 +22,7 @@ Canonical stored role values are:
 - `superadmin`
 
 Legacy compatibility:
-- `premium` may still exist in older rows and is treated as a temporary alias for `premium_user` in access checks.
+- Stored roles are constrained by the live `UserRole` enum: `user`, `premium_user`, `advisor`, `admin`, `superadmin`.
 - `pending_user` and `active_user` are **not** stored role values.
 
 ---
@@ -72,7 +72,7 @@ Allowed routes:
 - dashboard, onboarding, profile, scenarios, tools, rent-room, reports, action plan, settings.
 
 Role-specific overlays for active users:
-- `premium_user` (or legacy `premium`) unlocks premium loan routes.
+- `premium_user` unlocks premium loan routes.
 - `advisor` unlocks advisor-assigned workflows.
 - `admin`/`superadmin` unlock admin operations.
 
@@ -83,7 +83,10 @@ Role-specific overlays for active users:
 `netlify/functions/_access.ts` is the centralized helper for API enforcement:
 - `requireAuth`
 - `requireActiveUser`
-- `requirePremiumUser` (canonical `premium_user`, temporary `premium` alias)
+- `requirePremiumUser` (checks `premium_user`, `admin`, `superadmin`)
 - `requireAdvisor`
 - `requireAdmin`
 - `requireAssignedAdvisorOrAdmin`
+
+
+> Note: `premium` was evaluated as a possible legacy alias, but it is not valid in the live `UserRole` enum.

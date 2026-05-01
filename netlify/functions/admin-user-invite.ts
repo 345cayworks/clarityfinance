@@ -3,7 +3,7 @@ import { sql } from "../../lib/db/neon";
 import { requireAdmin } from "./_access";
 import { json, parseJsonBody, randomId } from "./_utils";
 
-const allowedRoles = new Set(["user", "premium_user", "advisor", "admin", "superadmin", "premium"]);
+const allowedRoles = new Set(["user", "premium_user", "advisor", "admin", "superadmin"]);
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });

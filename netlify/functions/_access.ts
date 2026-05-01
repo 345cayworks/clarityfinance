@@ -51,8 +51,8 @@ export async function requireActiveUser(event: HandlerEvent) {
 export async function requirePremiumUser(event: HandlerEvent) {
   const active = await requireActiveUser(event);
   if (!active.ok) return active;
-  // Canonical premium role is `premium_user`. `premium` is a temporary legacy alias kept for backward compatibility.
-  if (!["premium_user", "premium", "admin", "superadmin"].includes(active.user.role)) {
+  // Canonical premium role is `premium_user`. `premium` was considered as a legacy alias but is not valid in the live UserRole enum.
+  if (!["premium_user", "admin", "superadmin"].includes(active.user.role)) {
     return { ok: false as const, statusCode: 403, body: { error: "Premium membership required." } };
   }
   return active;

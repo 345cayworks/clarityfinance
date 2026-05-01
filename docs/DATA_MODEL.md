@@ -10,8 +10,6 @@ Canonical stored values:
 - `admin`
 - `superadmin`
 
-Backward compatibility:
-- `premium` may still appear in existing rows as a legacy alias and should be migrated to `premium_user` over time.
 
 ### `users.approval_status` (lifecycle approval)
 Values:
@@ -75,3 +73,6 @@ Derived behavior:
 8. **AdvisorAssignment**
 9. **ActionPlan**
 10. **Report**
+
+
+> Note: `premium` was considered as a legacy alias, but it is not valid in the live `UserRole` enum.

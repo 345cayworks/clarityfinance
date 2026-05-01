@@ -27,7 +27,7 @@
 | `admin-user-reject` | `netlify/functions/admin-user-reject.ts` | Reject pending user | POST | admin | user access status | admin/accounts | ACCESS_CONTROL | keep |
 | `admin-user-activate` | `netlify/functions/admin-user-activate.ts` | Reactivate user | POST | admin | user access status | admin/accounts | ACCESS_CONTROL | keep |
 | `admin-user-deactivate` | `netlify/functions/admin-user-deactivate.ts` | Deactivate active user | POST | admin | user access status | admin/accounts | ACCESS_CONTROL | keep |
-| `admin-user-role-update` | `netlify/functions/admin-user-role-update.ts` | Change user role (`user`/`premium_user`/`advisor`/`admin`/`superadmin`, legacy `premium`) | POST | admin/superadmin | roles/access | admin/accounts | ADMIN | protect |
+| `admin-user-role-update` | `netlify/functions/admin-user-role-update.ts` | Change user role (`user`/`premium_user`/`advisor`/`admin`/`superadmin`, no legacy alias) | POST | admin/superadmin | roles/access | admin/accounts | ADMIN | protect |
 | `admin-user-invite` | `netlify/functions/admin-user-invite.ts` | Invite user/staff | POST | admin | users/invites | admin/accounts | ADMIN | document |
 | `_identity` / `_admin` / `_approval` / `_utils` | `netlify/functions/_*.ts` | Shared auth/admin helper modules | n/a | n/a | support utilities | all function modules | UTILITY | keep |
 
