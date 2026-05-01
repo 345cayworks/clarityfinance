@@ -101,6 +101,7 @@ export default function Page() {
   const [toast, setToast] = useState("");
   const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [roleFilter, setRoleFilter] = useState<"all" | "user" | "premium_user" | "advisor" | "admin">("all");
   const [advisorFilter, setAdvisorFilter] = useState<"all"|"unassigned"|"assigned"|"reviewing"|"contacted"|"closed">("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [userFilter, setUserFilter] = useState<UserFilter>("all");
