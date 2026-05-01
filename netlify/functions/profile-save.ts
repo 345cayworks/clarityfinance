@@ -53,27 +53,30 @@ const upsertUser = async (userId: string, identityUser: ReturnType<typeof getIde
   ` as UserIdRow[];
   const effectiveUserId = existingUserByEmail[0]?.id ?? userId;
 
+  // Profile saves must not mutate monetization/access roles. Role changes belong in admin-user-role-update.
   try {
     await sql`
-      INSERT INTO users (id, email, name, role, approval_status)
-      VALUES (${effectiveUserId}, ${identityUser.email}, ${identityUser.name}, ${identityUser.role}, 'pending')
+      INSERT INTO users (id, email, name, role, approval_status, account_status)
+      VALUES (${effectiveUserId}, ${identityUser.email}, ${identityUser.name}, 'user', 'pending', 'active')
       ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
-        name = EXCLUDED.name,
-        role = EXCLUDED.role,
-        approval_status = COALESCE(users.approval_status, 'pending'),
+        name = COALESCE(EXCLUDED.name, users.name),
+        role = users.role,
+        approval_status = users.approval_status,
+        account_status = COALESCE(users.account_status, 'active'),
         updated_at = NOW()
     `;
   } catch (error) {
     if (!isMissingRoleColumnError(error)) throw error;
 
     await sql`
-      INSERT INTO users (id, email, name, approval_status)
-      VALUES (${effectiveUserId}, ${identityUser.email}, ${identityUser.name}, 'pending')
+      INSERT INTO users (id, email, name, approval_status, account_status)
+      VALUES (${effectiveUserId}, ${identityUser.email}, ${identityUser.name}, 'pending', 'active')
       ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
-        name = EXCLUDED.name,
+        name = COALESCE(EXCLUDED.name, users.name),
         approval_status = COALESCE(users.approval_status, 'pending'),
+        account_status = COALESCE(users.account_status, 'active'),
         updated_at = NOW()
     `;
   }

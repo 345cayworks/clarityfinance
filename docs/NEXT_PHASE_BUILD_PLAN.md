@@ -21,9 +21,9 @@
 - Standardize data contract for room-rental inputs and outputs.
 
 ## Phase 5: Add Loan Readiness plug-in
-- Introduce explicit Loan Readiness route architecture and storage model.
-- Add progress checklist and readiness score logic.
-- Connect to action plan and report export story.
+- ✅ Introduced `/app/loan-readiness` premium hub route architecture and `loan_readiness_applications` storage model.
+- ✅ Added progress checklist + readiness score/band summary and document gap detection.
+- ✅ Connected advisor review and report snapshot creation (`loan-readiness-report-create`).
 
 ## Phase 6: Advisor/Admin workflow refinement
 - Restrict advisors to assigned users only.

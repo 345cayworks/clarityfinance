@@ -21,7 +21,7 @@ Clarity Finance is a **gated, monetized financial decision platform** that combi
 7. Gated access controls
 
 ## Phase 2 Modules
-1. Loan readiness plug-in
+1. Loan Readiness Hub (premium-gated)
 2. Advisor review dashboard
 3. Admin monetization and access management
 

@@ -7,6 +7,7 @@ import {
   totalIncome,
   totalLivingExpenses
 } from "@/lib/finance/calculations";
+import { interpretDebtPressure } from "@/lib/finance/debt-pressure";
 
 type GenericRow = Record<string, unknown>;
 
@@ -91,6 +92,13 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
   const housingRatio = monthlyIncomeUsed > 0 ? housingExpense / monthlyIncomeUsed : null;
   const totalObligationsRatio = monthlyIncomeUsed > 0 ? totalMonthlyObligations / monthlyIncomeUsed : null;
   const runwayMonths = savingsRunwayMonths(data.savingsProfile ?? null, data.expenseProfile ?? null, data.housingProfile ?? null);
+  const debtPressure = interpretDebtPressure({
+    debtToIncome,
+    housingRatio,
+    totalObligationsRatio,
+    monthlySurplus,
+    monthlyIncome: monthlyIncomeUsed
+  });
 
   return {
     applicant: {
@@ -153,6 +161,12 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
       equity,
       estimatedRoomRentalIncome: toNumber(housing.estimated_room_rental_income)
     },
+
+    banking: {
+      primaryFinancialInstitution: toText(profile.primary_bank_name),
+      existingBankRelationship: toBool(profile.existing_bank_relationship),
+      bankStatementsAvailable: toBool(profile.bank_statements_available)
+    },
     loan: {
       loanPurpose: toText(profile.loan_purpose, toText(goals.target_goal)),
       requestedLoanAmount,
@@ -184,7 +198,8 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
       housingRatio,
       loanToValue,
       savingsRunwayMonths: runwayMonths,
-      totalObligationsRatio
+      totalObligationsRatio,
+      debtPressure
     }
   };
 }
