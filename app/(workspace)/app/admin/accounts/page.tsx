@@ -32,6 +32,8 @@ type AdvisorRequest = {
   assigned_advisor_id?: string | null;
   assigned_advisor_email?: string | null;
   assigned_at?: string | null;
+  assigned_by?: string | null;
+  assigned_advisor_name?: string | null;
 };
 
 type TabKey = "action" | "users" | "advisor" | "deactivated" | "invite";
@@ -90,6 +92,7 @@ export default function Page() {
   const [toast, setToast] = useState("");
   const [roleDrafts, setRoleDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [advisorFilter, setAdvisorFilter] = useState<"all"|"unassigned"|"assigned"|"reviewing"|"contacted"|"closed">("all");
 
   const load = async () => {
     const token = await getIdentityToken(user);
@@ -112,6 +115,10 @@ export default function Page() {
   useEffect(() => {
     void load();
   }, [user]);
+
+  useEffect(() => {
+    console.log("advisorOptions:", advisorOptions);
+  }, [advisorOptions]);
 
   const act = async (path: string, payload: Record<string, unknown>, shouldReload = true) => {
     const token = await getIdentityToken(user);
@@ -177,7 +184,7 @@ export default function Page() {
     return { label: `Inactive (${days}d ago)`, tone: "text-red-700", dot: "bg-red-500" };
   };
 
-  if (accountStatus?.role !== "admin") return <div className="card">Admin access required.</div>;
+  if (!["admin","superadmin"].includes(accountStatus?.role || "")) return <div className="card">Admin access required.</div>;
 
   return (
     <div className="space-y-6">
@@ -254,7 +261,73 @@ export default function Page() {
 
         {!loading && tab === "deactivated" && (deactivated.length ? <div className="space-y-3">{deactivated.map((u) => <div key={u.id} className="rounded-xl border p-4"><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p><div className="mt-2 flex gap-2">{statusBadge("deactivated", "account")}{statusBadge(u.role || "user", "role")}</div><p className="mt-2 text-sm text-slate-600">Deactivated: {u.deactivated_at ? new Date(u.deactivated_at).toLocaleString() : "-"}</p><button className="mt-3 rounded bg-green-600 px-3 py-1 text-white" onClick={() => act("admin-user-activate", { userId: u.id })}>Reactivate</button></div>)}</div> : <EmptyState title="No deactivated users" helper="When users are deactivated, they will show here for reactivation." />)}
 
-        {!loading && tab === "advisor" && (advisorRequests.length ? <div className="space-y-3">{advisorRequests.map((r) => <div key={r.id} className="rounded-xl border p-4"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-medium">{r.topic}</p><div className="flex gap-2">{statusBadge(r.urgency, "urgency")}{statusBadge(r.status || "new", "advisor")}{r.assigned_advisor_email ? <Badge tone="bg-green-100 text-green-800">Assigned</Badge> : <Badge tone="bg-amber-100 text-amber-800">Unassigned</Badge>}</div></div><p className="mt-1 text-sm text-slate-500">{(r.message || "").slice(0, 120) || `${r.name} • ${r.email} • ${r.phone}`}</p><p className="mt-2 text-xs text-slate-500">Assigned advisor: {r.assigned_advisor_email || "-"}</p><div className="mt-3 flex flex-wrap gap-2"><select className="rounded border px-2 py-1 text-sm" value={assignmentDrafts[r.id] || ""} onChange={(e) => setAssignmentDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))}><option value="">Assign advisor...</option>{advisorOptions.map((a) => <option key={a.id} value={a.id}>{a.name || a.email} ({a.role})</option>)}</select><button className="rounded bg-[#0A2540] px-3 py-1 text-white" onClick={async () => {const advisorId = assignmentDrafts[r.id]; const advisor = advisorOptions.find((a) => a.id === advisorId); if (!advisor) return; const ok = await act("admin-advisor-request-assign", { requestId: r.id, advisorId: advisor.id, advisorEmail: advisor.email }, false); if (!ok) return; setAdvisor((prev) => prev.map((item) => item.id === r.id ? { ...item, assigned_advisor_id: advisor.id, assigned_advisor_email: advisor.email, assigned_at: new Date().toISOString(), status: "reviewing" } : item)); setToast(`Assigned ${advisor.name || advisor.email}`);}}>Assign</button><button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "reviewing" })}>Mark Reviewing</button><button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "contacted" })}>Mark Contacted</button><button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "closed" })}>Close Request</button></div></div>)}</div> : <EmptyState title="No advisor requests yet" helper="New advisor requests will appear here." />)}
+        {!loading && tab === "advisor" && (() => {
+          const filtered = advisorRequests.filter((r) => {
+            if (advisorFilter === "all") return true;
+            if (advisorFilter === "unassigned") return !r.assigned_advisor_email;
+            if (advisorFilter === "assigned") return !!r.assigned_advisor_email;
+            return r.status === advisorFilter;
+          });
+
+          if (!filtered.length) return <EmptyState title="No advisor requests yet" helper="New advisor requests will appear here." />;
+
+          return (
+            <div className="space-y-3">
+              <div className="mb-2 flex flex-wrap gap-2">
+                {(["all", "unassigned", "assigned", "reviewing", "contacted", "closed"] as const).map((f) => (
+                  <button key={f} className={`rounded border px-3 py-1 text-sm ${advisorFilter === f ? "bg-slate-100" : ""}`} onClick={() => setAdvisorFilter(f)}>
+                    {f === "all" ? "All Requests" : f[0].toUpperCase() + f.slice(1)}
+                  </button>
+                ))}
+              </div>
+              {filtered.map((r) => {
+                const selectedAdvisorId = assignmentDrafts[r.id] || "";
+                console.log("selectedAdvisorId:", selectedAdvisorId);
+                const selectedAdvisor = advisorOptions.find((a) => a.id === selectedAdvisorId);
+                const currentAdvisorName = r.assigned_advisor_name || advisorOptions.find((a) => a.id === r.assigned_advisor_id)?.name || r.assigned_advisor_email;
+                return (
+                  <div key={r.id} className="rounded-xl border p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-medium">{r.name} • {r.topic}</p>
+                      <div className="flex gap-2">
+                        {r.urgency === "high" && <Badge tone="bg-red-100 text-red-800">High urgency</Badge>}
+                        {statusBadge(r.status || "new", "advisor")}
+                        {r.assigned_advisor_email ? <Badge tone="bg-green-100 text-green-800">{`Assigned to ${currentAdvisorName || r.assigned_advisor_email}`}</Badge> : <Badge tone="bg-amber-100 text-amber-800">Unassigned</Badge>}
+                      </div>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-500">{r.email} • {r.phone}</p>
+                    <p className="mt-1 text-sm text-slate-500">{(r.message || "").slice(0, 120)}</p>
+                    <p className="mt-2 text-xs text-slate-500">Created: {new Date(r.created_at).toLocaleString()} • Assigned at: {r.assigned_at ? new Date(r.assigned_at).toLocaleString() : "-"} • Assigned by: {r.assigned_by || "-"}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <select className="rounded border px-2 py-1 text-sm" value={selectedAdvisorId} onChange={(e) => setAssignmentDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))}>
+                        <option value="">Assign advisor...</option>
+                        {advisorOptions.map((a) => <option key={a.id} value={a.id}>{a.name || a.email} ({a.role})</option>)}
+                      </select>
+                      <button disabled={!selectedAdvisorId} className="rounded bg-[#0A2540] px-3 py-1 text-white disabled:cursor-not-allowed disabled:opacity-60" onClick={async () => {
+                        if (!selectedAdvisor) {
+                          alert("Please select an advisor");
+                          return;
+                        }
+                        const token = await getIdentityToken(user);
+                        if (!token) return;
+                        const response = await fetch('/.netlify/functions/admin-advisor-request-assign', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ requestId: r.id, advisorId: selectedAdvisor.id, advisorEmail: selectedAdvisor.email }) });
+                        if (!response.ok) {
+                          const err = await response.json();
+                          alert(err.error || "Assignment failed");
+                          return;
+                        }
+                        const data = await response.json();
+                        setAdvisor((prev) => prev.map((item) => item.id === r.id ? { ...item, ...data.request, assigned_advisor_name: data.request.advisor_name || selectedAdvisor.name || selectedAdvisor.email } : item));
+                        setToast(`Assigned to ${selectedAdvisor.name || selectedAdvisor.email}`);
+                        alert(`Assigned to ${selectedAdvisor.email}`);
+                      }}>{r.assigned_advisor_email ? "Reassign Advisor" : "Assign"}</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {!loading && tab === "invite" && (
           <form

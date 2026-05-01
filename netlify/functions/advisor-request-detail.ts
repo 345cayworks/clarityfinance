@@ -10,7 +10,10 @@ export const handler: Handler = async (event) => {
   const rows = await sql`SELECT * FROM advisor_requests WHERE id=${requestId} LIMIT 1` as Array<Record<string, unknown>>;
   const request = rows[0];
   if (!request) return json(404, { error: "Not found" });
-  const access = await requireAssignedAdvisorOrAdmin(event, (request.assigned_advisor_email as string | null | undefined) ?? null);
+  const access = await requireAssignedAdvisorOrAdmin(event, {
+    assignedAdvisorEmail: (request.assigned_advisor_email as string | null | undefined) ?? null,
+    assignedAdvisorId: (request.assigned_advisor_id as string | null | undefined) ?? null
+  });
   if (!access.ok) return json(access.statusCode, access.body);
 
   return json(200, {
