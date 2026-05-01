@@ -181,8 +181,9 @@ export default function LoanReadinessPage() {
           <div>Monthly expenses: <strong>{formatMoney(readinessProfile.financials.monthlyExpenses)}</strong></div>
           <div>Monthly debt payments: <strong>{formatMoney(readinessProfile.financials.monthlyDebtPayments)}</strong></div>
           <div>Monthly surplus: <strong>{formatMoney(readinessProfile.financials.monthlySurplus)}</strong></div>
-          <div>Debt-to-income ratio: <strong>{formatPercent((readinessProfile.ratios.debtToIncome ?? 0) * 100)}</strong></div>
-          <div>Housing ratio: <strong>{formatPercent((readinessProfile.ratios.housingRatio ?? 0) * 100)}</strong></div>
+          <div>Debt-to-Income (debt payments only): <strong>{formatPercent((readinessProfile.ratios.debtToIncome ?? 0) * 100)}</strong></div>
+          <div>Housing Ratio (rent/mortgage only): <strong>{formatPercent((readinessProfile.ratios.housingRatio ?? 0) * 100)}</strong></div>
+          <div>Total Monthly Pressure (living + housing + debt): <strong>{formatPercent((readinessProfile.ratios.totalObligationsRatio ?? 0) * 100)}</strong></div>
           {downPaymentPercent !== null ? <div>Down payment %: <strong>{formatPercent(downPaymentPercent * 100)}</strong></div> : null}
         </div>
       </section>
