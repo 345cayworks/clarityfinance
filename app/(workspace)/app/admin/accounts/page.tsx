@@ -116,6 +116,10 @@ export default function Page() {
     void load();
   }, [user]);
 
+  useEffect(() => {
+    console.log("advisorOptions:", advisorOptions);
+  }, [advisorOptions]);
+
   const act = async (path: string, payload: Record<string, unknown>, shouldReload = true) => {
     const token = await getIdentityToken(user);
     if (!token) return;
@@ -277,7 +281,9 @@ export default function Page() {
                 ))}
               </div>
               {filtered.map((r) => {
-                const selectedAdvisor = advisorOptions.find((a) => a.id === (assignmentDrafts[r.id] || r.assigned_advisor_id));
+                const selectedAdvisorId = assignmentDrafts[r.id] || "";
+                console.log("selectedAdvisorId:", selectedAdvisorId);
+                const selectedAdvisor = advisorOptions.find((a) => a.id === selectedAdvisorId);
                 const currentAdvisorName = r.assigned_advisor_name || advisorOptions.find((a) => a.id === r.assigned_advisor_id)?.name || r.assigned_advisor_email;
                 return (
                   <div key={r.id} className="rounded-xl border p-4">
@@ -293,19 +299,27 @@ export default function Page() {
                     <p className="mt-1 text-sm text-slate-500">{(r.message || "").slice(0, 120)}</p>
                     <p className="mt-2 text-xs text-slate-500">Created: {new Date(r.created_at).toLocaleString()} • Assigned at: {r.assigned_at ? new Date(r.assigned_at).toLocaleString() : "-"} • Assigned by: {r.assigned_by || "-"}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <select className="rounded border px-2 py-1 text-sm" value={assignmentDrafts[r.id] || ""} onChange={(e) => setAssignmentDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))}>
+                      <select className="rounded border px-2 py-1 text-sm" value={selectedAdvisorId} onChange={(e) => setAssignmentDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))}>
                         <option value="">Assign advisor...</option>
                         {advisorOptions.map((a) => <option key={a.id} value={a.id}>{a.name || a.email} ({a.role})</option>)}
                       </select>
-                      <button className="rounded bg-[#0A2540] px-3 py-1 text-white" onClick={async () => {
-                        if (!selectedAdvisor) return;
+                      <button disabled={!selectedAdvisorId} className="rounded bg-[#0A2540] px-3 py-1 text-white disabled:cursor-not-allowed disabled:opacity-60" onClick={async () => {
+                        if (!selectedAdvisor) {
+                          alert("Please select an advisor");
+                          return;
+                        }
                         const token = await getIdentityToken(user);
                         if (!token) return;
                         const response = await fetch('/.netlify/functions/admin-advisor-request-assign', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ requestId: r.id, advisorId: selectedAdvisor.id, advisorEmail: selectedAdvisor.email }) });
-                        if (!response.ok) return;
+                        if (!response.ok) {
+                          const err = await response.json();
+                          alert(err.error || "Assignment failed");
+                          return;
+                        }
                         const data = await response.json();
                         setAdvisor((prev) => prev.map((item) => item.id === r.id ? { ...item, ...data.request, assigned_advisor_name: data.request.advisor_name || selectedAdvisor.name || selectedAdvisor.email } : item));
                         setToast(`Assigned to ${selectedAdvisor.name || selectedAdvisor.email}`);
+                        alert(`Assigned to ${selectedAdvisor.email}`);
                       }}>{r.assigned_advisor_email ? "Reassign Advisor" : "Assign"}</button>
                     </div>
                   </div>
