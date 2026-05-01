@@ -44,6 +44,13 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: "invite", label: "➕ Invite User" }
 ];
 const PRIMARY_ADMIN_EMAIL = "info@cayworks.com";
+const ROLE_LABELS: Record<string, string> = {
+  user: "Standard User",
+  premium_user: "Premium User",
+  advisor: "Advisor",
+  admin: "Admin",
+  superadmin: "Superadmin"
+};
 
 function Badge({ tone, children }: { tone: string; children: string }) {
   return <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${tone}`}>{children}</span>;
@@ -61,6 +68,18 @@ function EmptyState({ title, helper }: { title: string; helper: string }) {
 
 export default function Page() {
   const { user, accountStatus } = useWorkspaceUser();
+  const canManageSuperadmin = accountStatus?.role === "superadmin";
+  const availableRoleOptions = useMemo(
+    () =>
+      [
+        { value: "user", label: ROLE_LABELS.user },
+        { value: "premium_user", label: ROLE_LABELS.premium_user },
+        { value: "advisor", label: ROLE_LABELS.advisor },
+        { value: "admin", label: ROLE_LABELS.admin },
+        ...(canManageSuperadmin ? [{ value: "superadmin", label: ROLE_LABELS.superadmin }] : [])
+      ] as Array<{ value: string; label: string }>,
+    [canManageSuperadmin]
+  );
   const [tab, setTab] = useState<TabKey>("action");
   const [users, setUsers] = useState<User[]>([]);
   const [advisorRequests, setAdvisor] = useState<AdvisorRequest[]>([]);
@@ -133,8 +152,10 @@ export default function Page() {
       active: "bg-green-100 text-green-800",
       deactivated: "bg-red-100 text-red-800",
       admin: "bg-purple-100 text-purple-800",
+      superadmin: "bg-indigo-100 text-indigo-800",
       advisor: "bg-blue-100 text-blue-800",
       user: "bg-slate-200 text-slate-700",
+      premium_user: "bg-emerald-100 text-emerald-800",
       high: "bg-red-100 text-red-800",
       medium: "bg-amber-100 text-amber-800",
       low: "bg-green-100 text-green-800",
@@ -143,7 +164,8 @@ export default function Page() {
       contacted: "bg-green-100 text-green-800",
       closed: "bg-slate-200 text-slate-700"
     };
-    return <Badge tone={map[status || ""] || "bg-slate-200 text-slate-700"}>{status || (type === "approval" ? "pending" : "-")}</Badge>;
+    const display = type === "role" ? ROLE_LABELS[status || ""] || status || "-" : status || (type === "approval" ? "pending" : "-");
+    return <Badge tone={map[status || ""] || "bg-slate-200 text-slate-700"}>{display}</Badge>;
   };
 
   const activity = (lastActive: string | null) => {
@@ -228,7 +250,7 @@ export default function Page() {
           </div>
         )}
 
-        {!loading && tab === "users" && (active.length ? <div className="space-y-3">{active.map((u) => {const a = activity(u.last_active_at); const isPrimaryAdmin = u.email.toLowerCase() === PRIMARY_ADMIN_EMAIL; const selectedRole = roleDrafts[u.id] || u.role || "user"; return <div key={u.id} className="rounded-xl border p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p></div><div className="flex gap-2">{statusBadge(u.account_status, "account")}{statusBadge(u.role || "user", "role")}{isPrimaryAdmin && <Badge tone="bg-purple-200 text-purple-900">Primary Admin</Badge>}</div></div><div className="mt-2 text-sm text-slate-600"><span className={`mr-2 inline-block h-2.5 w-2.5 rounded-full ${a.dot}`} /> <span className={a.tone}>{a.label}</span> • Last active: {u.last_active_at ? new Date(u.last_active_at).toLocaleString() : "-"} • Last login: {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : "-"}</div><div className="mt-3 flex flex-wrap items-center gap-2"><button className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50" disabled={isPrimaryAdmin} onClick={() => act("admin-user-deactivate", { userId: u.id })}>Deactivate</button><label className="text-sm text-slate-600">Select Role:</label><select className="rounded border px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50" disabled={isPrimaryAdmin} value={selectedRole} onChange={(e) => setRoleDrafts((prev) => ({ ...prev, [u.id]: e.target.value }))}><option value="user">user</option><option value="advisor">advisor</option><option value="admin">admin</option></select><button className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50" disabled={isPrimaryAdmin || selectedRole === (u.role || "user")} onClick={async () => {const ok = await act("admin-user-role-update", { userId: u.id, role: selectedRole }, false); if (ok) {setUsers((prev) => prev.map((item) => item.id === u.id ? { ...item, role: selectedRole } : item)); setToast(`Role updated to ${selectedRole.charAt(0).toUpperCase()}${selectedRole.slice(1)}`);}}}>Update Role</button></div></div>;})}</div> : <EmptyState title="No active users" helper="Approved users will appear here." />)}
+        {!loading && tab === "users" && (active.length ? <div className="space-y-3">{active.map((u) => {const a = activity(u.last_active_at); const isPrimaryAdmin = u.email.toLowerCase() === PRIMARY_ADMIN_EMAIL; const selectedRole = roleDrafts[u.id] || u.role || "user"; return <div key={u.id} className="rounded-xl border p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p></div><div className="flex gap-2">{statusBadge(u.account_status, "account")}{statusBadge(u.role || "user", "role")}{isPrimaryAdmin && <Badge tone="bg-purple-200 text-purple-900">Primary Admin</Badge>}</div></div><div className="mt-2 text-sm text-slate-600"><span className={`mr-2 inline-block h-2.5 w-2.5 rounded-full ${a.dot}`} /> <span className={a.tone}>{a.label}</span> • Last active: {u.last_active_at ? new Date(u.last_active_at).toLocaleString() : "-"} • Last login: {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : "-"}</div><div className="mt-3 flex flex-wrap items-center gap-2"><button className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50" disabled={isPrimaryAdmin} onClick={() => act("admin-user-deactivate", { userId: u.id })}>Deactivate</button><label className="text-sm text-slate-600">Select Role:</label><select className="rounded border px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50" disabled={isPrimaryAdmin} value={selectedRole} onChange={(e) => setRoleDrafts((prev) => ({ ...prev, [u.id]: e.target.value }))}>{availableRoleOptions.map((roleOption) => <option key={roleOption.value} value={roleOption.value}>{roleOption.label}</option>)}</select><button className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50" disabled={isPrimaryAdmin || selectedRole === (u.role || "user")} onClick={async () => {const ok = await act("admin-user-role-update", { userId: u.id, role: selectedRole }, false); if (ok) {setUsers((prev) => prev.map((item) => item.id === u.id ? { ...item, role: selectedRole } : item)); setToast(`Role updated to ${ROLE_LABELS[selectedRole] || selectedRole}`);}}}>Update Role</button></div></div>;})}</div> : <EmptyState title="No active users" helper="Approved users will appear here." />)}
 
         {!loading && tab === "deactivated" && (deactivated.length ? <div className="space-y-3">{deactivated.map((u) => <div key={u.id} className="rounded-xl border p-4"><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p><div className="mt-2 flex gap-2">{statusBadge("deactivated", "account")}{statusBadge(u.role || "user", "role")}</div><p className="mt-2 text-sm text-slate-600">Deactivated: {u.deactivated_at ? new Date(u.deactivated_at).toLocaleString() : "-"}</p><button className="mt-3 rounded bg-green-600 px-3 py-1 text-white" onClick={() => act("admin-user-activate", { userId: u.id })}>Reactivate</button></div>)}</div> : <EmptyState title="No deactivated users" helper="When users are deactivated, they will show here for reactivation." />)}
 
@@ -247,7 +269,7 @@ export default function Page() {
             <div className="grid gap-3">
               <input className="rounded border px-3 py-2" placeholder="Name" value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} />
               <input className="rounded border px-3 py-2" placeholder="Email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} />
-              <select className="rounded border px-3 py-2" value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}><option value="user">user</option><option value="advisor">advisor</option><option value="admin">admin</option></select>
+              <select className="rounded border px-3 py-2" value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}>{availableRoleOptions.map((roleOption) => <option key={roleOption.value} value={roleOption.value}>{roleOption.label}</option>)}</select>
               <div className="flex gap-2"><button type="submit" className="rounded bg-[#0A2540] px-3 py-2 text-white">Add User</button><button type="button" className="rounded border px-3 py-2" onClick={() => navigator.clipboard.writeText(`Hi ${invite.name || "there"}, you've been added to ClarityFinance. Please use your email (${invite.email}) to sign up or accept your Netlify invite.`)}>Copy invite message</button></div>
             </div>
             {msg && <p className="mt-3 text-sm text-green-700">{msg}</p>}
