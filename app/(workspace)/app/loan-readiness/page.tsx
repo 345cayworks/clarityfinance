@@ -97,7 +97,7 @@ export default function LoanReadinessPage() {
         credentials: "same-origin",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          preferredLender: readinessProfile.banking.primaryBanker,
+          preferredLender: readinessProfile.banking.primaryFinancialInstitution,
           loanType: readinessProfile.loan.propertyType,
           loanPurpose: readinessProfile.loan.loanPurpose,
           requestedAmount: readinessProfile.loan.requestedLoanAmount,

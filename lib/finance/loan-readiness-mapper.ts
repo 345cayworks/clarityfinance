@@ -153,6 +153,12 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
       equity,
       estimatedRoomRentalIncome: toNumber(housing.estimated_room_rental_income)
     },
+
+    banking: {
+      primaryFinancialInstitution: toText(profile.primary_bank_name),
+      existingBankRelationship: toBool(profile.existing_bank_relationship),
+      bankStatementsAvailable: toBool(profile.bank_statements_available)
+    },
     loan: {
       loanPurpose: toText(profile.loan_purpose, toText(goals.target_goal)),
       requestedLoanAmount,
