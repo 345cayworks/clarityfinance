@@ -44,10 +44,26 @@ export function calculateApprovalReadinessScore(profile: LoanReadinessProfile) {
   }
 
   if (profile.ratios.housingRatio !== null && profile.ratios.housingRatio < 0.35) {
-    score += 10;
+    score += 8;
     strengths.push("Housing ratio is under 35%.");
   } else {
     risks.push("Housing ratio may be too high for conservative lending thresholds.");
+  }
+
+
+  if (profile.ratios.totalObligationsRatio !== null && profile.ratios.totalObligationsRatio < 0.75) {
+    score += 12;
+    strengths.push("Total monthly pressure is within a manageable range.");
+  } else {
+    risks.push("Total monthly pressure is high relative to income.");
+    recommendations.push("Reduce combined living costs and debt servicing to improve total monthly pressure.");
+  }
+
+  if (["stable", "very_stable", "salaried"].includes(String(profile.employment.incomeStability || "").toLowerCase())) {
+    score += 5;
+    strengths.push("Income stability appears favorable.");
+  } else {
+    recommendations.push("Strengthen income stability evidence (employment history, consistent deposits, or contracts).");
   }
 
   if (profile.loan.downPaymentAvailable > 0) {
