@@ -42,3 +42,12 @@
 
 ## Shared enforcement helper
 - `netlify/functions/_access.ts` centralizes auth/role/status gates (`getCurrentUser`, `requireAuth`, `requireActiveUser`, `requirePremiumUser`, `requireAdvisor`, `requireAdmin`, `requireAssignedAdvisorOrAdmin`) and is the default path for function-level access checks.
+
+
+## Advisor artifact payload contract
+- `advisor-request-save` accepts and stores `sourceContext`, `prequalificationShareUrl`, and `recommendation`/`recommendationJson` payloads for downstream advisor detail rendering.
+- `advisor-request-detail` returns assignment metadata, artifact metadata (`loan_readiness_application_id`, `loan_readiness_report_id`, `artifact_type`), and safe nullable artifact fields.
+
+
+## Admin analytics dependencies
+- Admin analytics UI currently derives metrics from `admin-users-list` payload (`users`, `advisorRequests`) and does not expose per-user financial detail.
