@@ -286,7 +286,7 @@ export default function Page() {
                       <div className="flex gap-2">
                         {r.urgency === "high" && <Badge tone="bg-red-100 text-red-800">High urgency</Badge>}
                         {statusBadge(r.status || "new", "advisor")}
-                        {r.assigned_advisor_email ? <Badge tone="bg-green-100 text-green-800">Assigned to {currentAdvisorName || r.assigned_advisor_email}</Badge> : <Badge tone="bg-amber-100 text-amber-800">Unassigned</Badge>}
+                        {r.assigned_advisor_email ? <Badge tone="bg-green-100 text-green-800">{`Assigned to ${currentAdvisorName || r.assigned_advisor_email}`}</Badge> : <Badge tone="bg-amber-100 text-amber-800">Unassigned</Badge>}
                       </div>
                     </div>
                     <p className="mt-1 text-sm text-slate-500">{r.email} • {r.phone}</p>
