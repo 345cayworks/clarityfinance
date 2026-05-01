@@ -12,8 +12,8 @@ import {
   debtPayoffEstimates,
   debtToIncomeRatio,
   financialStabilityScore,
+  housingPayment,
   homeReadinessScore,
-  monthlyCashFlow,
   savingsRunwayMonths,
   toCurrency,
   totalExpenses,
@@ -135,12 +135,18 @@ export default function DashboardPage() {
   const profile = (data?.profile ?? null) as Record<string, unknown> | null;
   const savings = (data?.savingsProfile ?? null) as Record<string, unknown> | null;
   const goal = (data?.goals ?? null) as Record<string, unknown> | null;
+  const housing = (data?.housingProfile ?? null) as Record<string, unknown> | null;
 
-  const income = totalIncome(incomes);
-  const expenses = totalExpenses(expense);
-  const debtPayments = debts.reduce((sum, d) => sum + Number(d.monthly_payment ?? 0), 0);
-  const cashFlow = monthlyCashFlow(income, expenses, debtPayments);
-  const dti = debtToIncomeRatio(debtPayments, income);
+  const monthlyIncome = totalIncome(incomes);
+  const nonHousingLivingExpenses = totalExpenses(expense);
+  const housingExpense = housingPayment(housing);
+  const totalLivingExpenseAmount = nonHousingLivingExpenses + housingExpense;
+  const monthlyDebtPayments = debts.reduce((sum, d) => sum + Number(d.monthly_payment ?? 0), 0);
+  const totalMonthlyObligationsAmount = totalLivingExpenseAmount + monthlyDebtPayments;
+  const monthlySurplus = monthlyIncome - totalMonthlyObligationsAmount;
+  const dti = debtToIncomeRatio(monthlyDebtPayments, monthlyIncome);
+  const housingRatio = monthlyIncome > 0 ? housingExpense / monthlyIncome : 0;
+  const totalMonthlyPressure = monthlyIncome > 0 ? totalMonthlyObligationsAmount / monthlyIncome : 0;
   const totalSavings =
     Number(savings?.cash_savings ?? 0) +
     Number(savings?.emergency_fund ?? 0) +
@@ -159,7 +165,7 @@ export default function DashboardPage() {
             ? "Stable: 3–6 months."
             : "Strong: 6+ months.";
   const runwayValue = runway === null ? "Add expenses" : `${runway.toFixed(1)} months`;
-  const stability = financialStabilityScore(cashFlow, dti, runway ?? 0);
+  const stability = financialStabilityScore(monthlySurplus, dti, runway ?? 0);
   const homeReadiness = homeReadinessScore({
     downPaymentSavings: Number(savings?.down_payment_savings ?? 0),
     targetHomePrice: Number(goal?.target_home_price ?? 0),
@@ -180,7 +186,7 @@ export default function DashboardPage() {
     }))
   );
 
-  const advisorRecommendation = getAdvisorRecommendation({approvalScore: clarity, dti, monthlySurplus: cashFlow, savingsRunwayMonths: runway ?? 0, goal: String(goal?.target_goal ?? "")});
+  const advisorRecommendation = getAdvisorRecommendation({approvalScore: clarity, dti, monthlySurplus, savingsRunwayMonths: runway ?? 0, goal: String(goal?.target_goal ?? "")});
   const isEmpty = !loading && !data;
 
   return (
@@ -224,16 +230,23 @@ export default function DashboardPage() {
         />
         <Metric
           label="Monthly Cash Flow"
-          value={`$${cashFlow.toFixed(0)}`}
-          tone={cashFlow >= 0 ? "positive" : "warning"}
-          hint={cashFlow >= 0 ? "Surplus available" : "Negative cash flow"}
+          value={`$${monthlySurplus.toFixed(0)}`}
+          tone={monthlySurplus >= 0 ? "positive" : "warning"}
+          hint="Income after living expenses, housing, and debt payments"
           prominent
         />
         <Metric
-          label="Debt Pressure"
+          label="Debt-to-Income"
           value={`${Math.round(dti * 100)}%`}
           tone={dti > 0.36 ? "warning" : "default"}
-          hint="Debt payments / income"
+          hint="Debt payments only"
+          prominent
+        />
+        <Metric
+          label="Total Monthly Pressure"
+          value={`${Math.round(totalMonthlyPressure * 100)}%`}
+          tone={totalMonthlyPressure > 0.75 ? "warning" : "info"}
+          hint="Living expenses + housing + debt payments / income"
           prominent
         />
         <Metric label="Home Readiness" value={homeReadiness || 0} hint="0–100" tone="info" prominent />
@@ -248,7 +261,7 @@ export default function DashboardPage() {
             Top insight
           </p>
           <p className="mt-1 text-sm font-semibold text-[#0A2540]">
-            {cashFlow < 0
+            {monthlySurplus < 0
               ? "Cash flow is negative — prioritize expense and debt optimization."
               : "Positive cash flow available — allocate surplus toward goals faster."}
           </p>
@@ -261,12 +274,31 @@ export default function DashboardPage() {
               : "Run a scenario to model your next financial move."}
           </p>
         </div>
-        <Metric label="Total Monthly Income" value={`$${income.toFixed(0)}`} tone="positive" />
+        <Metric label="Total Monthly Income" value={`$${monthlyIncome.toFixed(0)}`} tone="positive" />
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
-        <IncomeExpenseChart income={income} expenses={expenses} />
-        <DebtBreakdownChart totalDebt={debtPlan.totalDebt} monthlyPayment={debtPayments} />
+        <IncomeExpenseChart income={monthlyIncome} expenses={totalMonthlyObligationsAmount} />
+        <DebtBreakdownChart totalDebt={debtPlan.totalDebt} monthlyPayment={monthlyDebtPayments} />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="card">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Monthly obligations breakdown</p>
+          <div className="mt-2 space-y-1 text-sm text-slate-600">
+            <p>Non-housing living expenses: {toCurrency(nonHousingLivingExpenses)}</p>
+            <p>Housing expense: {toCurrency(housingExpense)}</p>
+            <p>Debt payments: {toCurrency(monthlyDebtPayments)}</p>
+            <p className="font-semibold text-[#0A2540]">Total monthly obligations: {toCurrency(totalMonthlyObligationsAmount)}</p>
+            <p>Housing ratio: {Math.round(housingRatio * 100)}%</p>
+          </div>
+        </div>
+        <div className="card">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Obligations context</p>
+          <p className="mt-2 text-sm text-slate-600">
+            Your monthly pressure combines living expenses, housing, and debt servicing against income.
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
