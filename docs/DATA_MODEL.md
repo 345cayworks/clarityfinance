@@ -78,3 +78,11 @@ Derived behavior:
 
 
 > Note: `premium` was considered as a legacy alias, but it is not valid in the live `UserRole` enum.
+
+
+## Advisor request artifact fields
+Expected advisor request fields (nullable):
+- `source_context`: one of `advisor-request`, `loan_readiness`, `prequalification`, `report`, `action_plan`.
+- `prequalification_share_url`: optional protected/internal URL to an artifact; if absent the UI shows a missing-artifact guidance state.
+- `recommendation_json`: structured object used for advisor summaries (readiness score/band, urgency/package, key notes, monthly surplus, DTI, housing ratio, total monthly pressure, missing documents).
+- Optional linking fields if present in schema: `loan_readiness_application_id`, `loan_readiness_report_id`, `artifact_type`.

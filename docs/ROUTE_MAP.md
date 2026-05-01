@@ -48,3 +48,8 @@ Legend route types: `PUBLIC`, `USER_CORE`, `SCENARIO`, `LOAN_READINESS`, `ADVISO
 - Unauthorized role access is redirected to `/app/dashboard` (or to `/app/pending-approval` for pending users).
 
 | `/app/advisor/request/[requestId]` | `app/(workspace)/app/advisor/request/[requestId]/page.tsx` | Advisor case detail view | ADVISOR | assigned advisor/admin/superadmin | `advisor-request-detail` | request detail card | keep |
+
+
+## Advisor artifact UX notes
+- `/app/advisor/request/[requestId]` now has an **Attached Artifacts** section that shows Prequalification Summary links, Loan Readiness Report id, Recommendation Summary, and mapped Source Context labels.
+- Missing artifact behavior is explicit: advisors see a guidance message instead of a `-` URL placeholder.

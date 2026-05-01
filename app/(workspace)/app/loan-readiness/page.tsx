@@ -133,6 +133,14 @@ export default function LoanReadinessPage() {
     try {
       const token = await withToken();
       if (!token) return;
+      const reportResponse = await fetch("/.netlify/functions/loan-readiness-report-create", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const reportData = (await reportResponse.json()) as { id?: string };
+      const prequalificationShareUrl = reportData.id ? `/app/reports?reportId=${reportData.id}` : undefined;
+
       const response = await fetch("/.netlify/functions/advisor-request-save", {
         method: "POST",
         credentials: "same-origin",
@@ -143,6 +151,7 @@ export default function LoanReadinessPage() {
           sourceContext: "loan_readiness",
           message: bankSummary,
           consentToReview: true,
+          prequalificationShareUrl,
           recommendation: {
             score: approvalScore.score,
             band: approvalScore.band,
@@ -152,6 +161,7 @@ export default function LoanReadinessPage() {
             monthlySurplus: readinessProfile.financials.monthlySurplus,
             debtToIncome: readinessProfile.ratios.debtToIncome,
             housingRatio: readinessProfile.ratios.housingRatio,
+            totalMonthlyPressure: readinessProfile.ratios.totalObligationsRatio,
             missingDocuments
           }
         })
