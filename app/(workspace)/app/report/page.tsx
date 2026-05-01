@@ -571,7 +571,7 @@ export default function ReportPage() {
                 ["Total monthly obligations", toCurrency(totalExpenseWithHousing + debtPayments, currency)],
                 ["Debt-to-income ratio", dti === null ? "Missing data" : `${(dti * 100).toFixed(1)}%`],
                 ["Housing Ratio (rent/mortgage only)", housingRatio === null ? "Missing data" : `${(housingRatio * 100).toFixed(1)}%`],
-                ["Debt-to-Income (debt payments only)", debtToIncome === null ? "Missing data" : `${(debtToIncome * 100).toFixed(1)}%`],
+                ["Debt-to-Income (debt payments only)", dti === null ? "Missing data" : `${(dti * 100).toFixed(1)}%`],
                 ["Total Monthly Pressure (living + housing + debt)", totalObligationsRatio === null ? "Missing data" : `${(totalObligationsRatio * 100).toFixed(1)}%`],
                 ["Adjusted surplus", toCurrency(adjustedSurplus, currency)],
                 ["Savings runway", runwayMonths === null ? "Missing data" : `${runwayMonths.toFixed(1)} months`]
