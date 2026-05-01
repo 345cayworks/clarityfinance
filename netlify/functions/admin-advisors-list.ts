@@ -4,17 +4,22 @@ import { requireAdmin } from "./_access";
 import { json } from "./_utils";
 
 export const handler: Handler = async (event) => {
-  const admin = await requireAdmin(event);
-  if (!admin.ok) return json(admin.statusCode, admin.body);
+  try {
+    const admin = await requireAdmin(event);
+    if (!admin.ok) return json(admin.statusCode, admin.body);
 
-  const advisors = await sql`
-    SELECT id, name, email, role
-    FROM users
-    WHERE role IN ('advisor', 'admin', 'superadmin')
-      AND account_status = 'active'
-      AND approval_status = 'approved'
-    ORDER BY name ASC NULLS LAST, email ASC
-  `;
+    const advisors = await sql`
+      SELECT id, name, email, role
+      FROM users
+      WHERE role::text IN ('advisor', 'admin', 'superadmin')
+        AND account_status = 'active'
+        AND approval_status = 'approved'
+      ORDER BY name ASC NULLS LAST, email ASC
+    `;
 
-  return json(200, { advisors });
+    return json(200, { advisors: advisors ?? [] });
+  } catch (err) {
+    console.error("admin-advisors-list error", err);
+    return json(500, { error: "Failed to load advisors" });
+  }
 };

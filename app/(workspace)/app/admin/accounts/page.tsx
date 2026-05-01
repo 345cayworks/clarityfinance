@@ -108,7 +108,13 @@ export default function Page() {
       )
     );
     const advisorsResp = await fetch("/.netlify/functions/admin-advisors-list", { headers: { Authorization: `Bearer ${token}` } });
-    if (advisorsResp.ok) { const a = await advisorsResp.json(); setAdvisorOptions(a.advisors ?? []); }
+    if (advisorsResp.ok) {
+      const a = await advisorsResp.json();
+      setAdvisorOptions(a.advisors ?? []);
+    } else {
+      setAdvisorOptions([]);
+      setToast("Could not load advisors. Check database or server logs.");
+    }
     setLoading(false);
   };
 
