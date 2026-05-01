@@ -9,6 +9,9 @@
 - Enforce centralized route guard decisions by role + status.
 - Ensure server-side function checks mirror UI guards.
 - Add tests for pending/active/premium/advisor/admin flows.
+- Establish profile/onboarding `household_expenses` as the single source of truth (Enter once. Use everywhere.).
+- Prevent duplicate household expense entry UIs inside Loan Readiness Hub; consume shared profile data instead.
+- Ensure Loan Readiness, Advisor Review, Admin reporting, and future PDF/report generation all read the same household expense records.
 
 ## Phase 3: Improve dashboard and scenario planning UX
 - Clarify baseline financial health cards and trends.
