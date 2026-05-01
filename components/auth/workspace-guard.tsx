@@ -14,7 +14,7 @@ function canAccess(pathname: string, status: AccountStatus) {
   const role = status.role;
   const isAdmin = ["admin", "superadmin"].includes(role);
   const isAdvisor = ["advisor", "admin", "superadmin"].includes(role);
-  const isPremium = ["premium", "premium_user", "admin", "superadmin"].includes(role);
+  const isPremium = ["premium_user", "admin", "superadmin"].includes(role);
   if (!status.approved || !status.active) return pathname === "/app/pending-approval" || pathname === "/app/profile" || pathname === "/app/onboarding";
   if (pathname.startsWith('/app/admin')) return isAdmin;
   if (pathname.startsWith('/app/advisor/dashboard')) return isAdvisor;

@@ -1,36 +1,68 @@
-# Data Model (Current + Canonical Next Phase)
+# Data Model (Current + Canonical Access Mapping)
 
-## Current Model (from code usage)
+## Users table access fields
 
-### 1) User / account status
-- Identity handled through Netlify Identity JWT.
-- Access and role checks are enforced through `account-status`, `me`, and admin user lifecycle functions.
-- Status states include pending/approved/active/deactivated patterns (based on admin approve/reject/activate/deactivate functions).
+### `users.role` (stored role)
+Canonical stored values:
+- `user`
+- `premium_user`
+- `advisor`
+- `admin`
+- `superadmin`
+
+
+### `users.approval_status` (lifecycle approval)
+Values:
+- `pending`
+- `approved`
+- `rejected`
+
+### `users.account_status` (lifecycle activation)
+Values:
+- `active`
+- `inactive`
+- `deactivated`
+
+---
+
+## Computed access states (derived, not stored)
+
+These states are computed at runtime from auth + status fields and must **not** be persisted as role values:
+
+- `visitor`: unauthenticated.
+- `pending_user`: authenticated but not fully approved/active.
+- `active_user`: authenticated + approved + active.
+
+Derived behavior:
+- `pending_user` can complete onboarding/profile, but cannot use core dashboard/scenario/report/loan/admin/advisor-dashboard routes.
+- `active_user` can access core workspace routes.
+- premium/advisor/admin/superadmin capabilities are overlays on top of active status.
+
+---
+
+## Domain model summary
+
+### 1) User / access
+- Identity from Netlify Identity JWT.
+- Access checks enforced through `netlify/functions/_access.ts` helpers.
+- Admin lifecycle functions mutate `users.role`, `users.approval_status`, and `users.account_status`.
 
 ### 2) Financial profile
-- Captured in onboarding and read by dashboard/report/tools via `profile-save` and `profile-get`.
-- Contains personal details, employment/income, expenses, debt, savings, housing, goals, and loan-intent fields.
+- Captured in onboarding and consumed by dashboard/report/tools via `profile-save` and `profile-get`.
 
 ### 3) Scenarios
-- General scenario assumptions and outputs saved via `scenario-save`.
-- Used in scenario planning experience and report context.
+- General planning assumptions/outputs saved via `scenario-save`.
 
 ### 4) Room rental scenario
 - Persisted through `rent-room-save`; retrieved via `rent-room-get`.
-- Includes setup costs, monthly rental income effects, and cash-flow impact for “Rent a Room Scenario”.
 
-### 5) Advisor requests
-- User creates requests (`advisor-request-save`), views status (`advisor-requests-my`), advisors process assigned work (`advisor-requests-assigned`, `advisor-request-update`), admins triage/assign (`admin-advisor-request-*`).
+### 5) Advisor requests and assignment
+- Created by users, reviewed by assigned advisors, triaged/assigned by admins.
 
-### 6) Admin / advisor assignments
-- Admin functions manage user statuses, roles, and advisor assignment.
-- Advisor dashboards should be scoped to assigned users/requests only.
+### 6) Loan readiness
+- Premium-gated routes exist and currently rely on shared profile data.
 
-### 7) Loan readiness
-- UI routes exist (`/app/loan-application`, `/app/prequalification/proven-bank`) and currently rely on shared profile data.
-- Dedicated loan-readiness persistence schema appears partially planned and should be formalized.
-
-## Canonical Next-Phase Model Recommendation
+## Canonical next-phase model recommendation
 1. **User**
 2. **UserAccessStatus**
 3. **FinancialProfile**
@@ -42,7 +74,5 @@
 9. **ActionPlan**
 10. **Report**
 
-## Modeling Notes
-- Keep room-rental scenario as a **first-class bounded model**, not as generic rental management.
-- Separate access-control metadata (`UserAccessStatus`) from personal finance data (`FinancialProfile`).
-- Add explicit foreign-key constraints and status enums for advisor/admin workflow transitions.
+
+> Note: `premium` was considered as a legacy alias, but it is not valid in the live `UserRole` enum.

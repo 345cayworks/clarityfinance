@@ -170,7 +170,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const displayName = user?.name || user?.email || "Account";
   const isPending = accountStatus ? (!accountStatus.approved || !accountStatus.active) : false;
-  const isPremium = ["premium","premium_user","admin","superadmin"].includes(accountStatus?.role || "");
+  const isPremium = ["premium_user","admin","superadmin"].includes(accountStatus?.role || "");
   const subtitle = user?.email ?? "Signed in";
   const activeLabel = findActiveLabel(pathname);
 
