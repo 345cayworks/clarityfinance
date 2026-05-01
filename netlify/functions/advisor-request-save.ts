@@ -15,8 +15,8 @@ export const handler: Handler = async (event) => {
   const userId = existing[0]?.id ?? access.user.id;
   const requestId = randomId("adv");
   const urgency = String(body.urgency ?? "medium");
-  await sql`INSERT INTO advisor_requests (id,user_id,name,email,phone,preferred_contact_method,topic,urgency,message,consent_to_review,source_context,recommendation_json)
-  VALUES (${requestId},${userId},${String(body.name ?? access.user.name ?? "")},${String(body.email ?? access.user.email)},${String(body.phone ?? "")},${String(body.preferredContactMethod ?? "")},${String(body.topic ?? "")},${urgency},${String(body.message ?? "")},${Boolean(body.consentToReview)},${String(body.sourceContext ?? "")},${JSON.stringify(body.recommendation ?? {})}::jsonb)`;
+  await sql`INSERT INTO advisor_requests (id,user_id,name,email,phone,preferred_contact_method,topic,urgency,message,consent_to_review,source_context,prequalification_share_url,recommendation_json)
+  VALUES (${requestId},${userId},${String(body.name ?? access.user.name ?? "")},${String(body.email ?? access.user.email)},${String(body.phone ?? "")},${String(body.preferredContactMethod ?? "")},${String(body.topic ?? "")},${urgency},${String(body.message ?? "")},${Boolean(body.consentToReview)},${String(body.sourceContext ?? "advisor-request")},${String(body.prequalificationShareUrl ?? "")},${JSON.stringify(body.recommendation ?? body.recommendationJson ?? {})}::jsonb)`;
   await notifyAdmin("advisor_request_created", { requestId, topic: String(body.topic ?? ""), urgency, email: String(body.email ?? access.user.email) });
   if (urgency === "high") await notifyAdmin("high_value_lead_detected", { requestId, topic: String(body.topic ?? ""), email: String(body.email ?? access.user.email) });
   await notifyUser(userId, "advisor_request_created", { requestId, status: "new" });

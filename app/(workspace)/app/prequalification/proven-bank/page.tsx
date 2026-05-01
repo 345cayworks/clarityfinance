@@ -253,6 +253,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function ProvenBankPrequalificationPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<PrequalForm>(initialForm);
+  const [advisorStatus, setAdvisorStatus] = useState("");
+  const [requestingAdvisor, setRequestingAdvisor] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -471,6 +473,46 @@ export default function ProvenBankPrequalificationPage() {
   const setString = (field: keyof PrequalForm) => (value: string) => setForm((prev) => ({ ...prev, [field]: value }));
   const locked = (field: keyof PrequalForm) => PROFILE_CONTROLLED_FIELDS.has(field);
 
+  const requestAdvisorReview = async () => {
+    setRequestingAdvisor(true);
+    setAdvisorStatus("");
+    try {
+      const user = await getUser();
+      if (!user) return;
+      const token = await getIdentityToken(user);
+      if (!token) return;
+      const prequalificationShareUrl = "/app/prequalification/proven-bank";
+      const response = await fetch("/.netlify/functions/advisor-request-save", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          topic: "Proven Bank Prequalification Review",
+          urgency: approvalScore.score < 60 ? "high" : "medium",
+          sourceContext: "prequalification",
+          prequalificationShareUrl,
+          message: summary,
+          consentToReview: true,
+          recommendation: {
+            readinessScore: approvalScore.score,
+            readinessBand: approvalScore.band,
+            monthlyIncome: calculations.monthlyIncome,
+            monthlyExpenses: calculations.monthlyLivingExpenses,
+            monthlyDebtPayments: calculations.monthlyDebtPayments,
+            monthlySurplus: calculations.monthlySurplus,
+            debtToIncome: calculations.debtToIncome,
+            housingRatio: calculations.housingRatio,
+            totalMonthlyPressure: calculations.totalObligationsRatio,
+            keyNotes: documentGaps.length ? `Documents needed: ${documentGaps.join(", ")}` : "Document checklist complete."
+          }
+        })
+      });
+      setAdvisorStatus(response.ok ? "Advisor review requested." : "Could not create advisor request.");
+    } finally {
+      setRequestingAdvisor(false);
+    }
+  };
+
   if (loading) return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading prequalification profile...</div>;
 
   return (
@@ -624,6 +666,8 @@ export default function ProvenBankPrequalificationPage() {
           <div className="mt-3 flex flex-col gap-2">
             <button type="button" onClick={() => window.print()} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Print / Save as PDF</button>
             <button type="button" onClick={async () => navigator.clipboard.writeText(summary)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Copy Prequalification Summary</button>
+            <button type="button" onClick={requestAdvisorReview} disabled={requestingAdvisor} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-60">Request Advisor Review</button>
+            {advisorStatus ? <p className="text-sm text-slate-600">{advisorStatus}</p> : null}
           </div>
         </section>
       </div>
