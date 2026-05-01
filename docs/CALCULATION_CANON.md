@@ -25,10 +25,15 @@ Bands: Healthy, Watch, Stressed, Critical.
 - Housing ratio is separate from DTI to isolate shelter-cost concentration risk.
 
 ## Example
-Income: 8,000; non-housing: 2,500; housing: 2,000; debt payments: 1,200.
-- totalLivingExpenses = 4,500
-- totalMonthlyObligations = 5,700
-- monthlySurplus = 2,300
-- DTI = 1,200 / 8,000 = 15%
-- housingRatio = 2,000 / 8,000 = 25%
-- totalObligationsRatio = 5,700 / 8,000 = 71.25%
+Monthly income: 5,000; housing: 1,500; utilities: 300; transport: 400; groceries: 700; insurance: 250; childcare: 0; discretionary: 300; other: 200; debt payments: 600.
+- nonHousingLivingExpenses = 2,150
+- housingExpense = 1,500
+- totalLivingExpenses = 3,650
+- monthlyDebtPayments = 600
+- totalMonthlyObligations = 4,250
+- monthlySurplus = 750
+- debtToIncome = 600 / 5,000 = 12%
+- housingRatio = 1,500 / 5,000 = 30%
+- totalMonthlyPressure = 4,250 / 5,000 = 85%
+
+Interpretation: low DTI can still coincide with high total monthly pressure; both must be shown together.
