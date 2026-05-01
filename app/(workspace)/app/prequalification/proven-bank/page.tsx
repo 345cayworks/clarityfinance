@@ -457,7 +457,7 @@ export default function ProvenBankPrequalificationPage() {
   );
 
   const completion = Math.round(((REQUIRED_FIELDS.length - missingRequired.length) / REQUIRED_FIELDS.length) * 100);
-  const summary = `Proven Bank prequalification status: ${approvalScore.band} (${approvalScore.score}/100). Monthly income ${currency(calculations.monthlyIncome)}, living expenses ${currency(calculations.monthlyLivingExpenses)}, housing payment ${currency(calculations.currentHousingPayment)}, debt payments ${currency(calculations.monthlyDebtPayments)}, total obligations ${currency(calculations.totalMonthlyObligations)}, surplus ${currency(calculations.monthlySurplus)}. DTI ${percent(calculations.debtToIncome)}, housing ratio ${percent(calculations.housingRatio)}, down payment ${percent(calculations.downPaymentPercent)}, LTV ${percent(calculations.loanToValue)}.`;
+  const summary = `Proven Bank prequalification status: ${approvalScore.band} (${approvalScore.score}/100). Monthly income ${currency(calculations.monthlyIncome)}, living expenses ${currency(calculations.monthlyLivingExpenses)}, housing payment ${currency(calculations.currentHousingPayment)}, debt payments ${currency(calculations.monthlyDebtPayments)}, total obligations ${currency(calculations.totalMonthlyObligations)}, surplus ${currency(calculations.monthlySurplus)}. DTI (debt payments only) ${percent(calculations.debtToIncome)}, housing ratio (rent/mortgage only) ${percent(calculations.housingRatio)}, total monthly pressure ${percent(calculations.totalObligationsRatio)}, down payment ${percent(calculations.downPaymentPercent)}, LTV ${percent(calculations.loanToValue)}.`;
 
   const bandStyle = (band: string) => {
     if (band === "Likely Ready")
@@ -591,8 +591,9 @@ export default function ProvenBankPrequalificationPage() {
             <div className="rounded-lg border border-slate-200 px-3 py-2">Debt payments: <span className="font-semibold">{currency(calculations.monthlyDebtPayments)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Total monthly obligations: <span className="font-semibold">{currency(calculations.totalMonthlyObligations)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Monthly surplus: <span className="font-semibold">{currency(calculations.monthlySurplus)}</span></div>
-            <div className="rounded-lg border border-slate-200 px-3 py-2">DTI: <span className="font-semibold">{percent(calculations.debtToIncome)}</span></div>
-            <div className="rounded-lg border border-slate-200 px-3 py-2">Housing ratio: <span className="font-semibold">{percent(calculations.housingRatio)}</span></div>
+            <div className="rounded-lg border border-slate-200 px-3 py-2">Debt-to-Income (debt payments only): <span className="font-semibold">{percent(calculations.debtToIncome)}</span></div>
+            <div className="rounded-lg border border-slate-200 px-3 py-2">Housing Ratio (rent/mortgage only): <span className="font-semibold">{percent(calculations.housingRatio)}</span></div>
+            <div className="rounded-lg border border-slate-200 px-3 py-2">Total Monthly Pressure (living + housing + debt): <span className="font-semibold">{percent(calculations.totalObligationsRatio)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Down payment %: <span className="font-semibold">{percent(calculations.downPaymentPercent)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Loan-to-value: <span className="font-semibold">{percent(calculations.loanToValue)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Savings runway: <span className="font-semibold">{calculations.savingsRunwayMonths.toFixed(1)} months</span></div>

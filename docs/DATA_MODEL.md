@@ -60,7 +60,9 @@ Derived behavior:
 - Created by users, reviewed by assigned advisors, triaged/assigned by admins.
 
 ### 6) Loan readiness
-- Premium-gated routes exist and currently rely on shared profile data.
+- Premium-gated routes include `/app/loan-readiness`, `/app/loan-application`, and `/app/prequalification/proven-bank`.
+- `loan_readiness_applications` stores readiness score/band, ratios, monthly summary, document checklist, missing docs, and saved application JSON.
+- Advisor escalation is connected through `advisor-request-save` with source context `loan_readiness`.
 
 ## Canonical next-phase model recommendation
 1. **User**
