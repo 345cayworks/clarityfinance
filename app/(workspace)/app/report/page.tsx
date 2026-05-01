@@ -250,8 +250,10 @@ export default function ReportPage() {
   const expenses = nonHousingExpenses;
   const surplus = monthlySurplus(data?.incomeSources ?? [], data?.expenseProfile ?? null, data?.housingProfile ?? null);
   const debtPayments = monthlyDebtPayments(data?.debts ?? []);
+  const totalMonthlyObligations = totalExpenseWithHousing + debtPayments;
   const totalDebtAmount = debtTotal(data?.debts ?? []);
   const dti = income > 0 ? debtPayments / income : null;
+  const totalObligationsRatio = income > 0 ? totalMonthlyObligations / income : null;
   const adjustedSurplus = income - totalExpenseWithHousing - debtPayments;
 
   const homeValue = toNumber(data?.housingProfile?.estimated_home_value);
@@ -568,7 +570,7 @@ export default function ReportPage() {
                 ["Non-housing living expenses", toCurrency(nonHousingExpenses, currency)],
                 ["Housing payment", toCurrency(housing, currency)],
                 ["Debt payments", toCurrency(debtPayments, currency)],
-                ["Total monthly obligations", toCurrency(totalExpenseWithHousing + debtPayments, currency)],
+                ["Total monthly obligations", toCurrency(totalMonthlyObligations, currency)],
                 ["Debt-to-income ratio", dti === null ? "Missing data" : `${(dti * 100).toFixed(1)}%`],
                 ["Housing Ratio (rent/mortgage only)", housingRatio === null ? "Missing data" : `${(housingRatio * 100).toFixed(1)}%`],
                 ["Debt-to-Income (debt payments only)", dti === null ? "Missing data" : `${(dti * 100).toFixed(1)}%`],
