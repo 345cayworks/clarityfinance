@@ -357,6 +357,7 @@ export default function ProvenBankPrequalificationPage() {
     const monthlySurplus = monthlyIncome - totalMonthlyObligations;
     const debtToIncome = monthlyIncome > 0 ? monthlyDebtPayments / monthlyIncome : 0;
     const housingRatio = monthlyIncome > 0 ? currentHousingPayment / monthlyIncome : 0;
+    const totalObligationsRatio = monthlyIncome > 0 ? totalMonthlyObligations / monthlyIncome : 0;
     const downPaymentPercent = toNumber(form.purchasePrice) > 0 ? toNumber(form.downPaymentAvailable) / toNumber(form.purchasePrice) : 0;
     const loanToValue = toNumber(form.purchasePrice) > 0 ? toNumber(form.requestedLoanAmount) / toNumber(form.purchasePrice) : 0;
     const liquidSavings = toNumber(form.cashSavings) + toNumber(form.emergencyFund) + toNumber(form.downPaymentSavings);
@@ -372,6 +373,7 @@ export default function ProvenBankPrequalificationPage() {
       proposedMortgagePayment,
       debtToIncome,
       housingRatio,
+      totalObligationsRatio,
       downPaymentPercent,
       loanToValue,
       savingsRunwayMonths
