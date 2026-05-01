@@ -67,6 +67,25 @@ export default function LoanReadinessPage() {
   const missingDocuments = checklist.filter((item) => !item.present).map((item) => item.label);
   const downPaymentPercent = readinessProfile?.loan.purchasePrice ? readinessProfile.loan.downPaymentPercent : null;
 
+  const householdExpenseCategories = useMemo(() => {
+    const expenseProfile = payload?.expenseProfile ?? {};
+    return [
+      { key: "housing", label: "Housing", amount: Number(expenseProfile.housing ?? 0) || 0 },
+      { key: "utilities", label: "Utilities", amount: Number(expenseProfile.utilities ?? 0) || 0 },
+      { key: "transport", label: "Transport", amount: Number(expenseProfile.transport ?? 0) || 0 },
+      { key: "groceries", label: "Groceries", amount: Number(expenseProfile.groceries ?? 0) || 0 },
+      { key: "insurance", label: "Insurance", amount: Number(expenseProfile.insurance ?? 0) || 0 },
+      { key: "childcare", label: "Childcare", amount: Number(expenseProfile.childcare ?? 0) || 0 },
+      { key: "discretionary", label: "Discretionary", amount: Number(expenseProfile.discretionary ?? 0) || 0 },
+      { key: "other", label: "Other", amount: Number(expenseProfile.other ?? 0) || 0 }
+    ];
+  }, [payload?.expenseProfile]);
+
+  const householdExpensesTotal = useMemo(
+    () => householdExpenseCategories.reduce((sum, item) => sum + item.amount, 0),
+    [householdExpenseCategories]
+  );
+
   const bankSummary = useMemo(() => {
     if (!readinessProfile || !approvalScore) return "";
     return `Loan readiness ${approvalScore.band} (${approvalScore.score}/100). Income ${formatMoney(
@@ -157,6 +176,8 @@ export default function LoanReadinessPage() {
             band: approvalScore.band,
             monthlyIncome: readinessProfile.financials.monthlyIncomeUsed,
             monthlyExpenses: readinessProfile.financials.monthlyExpenses,
+            householdExpensesTotal,
+            householdExpensesBreakdown: householdExpenseCategories,
             monthlyDebtPayments: readinessProfile.financials.monthlyDebtPayments,
             monthlySurplus: readinessProfile.financials.monthlySurplus,
             debtToIncome: readinessProfile.ratios.debtToIncome,
@@ -195,6 +216,28 @@ export default function LoanReadinessPage() {
           <div>Housing Ratio (rent/mortgage only): <strong>{formatPercent((readinessProfile.ratios.housingRatio ?? 0) * 100)}</strong></div>
           <div>Total Monthly Pressure (living + housing + debt): <strong>{formatPercent((readinessProfile.ratios.totalObligationsRatio ?? 0) * 100)}</strong></div>
           {downPaymentPercent !== null ? <div>Down payment %: <strong>{formatPercent(downPaymentPercent * 100)}</strong></div> : null}
+        </div>
+      </section>
+
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4">
+        <h2 className="mb-3 text-base font-semibold text-slate-900">Household Expenses (from Profile)</h2>
+        <div className="space-y-2 text-sm">
+          <p>Total monthly household expenses: <strong>{formatMoney(householdExpensesTotal)}</strong></p>
+          {householdExpensesTotal <= 0 ? (
+            <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Missing data: no household expenses found in your profile yet.</p>
+          ) : null}
+          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {householdExpenseCategories.map((item) => (
+              <li key={item.key} className="rounded border p-2">
+                {item.label}: <strong>{formatMoney(item.amount)}</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2 text-sm">
+          <Link href="/app/onboarding" className="rounded border px-3 py-2 hover:bg-slate-50">Edit in Profile</Link>
+          <Link href="/app/onboarding" className="rounded border px-3 py-2 hover:bg-slate-50">Quick Update Expenses</Link>
         </div>
       </section>
 

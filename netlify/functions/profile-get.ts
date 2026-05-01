@@ -49,6 +49,7 @@ export const handler: Handler = async (event) => {
     profile: profiles[0] ?? null,
     incomeSources: income,
     expenseProfile: expenses[0] ?? null,
+    householdExpenses: expenses[0] ?? null,
     debts,
     housingProfile: housing[0] ?? null,
     savingsProfile: savings[0] ?? null,

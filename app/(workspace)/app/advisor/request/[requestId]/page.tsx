@@ -102,6 +102,7 @@ export default function AdvisorRequestDetailPage() {
             {metricLine("Recommendation package", recommendation.recommendationPackage ?? recommendation.package)}
             {metricLine("Key notes", recommendation.keyNotes ?? recommendation.notes)}
             {metricLine("Monthly surplus", monthlySurplus)}
+            {metricLine("Total monthly household expenses", recommendation.householdExpensesTotal ?? recommendation.monthlyExpenses)}
             {metricLine("Debt-to-income", dti)}
             {metricLine("Total monthly pressure", totalPressure)}
           </ul>
