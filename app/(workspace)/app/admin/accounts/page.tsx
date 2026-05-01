@@ -36,9 +36,11 @@ type AdvisorRequest = {
   assigned_advisor_name?: string | null;
 };
 
-type TabKey = "action" | "users" | "advisor" | "deactivated" | "invite";
+type TabKey = "analytics" | "action" | "users" | "advisor" | "deactivated" | "invite";
+type UserFilter = "all" | "pending" | "recently_active" | "recently_inactive";
 
 const tabs: { key: TabKey; label: string }[] = [
+  { key: "analytics", label: "📊 Analytics" },
   { key: "action", label: "🔔 Action Required" },
   { key: "users", label: "👥 Users" },
   { key: "advisor", label: "📥 Advisor Requests" },
@@ -68,6 +70,13 @@ function EmptyState({ title, helper }: { title: string; helper: string }) {
   );
 }
 
+const isInLastDays = (iso: string | null | undefined, days: number) => {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return false;
+  return Date.now() - t <= days * 24 * 60 * 60 * 1000;
+};
+
 export default function Page() {
   const { user, accountStatus } = useWorkspaceUser();
   const canManageSuperadmin = accountStatus?.role === "superadmin";
@@ -82,7 +91,7 @@ export default function Page() {
       ] as Array<{ value: string; label: string }>,
     [canManageSuperadmin]
   );
-  const [tab, setTab] = useState<TabKey>("action");
+  const [tab, setTab] = useState<TabKey>("analytics");
   const [users, setUsers] = useState<User[]>([]);
   const [advisorRequests, setAdvisor] = useState<AdvisorRequest[]>([]);
   const [invite, setInvite] = useState({ name: "", email: "", role: "user" });
@@ -94,6 +103,8 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState<"all" | "user" | "premium_user" | "advisor" | "admin">("all");
   const [advisorFilter, setAdvisorFilter] = useState<"all"|"unassigned"|"assigned"|"reviewing"|"contacted"|"closed">("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [userFilter, setUserFilter] = useState<UserFilter>("all");
 
   const load = async () => {
     const token = await getIdentityToken(user);
@@ -103,29 +114,16 @@ export default function Page() {
     const d = await r.json();
     setUsers(d.users ?? []);
     setAdvisor(d.advisorRequests ?? []);
-    setRoleDrafts(
-      Object.fromEntries(
-        (d.users ?? []).map((u: User) => [u.id, u.role || "user"])
-      )
-    );
+    setRoleDrafts(Object.fromEntries((d.users ?? []).map((u: User) => [u.id, u.role || "user"])));
     const advisorsResp = await fetch("/.netlify/functions/admin-advisors-list", { headers: { Authorization: `Bearer ${token}` } });
     if (advisorsResp.ok) {
       const a = await advisorsResp.json();
       setAdvisorOptions(a.advisors ?? []);
-    } else {
-      setAdvisorOptions([]);
-      setToast("Could not load advisors. Check database or server logs.");
     }
     setLoading(false);
   };
 
-  useEffect(() => {
-    void load();
-  }, [user]);
-
-  useEffect(() => {
-    console.log("advisorOptions:", advisorOptions);
-  }, [advisorOptions]);
+  useEffect(() => { void load(); }, [user]);
 
   const act = async (path: string, payload: Record<string, unknown>, shouldReload = true) => {
     const token = await getIdentityToken(user);
@@ -140,233 +138,144 @@ export default function Page() {
   };
 
   const pending = useMemo(() => users.filter((u) => u.approval_status === "pending"), [users]);
-  const active = useMemo(
-    () => users.filter((u) => u.account_status === "active").sort((a, b) => (b.last_active_at || "").localeCompare(a.last_active_at || "")),
-    [users]
-  );
-  const filteredUsers = useMemo(
-    () => roleFilter === "all" ? active : active.filter((u) => u.role === roleFilter),
-    [active, roleFilter]
-  );
-  const roleCounts = useMemo(() => ({
-    user: active.filter((u) => u.role === "user").length,
-    premium_user: active.filter((u) => u.role === "premium_user").length,
-    advisor: active.filter((u) => u.role === "advisor").length,
-    admin: active.filter((u) => u.role === "admin").length
-  }), [active]);
-  const totalUsers = active.length;
+  const activeUsers = useMemo(() => users.filter((u) => u.account_status === "active"), [users]);
   const deactivated = useMemo(() => users.filter((u) => u.account_status === "deactivated"), [users]);
   const newAdvisor = useMemo(() => advisorRequests.filter((r) => (r.status || "new") === "new"), [advisorRequests]);
+  const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const fourteenDaysAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
 
-  const prioritizedRequests = useMemo(() => {
-    const urgencyScore: Record<string, number> = { high: 0, medium: 1, low: 2 };
-    return [...newAdvisor].sort((a, b) => {
-      const urgencyDelta = (urgencyScore[a.urgency] ?? 3) - (urgencyScore[b.urgency] ?? 3);
-      if (urgencyDelta !== 0) return urgencyDelta;
-      return (b.created_at || "").localeCompare(a.created_at || "");
-    });
-  }, [newAdvisor]);
+  const metrics = useMemo(() => {
+    const standardUsers = users.filter((u) => u.role === "user");
+    const premiumUsers = users.filter((u) => u.role === "premium_user");
+    const advisors = users.filter((u) => u.role === "advisor");
+    const admins = users.filter((u) => u.role === "admin" || u.role === "superadmin");
+    const recentlyActive = users.filter((u) => u.last_active_at && new Date(u.last_active_at).getTime() >= oneDayAgo);
+    const recentlyInactive = users.filter((u) => !u.last_active_at || new Date(u.last_active_at).getTime() < sevenDaysAgo);
+    const unassigned = advisorRequests.filter((r) => !r.assigned_advisor_email && !r.assigned_advisor_id);
+    const reviewing = advisorRequests.filter((r) => r.status === "reviewing");
+    const contacted = advisorRequests.filter((r) => r.status === "contacted");
+    const closed = advisorRequests.filter((r) => r.status === "closed");
+    const highUrgency = advisorRequests.filter((r) => r.urgency === "high");
 
-  const highUrgencyCount = prioritizedRequests.filter((r) => r.urgency === "high").length;
+    const unassignedAges = unassigned.map((r) => (Date.now() - new Date(r.created_at).getTime()) / (1000 * 60 * 60));
+    const oldestUnassignedHours = unassignedAges.length ? Math.max(...unassignedAges) : null;
+
+    const assignmentDurations = advisorRequests
+      .filter((r) => r.assigned_at)
+      .map((r) => new Date(r.assigned_at as string).getTime() - new Date(r.created_at).getTime())
+      .filter((n) => Number.isFinite(n) && n >= 0);
+    const avgAssignmentHours = assignmentDurations.length ? assignmentDurations.reduce((a, b) => a + b, 0) / assignmentDurations.length / (1000 * 60 * 60) : null;
+
+    const newUsersThisWeek = users.filter((u) => isInLastDays(u.created_at, 7)).length;
+    const newUsersPrevWeek = users.filter((u) => {
+      const t = new Date(u.created_at).getTime();
+      return t < sevenDaysAgo && t >= fourteenDaysAgo;
+    }).length;
+    const advisorThisWeek = advisorRequests.filter((r) => isInLastDays(r.created_at, 7)).length;
+    const advisorPrevWeek = advisorRequests.filter((r) => {
+      const t = new Date(r.created_at).getTime();
+      return t < sevenDaysAgo && t >= fourteenDaysAgo;
+    }).length;
+
+    return { standardUsers, premiumUsers, advisors, admins, recentlyActive, recentlyInactive, unassigned, reviewing, contacted, closed, highUrgency, oldestUnassignedHours, avgAssignmentHours, newUsersThisWeek, newUsersPrevWeek, advisorThisWeek, advisorPrevWeek };
+  }, [advisorRequests, users, oneDayAgo, sevenDaysAgo, fourteenDaysAgo]);
 
   const statusBadge = (status: string | null, type: "approval" | "account" | "role" | "urgency" | "advisor") => {
-    const map: Record<string, string> = {
-      pending: "bg-amber-100 text-amber-800",
-      approved: "bg-green-100 text-green-800",
-      rejected: "bg-red-100 text-red-800",
-      active: "bg-green-100 text-green-800",
-      deactivated: "bg-red-100 text-red-800",
-      admin: "bg-purple-100 text-purple-800",
-      superadmin: "bg-indigo-100 text-indigo-800",
-      advisor: "bg-blue-100 text-blue-800",
-      user: "bg-slate-200 text-slate-700",
-      premium_user: "bg-emerald-100 text-emerald-800",
-      high: "bg-red-100 text-red-800",
-      medium: "bg-amber-100 text-amber-800",
-      low: "bg-green-100 text-green-800",
-      new: "bg-amber-100 text-amber-800",
-      reviewing: "bg-blue-100 text-blue-800",
-      contacted: "bg-green-100 text-green-800",
-      closed: "bg-slate-200 text-slate-700"
-    };
+    const map: Record<string, string> = { pending: "bg-amber-100 text-amber-800", approved: "bg-green-100 text-green-800", rejected: "bg-red-100 text-red-800", active: "bg-green-100 text-green-800", deactivated: "bg-red-100 text-red-800", admin: "bg-purple-100 text-purple-800", superadmin: "bg-indigo-100 text-indigo-800", advisor: "bg-blue-100 text-blue-800", user: "bg-slate-200 text-slate-700", premium_user: "bg-emerald-100 text-emerald-800", high: "bg-red-100 text-red-800", medium: "bg-amber-100 text-amber-800", low: "bg-green-100 text-green-800", new: "bg-amber-100 text-amber-800", reviewing: "bg-blue-100 text-blue-800", contacted: "bg-green-100 text-green-800", closed: "bg-slate-200 text-slate-700" };
     const display = type === "role" ? ROLE_LABELS[status || ""] || status || "-" : status || (type === "approval" ? "pending" : "-");
     return <Badge tone={map[status || ""] || "bg-slate-200 text-slate-700"}>{display}</Badge>;
   };
 
-  const activity = (lastActive: string | null) => {
-    if (!lastActive) return { label: "Inactive", tone: "text-red-600", dot: "bg-red-500" };
-    const mins = (Date.now() - new Date(lastActive).getTime()) / 60000;
-    if (mins <= 5) return { label: "Active now", tone: "text-green-700", dot: "bg-green-500" };
-    if (mins <= 1440) return { label: "Active today", tone: "text-amber-700", dot: "bg-amber-500" };
-    const days = Math.floor(mins / 1440);
-    return { label: `Inactive (${days}d ago)`, tone: "text-red-700", dot: "bg-red-500" };
-  };
+  if (!["admin", "superadmin"].includes(accountStatus?.role || "")) return <div className="card">Admin access required.</div>;
 
-  if (!["admin","superadmin"].includes(accountStatus?.role || "")) return <div className="card">Admin access required.</div>;
+  const funnelStages = [
+    { label: "Total Users", count: users.length },
+    { label: "Standard Users", count: metrics.standardUsers.length },
+    { label: "Premium Users", count: metrics.premiumUsers.length },
+    { label: "Loan Readiness Started", count: null as number | null },
+    { label: "Loan Readiness Report Generated / Loan Ready", count: null as number | null },
+    { label: "Advisor Review Requested", count: advisorRequests.length },
+    { label: "Advisor Assigned", count: advisorRequests.filter((r) => r.assigned_advisor_email || r.assigned_advisor_id).length },
+    { label: "Review Closed", count: metrics.closed.length }
+  ];
 
-  return (
-    <div className="space-y-6">
-      <div className="card">
-        <h1 className="text-2xl font-semibold text-[#0A2540]">Admin Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-600">Manage users, approvals, and advisory requests</p>
-      </div>
+  const filteredUsers = activeUsers.filter((u) => {
+    if (roleFilter !== "all" && (u.role || "user") !== roleFilter) return false;
+    if (userFilter === "pending") return u.approval_status === "pending";
+    if (userFilter === "recently_active") return !!u.last_active_at && new Date(u.last_active_at).getTime() >= oneDayAgo;
+    if (userFilter === "recently_inactive") return !u.last_active_at || new Date(u.last_active_at).getTime() < sevenDaysAgo;
+    return true;
+  });
 
-      <div className="grid gap-3 md:grid-cols-4">
-        {[
-          ["Pending Approvals", pending.length, "action"],
-          ["Active Users", active.length, "users"],
-          ["Advisor Requests", newAdvisor.length, "advisor"],
-          ["Deactivated Users", deactivated.length, "deactivated"]
-        ].map(([label, count, goto]) => (
-          <button key={label as string} className="card text-left hover:border-[#1A3A5F]" onClick={() => setTab(goto as TabKey)}>
-            <p className="text-sm text-slate-500">{label as string}</p>
-            <p className="text-3xl font-semibold text-[#0A2540]">{count as number}</p>
-          </button>
-        ))}
-      </div>
+  return <div className="space-y-6">
+    <div className="card"><h1 className="text-2xl font-semibold text-[#0A2540]">Admin Dashboard</h1><p className="mt-1 text-sm text-slate-600">Manage users, approvals, advisor workflow, and analytics</p></div>
+    <div className="card">
+      <div className="mb-4 flex flex-wrap gap-2">{tabs.map((t) => <button key={t.key} onClick={() => setTab(t.key)} className={`rounded-lg border px-3 py-2 text-sm ${tab === t.key ? "border-[#1A3A5F] bg-[#F2F7FC] text-[#0A2540]" : "border-slate-300 text-slate-600"}`}>{t.label}</button>)}</div>
+      {toast && <p className="mb-4 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{toast}</p>}
+      {loading && <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded bg-slate-100" />)}</div>}
 
-      <div className="card">
-        <div className="mb-4 flex flex-wrap gap-2">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`rounded-lg border px-3 py-2 text-sm ${tab === t.key ? "border-[#1A3A5F] bg-[#F2F7FC] text-[#0A2540]" : "border-slate-300 text-slate-600"}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        {toast && <p className="mb-4 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{toast}</p>}
-
-        {loading && <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-12 animate-pulse rounded bg-slate-100" />)}</div>}
-
-        {!loading && tab === "action" && (
-          <div className="space-y-5">
-            <p className="text-sm font-medium text-slate-700">{highUrgencyCount} high urgency requests need attention</p>
-            {pending.length === 0 && prioritizedRequests.length === 0 ? (
-              <EmptyState title="No pending approvals" helper="You're caught up. New approvals and urgent requests will appear here." />
-            ) : (
-              <div className="space-y-3">
-                {pending.map((u) => (
-                  <div key={u.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
-                    <div>
-                      <p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p>
-                      <div className="mt-2 flex gap-2">{statusBadge(u.approval_status, "approval")}{statusBadge(u.role || "user", "role")}</div>
-                    </div>
-                    <div className="flex gap-2"><button className="rounded bg-green-600 px-3 py-1 text-white" onClick={() => act("admin-user-approve", { userId: u.id })}>Approve</button></div>
-                  </div>
-                ))}
-                {prioritizedRequests.map((r) => (
-                  <div key={r.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 ${r.urgency === "high" ? "border-red-200 bg-red-50" : ""}`}>
-                    <div>
-                      <p className="font-medium">{r.topic}</p>
-                      <p className="text-sm text-slate-500">{(r.message || "").slice(0, 110) || `${r.name} • ${r.email}`}</p>
-                      <div className="mt-2 flex gap-2">{statusBadge(r.urgency, "urgency")}{statusBadge(r.status || "new", "advisor")}</div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "reviewing" })}>Mark Reviewing</button>
-                      <button className="rounded border px-3 py-1" onClick={() => act("admin-advisor-request-update", { id: r.id, status: "contacted" })}>Mark Contacted</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+      {!loading && tab === "analytics" && <div className="space-y-6">
+        <section className="space-y-3"><h2 className="text-lg font-semibold">Admin HUD Summary</h2>
+          <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
+            {[{label:"All Users",count:users.length,go:()=>{setTab("users");setRoleFilter("all");setUserFilter("all");}},
+              {label:"Standard Users",count:metrics.standardUsers.length,go:()=>{setTab("users");setRoleFilter("user");}},
+              {label:"Premium Users",count:metrics.premiumUsers.length,go:()=>{setTab("users");setRoleFilter("premium_user");}},
+              {label:"Advisors",count:metrics.advisors.length,go:()=>{setTab("users");setRoleFilter("advisor");}},
+              {label:"Admins",count:metrics.admins.length,go:()=>{setTab("users");setRoleFilter("admin");}},
+              {label:"Pending Users",count:pending.length,go:()=>{setTab("action");}},
+              {label:"Active Users",count:activeUsers.length,go:()=>{setTab("users");setUserFilter("all");}},
+              {label:"Deactivated Users",count:deactivated.length,go:()=>{setTab("deactivated");}},
+              {label:"Recently Active",count:metrics.recentlyActive.length,go:()=>{setTab("users");setUserFilter("recently_active");}},
+              {label:"Recently Inactive",count:metrics.recentlyInactive.length,go:()=>{setTab("users");setUserFilter("recently_inactive");}},
+              {label:"Advisor Requests",count:advisorRequests.length,go:()=>{setTab("advisor");setAdvisorFilter("all");}},
+              {label:"Unassigned Advisor Requests",count:metrics.unassigned.length,go:()=>{setTab("advisor");setAdvisorFilter("unassigned");}},
+              {label:"Reviewing Requests",count:metrics.reviewing.length,go:()=>{setTab("advisor");setAdvisorFilter("reviewing");}},
+              {label:"Contacted Requests",count:metrics.contacted.length,go:()=>{setTab("advisor");setAdvisorFilter("contacted");}},
+              {label:"Closed Requests",count:metrics.closed.length,go:()=>{setTab("advisor");setAdvisorFilter("closed");}}].map((card)=> <button key={card.label} className="rounded border p-3 text-left hover:bg-slate-50" onClick={card.go}><p className="text-xs text-slate-500">{card.label}</p><p className="text-2xl font-semibold">{card.count}</p></button>)}
           </div>
-        )}
+        </section>
 
-        {!loading && tab === "users" && (active.length ? <div className="space-y-3"><div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">{([{ key: "user", label: "Standard Users" }, { key: "premium_user", label: "Premium Users" }, { key: "advisor", label: "Advisors" }, { key: "admin", label: "Admins" }] as const).map((card) => { const isActive = roleFilter === card.key; const count = roleCounts[card.key]; const percent = totalUsers > 0 ? `${((count / totalUsers) * 100).toFixed(0)}%` : "0%"; return <button key={card.key} className={`rounded-xl border p-3 text-left transition ${isActive ? "border-blue-400 bg-blue-100" : "border-gray-200 bg-white hover:border-[#1A3A5F]"}`} onClick={() => setRoleFilter((prev) => prev === card.key ? "all" : card.key)}><p className="text-sm text-slate-600">{card.label}</p><p className="text-2xl font-semibold text-[#0A2540]">{count}</p><p className="text-xs text-slate-500">{percent}</p></button>;})}</div><div className="mb-2 flex items-center justify-between"><p className="text-sm text-slate-600">{roleFilter === "all" ? "Showing all active users" : `Filtered by ${ROLE_LABELS[roleFilter]}`}</p><button className="rounded border border-slate-300 px-3 py-1 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-50" disabled={roleFilter === "all"} onClick={() => setRoleFilter("all")}>All Users</button></div>{filteredUsers.length ? filteredUsers.map((u) => {const a = activity(u.last_active_at); const isPrimaryAdmin = u.email.toLowerCase() === PRIMARY_ADMIN_EMAIL; const selectedRole = roleDrafts[u.id] || u.role || "user"; return <div key={u.id} className="rounded-xl border p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p></div><div className="flex gap-2">{statusBadge(u.account_status, "account")}{statusBadge(u.role || "user", "role")}{isPrimaryAdmin && <Badge tone="bg-purple-200 text-purple-900">Primary Admin</Badge>}</div></div><div className="mt-2 text-sm text-slate-600"><span className={`mr-2 inline-block h-2.5 w-2.5 rounded-full ${a.dot}`} /> <span className={a.tone}>{a.label}</span> • Last active: {u.last_active_at ? new Date(u.last_active_at).toLocaleString() : "-"} • Last login: {u.last_login_at ? new Date(u.last_login_at).toLocaleString() : "-"}</div><div className="mt-3 flex flex-wrap items-center gap-2"><button className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50" disabled={isPrimaryAdmin} onClick={() => act("admin-user-deactivate", { userId: u.id })}>Deactivate</button><label className="text-sm text-slate-600">Select Role:</label><select className="rounded border px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50" disabled={isPrimaryAdmin} value={selectedRole} onChange={(e) => setRoleDrafts((prev) => ({ ...prev, [u.id]: e.target.value }))}>{availableRoleOptions.map((roleOption) => <option key={roleOption.value} value={roleOption.value}>{roleOption.label}</option>)}</select><button className="rounded border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50" disabled={isPrimaryAdmin || selectedRole === (u.role || "user")} onClick={async () => {const ok = await act("admin-user-role-update", { userId: u.id, role: selectedRole }, false); if (ok) {setUsers((prev) => prev.map((item) => item.id === u.id ? { ...item, role: selectedRole } : item)); setToast(`Role updated to ${ROLE_LABELS[selectedRole] || selectedRole}`);}}}>Update Role</button></div></div>;}) : <EmptyState title="No users in this role" helper="Try another role filter or reset to All Users." />}</div> : <EmptyState title="No active users" helper="Approved users will appear here." />)}
+        <section><h2 className="text-lg font-semibold">Quick Actions</h2><div className="mt-2 flex flex-wrap gap-2 text-sm">
+          <button className="rounded border px-3 py-2" onClick={() => { setTab("action"); }}>Review Pending</button>
+          <button className="rounded border px-3 py-2" onClick={() => { setTab("users"); setRoleFilter("premium_user"); }}>View Premium</button>
+          <button className="rounded border px-3 py-2" onClick={() => { setTab("users"); setUserFilter("recently_inactive"); }}>View Inactive</button>
+          <button className="rounded border px-3 py-2" onClick={() => { setTab("advisor"); setAdvisorFilter("unassigned"); }}>View Unassigned</button>
+          <button className="rounded border px-3 py-2" onClick={() => { setTab("deactivated"); }}>View Deactivated</button>
+          <button className="rounded border px-3 py-2 opacity-60" disabled>Coming Soon</button>
+        </div></section>
 
-        {!loading && tab === "deactivated" && (deactivated.length ? <div className="space-y-3">{deactivated.map((u) => <div key={u.id} className="rounded-xl border p-4"><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p><div className="mt-2 flex gap-2">{statusBadge("deactivated", "account")}{statusBadge(u.role || "user", "role")}</div><p className="mt-2 text-sm text-slate-600">Deactivated: {u.deactivated_at ? new Date(u.deactivated_at).toLocaleString() : "-"}</p><button className="mt-3 rounded bg-green-600 px-3 py-1 text-white" onClick={() => act("admin-user-activate", { userId: u.id })}>Reactivate</button></div>)}</div> : <EmptyState title="No deactivated users" helper="When users are deactivated, they will show here for reactivation." />)}
+        <section><h2 className="text-lg font-semibold">Conversion Funnel</h2>
+          <p className="text-sm text-slate-500">Loan readiness data not available yet.</p>
+          <div className="mt-2 space-y-2">{funnelStages.map((stage, idx) => {
+            const pctTotal = stage.count === null || users.length === 0 ? "Not enough data yet" : `${((stage.count / users.length) * 100).toFixed(1)}% of total`;
+            const prev = idx > 0 ? funnelStages[idx - 1].count : null;
+            const pctPrev = stage.count === null || prev === null || prev === 0 ? "Not enough data yet" : `${((stage.count / prev) * 100).toFixed(1)}% from previous`;
+            return <div key={stage.label} className="rounded border p-3 text-sm"><p className="font-medium">{idx + 1}. {stage.label}</p><p>Count: <strong>{stage.count === null ? "Not enough data yet" : stage.count}</strong></p><p className="text-slate-600">{pctTotal} · {idx===0?"-":pctPrev}</p></div>;
+          })}</div>
+        </section>
 
-        {!loading && tab === "advisor" && (() => {
-          const filtered = advisorRequests.filter((r) => {
-            if (advisorFilter === "all") return true;
-            if (advisorFilter === "unassigned") return !r.assigned_advisor_email;
-            if (advisorFilter === "assigned") return !!r.assigned_advisor_email;
-            return r.status === advisorFilter;
-          });
+        <section><h2 className="text-lg font-semibold">Advisor Operations Snapshot</h2><div className="mt-2 grid gap-2 md:grid-cols-2 text-sm">
+          <div>Total advisor requests: <strong>{advisorRequests.length}</strong></div><div>Unassigned: <strong>{metrics.unassigned.length}</strong></div><div>Reviewing: <strong>{metrics.reviewing.length}</strong></div><div>Contacted: <strong>{metrics.contacted.length}</strong></div><div>Closed: <strong>{metrics.closed.length}</strong></div><div>High urgency: <strong>{metrics.highUrgency.length}</strong></div><div>Oldest unassigned request age: <strong>{metrics.oldestUnassignedHours ? `${metrics.oldestUnassignedHours.toFixed(1)}h` : "-"}</strong></div><div>Average Time to Assignment: <strong>{metrics.avgAssignmentHours ? `${metrics.avgAssignmentHours.toFixed(1)}h` : "Insufficient history"}</strong></div>
+        </div></section>
 
-          if (!filtered.length) return <EmptyState title="No advisor requests yet" helper="New advisor requests will appear here." />;
+        <section><h2 className="text-lg font-semibold">Trend Indicators</h2><div className="mt-2 grid gap-2 md:grid-cols-2 text-sm">
+          <div>New users in last 7 days: <strong>{metrics.newUsersThisWeek}</strong> ({metrics.newUsersThisWeek === metrics.newUsersPrevWeek ? "No change" : `Up from ${metrics.newUsersPrevWeek} last week`})</div>
+          <div>Advisor requests in last 7 days: <strong>{metrics.advisorThisWeek}</strong> ({metrics.advisorThisWeek === metrics.advisorPrevWeek ? "No change" : `Up from ${metrics.advisorPrevWeek} last week`})</div>
+          <div>Current premium users: <strong>{metrics.premiumUsers.length}</strong> (Insufficient history for weekly premium conversions)</div>
+          <div>Active users in last 24 hours: <strong>{metrics.recentlyActive.length}</strong> · Inactive users older than 7 days: <strong>{metrics.recentlyInactive.length}</strong></div>
+        </div></section>
+      </div>}
 
-          return (
-            <div className="space-y-3">
-              <div className="mb-2 flex flex-wrap gap-2">
-                {(["all", "unassigned", "assigned", "reviewing", "contacted", "closed"] as const).map((f) => (
-                  <button key={f} className={`rounded border px-3 py-1 text-sm ${advisorFilter === f ? "bg-slate-100" : ""}`} onClick={() => setAdvisorFilter(f)}>
-                    {f === "all" ? "All Requests" : f[0].toUpperCase() + f.slice(1)}
-                  </button>
-                ))}
-              </div>
-              {filtered.map((r) => {
-                const selectedAdvisorId = assignmentDrafts[r.id] || "";
-                console.log("selectedAdvisorId:", selectedAdvisorId);
-                const selectedAdvisor = advisorOptions.find((a) => a.id === selectedAdvisorId);
-                const currentAdvisorName = r.assigned_advisor_name || advisorOptions.find((a) => a.id === r.assigned_advisor_id)?.name || r.assigned_advisor_email;
-                return (
-                  <div key={r.id} className="rounded-xl border p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-medium">{r.name} • {r.topic}</p>
-                      <div className="flex gap-2">
-                        {r.urgency === "high" && <Badge tone="bg-red-100 text-red-800">High urgency</Badge>}
-                        {statusBadge(r.status || "new", "advisor")}
-                        {r.assigned_advisor_email ? <Badge tone="bg-green-100 text-green-800">{`Assigned to ${currentAdvisorName || r.assigned_advisor_email}`}</Badge> : <Badge tone="bg-amber-100 text-amber-800">Unassigned</Badge>}
-                      </div>
-                    </div>
-                    <p className="mt-1 text-sm text-slate-500">{r.email} • {r.phone}</p>
-                    <p className="mt-1 text-sm text-slate-500">{(r.message || "").slice(0, 120)}</p>
-                    <p className="mt-2 text-xs text-slate-500">Created: {new Date(r.created_at).toLocaleString()} • Assigned at: {r.assigned_at ? new Date(r.assigned_at).toLocaleString() : "-"} • Assigned by: {r.assigned_by || "-"}</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <select className="rounded border px-2 py-1 text-sm" value={selectedAdvisorId} onChange={(e) => setAssignmentDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))}>
-                        <option value="">Assign advisor...</option>
-                        {advisorOptions.map((a) => <option key={a.id} value={a.id}>{a.name || a.email} ({a.role})</option>)}
-                      </select>
-                      <button disabled={!selectedAdvisorId} className="rounded bg-[#0A2540] px-3 py-1 text-white disabled:cursor-not-allowed disabled:opacity-60" onClick={async () => {
-                        if (!selectedAdvisor) {
-                          alert("Please select an advisor");
-                          return;
-                        }
-                        const token = await getIdentityToken(user);
-                        if (!token) return;
-                        const response = await fetch('/.netlify/functions/admin-advisor-request-assign', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ requestId: r.id, advisorId: selectedAdvisor.id, advisorEmail: selectedAdvisor.email }) });
-                        if (!response.ok) {
-                          const err = await response.json();
-                          alert(err.error || "Assignment failed");
-                          return;
-                        }
-                        const data = await response.json();
-                        setAdvisor((prev) => prev.map((item) => item.id === r.id ? { ...item, ...data.request, assigned_advisor_name: data.request.advisor_name || selectedAdvisor.name || selectedAdvisor.email } : item));
-                        setToast(`Assigned to ${selectedAdvisor.name || selectedAdvisor.email}`);
-                        alert(`Assigned to ${selectedAdvisor.email}`);
-                      }}>{r.assigned_advisor_email ? "Reassign Advisor" : "Assign"}</button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
+      {!loading && tab === "action" && <div className="space-y-3">{pending.length === 0 && !newAdvisor.length ? <EmptyState title="No pending approvals" helper="You're caught up." /> : <>{pending.map((u) => <div key={u.id} className="rounded border p-3"><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p><button className="mt-2 rounded bg-green-600 px-3 py-1 text-white" onClick={() => act("admin-user-approve", { userId: u.id })}>Approve</button></div>)}{newAdvisor.map((r) => <div key={r.id} className="rounded border p-3"><p className="font-medium">{r.topic}</p><p className="text-sm">{r.email}</p></div>)}</>}</div>}
 
-        {!loading && tab === "invite" && (
-          <form
-            className="mx-auto max-w-xl rounded-xl border p-4"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              await act("admin-user-invite", invite);
-              setMsg("User added. Send them the signup link or Netlify invite.");
-            }}
-          >
-            <h2 className="mb-3 text-lg font-semibold">Invite User</h2>
-            <div className="grid gap-3">
-              <input className="rounded border px-3 py-2" placeholder="Name" value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} />
-              <input className="rounded border px-3 py-2" placeholder="Email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} />
-              <select className="rounded border px-3 py-2" value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}>{availableRoleOptions.map((roleOption) => <option key={roleOption.value} value={roleOption.value}>{roleOption.label}</option>)}</select>
-              <div className="flex gap-2"><button type="submit" className="rounded bg-[#0A2540] px-3 py-2 text-white">Add User</button><button type="button" className="rounded border px-3 py-2" onClick={() => navigator.clipboard.writeText(`Hi ${invite.name || "there"}, you've been added to ClarityFinance. Please use your email (${invite.email}) to sign up or accept your Netlify invite.`)}>Copy invite message</button></div>
-            </div>
-            {msg && <p className="mt-3 text-sm text-green-700">{msg}</p>}
-          </form>
-        )}
-      </div>
+      {!loading && tab === "users" && (filteredUsers.length ? <div className="space-y-2"><div className="flex gap-2 text-sm"><select className="rounded border px-2 py-1" value={roleFilter} onChange={(e)=>setRoleFilter(e.target.value)}><option value="all">All Roles</option>{availableRoleOptions.map((r)=><option key={r.value} value={r.value}>{r.label}</option>)}</select><select className="rounded border px-2 py-1" value={userFilter} onChange={(e)=>setUserFilter(e.target.value as UserFilter)}><option value="all">All Activity</option><option value="pending">Pending Users</option><option value="recently_active">Recently Active</option><option value="recently_inactive">Recently Inactive</option></select></div>{filteredUsers.map((u)=>{const selectedRole=roleDrafts[u.id]||u.role||"user";const isPrimary=u.email.toLowerCase()===PRIMARY_ADMIN_EMAIL;return <div key={u.id} className="rounded border p-3"><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm text-slate-500">{u.email}</p><div className="mt-2 flex gap-2">{statusBadge(u.account_status,"account")}{statusBadge(u.role || "user","role")}</div><div className="mt-2 flex gap-2"><button className="rounded border px-2 py-1 disabled:opacity-50" disabled={isPrimary} onClick={()=>act("admin-user-deactivate",{userId:u.id})}>Deactivate</button><select className="rounded border px-2 py-1" value={selectedRole} onChange={(e)=>setRoleDrafts((p)=>({...p,[u.id]:e.target.value}))}>{availableRoleOptions.map((r)=><option key={r.value} value={r.value}>{r.label}</option>)}</select><button className="rounded border px-2 py-1 disabled:opacity-50" disabled={selectedRole===(u.role||"user")} onClick={async()=>{const ok=await act("admin-user-role-update",{userId:u.id,role:selectedRole},false); if(ok){setUsers((prev)=>prev.map((it)=>it.id===u.id?{...it,role:selectedRole}:it));}}}>Update Role</button></div></div>;})}</div> : <EmptyState title={roleFilter==="premium_user"?"No Premium Users found.":userFilter==="recently_inactive"?"No Recently Inactive Users found.":"No active users"} helper="Try a different filter." />)}
+
+      {!loading && tab === "deactivated" && (deactivated.length ? <div className="space-y-2">{deactivated.map((u)=><div key={u.id} className="rounded border p-3"><p className="font-medium">{u.name || "Unnamed user"}</p><p className="text-sm">{u.email}</p><button className="mt-2 rounded bg-green-600 px-3 py-1 text-white" onClick={()=>act("admin-user-activate",{userId:u.id})}>Reactivate</button></div>)}</div> : <EmptyState title="No deactivated users" helper="When users are deactivated, they will show here." />)}
+
+      {!loading && tab === "advisor" && (()=>{const filtered=advisorRequests.filter((r)=>{if(advisorFilter==="all")return true; if(advisorFilter==="unassigned")return !r.assigned_advisor_email&&!r.assigned_advisor_id; if(advisorFilter==="assigned")return !!(r.assigned_advisor_email||r.assigned_advisor_id); return r.status===advisorFilter;}); if(!filtered.length)return <EmptyState title={advisorFilter==="unassigned"?"No Unassigned Advisor Requests found.":"No advisor requests yet"} helper="New advisor requests will appear here." />; return <div className="space-y-2"><div className="flex flex-wrap gap-2 text-sm">{(["all","unassigned","assigned","reviewing","contacted","closed"] as const).map((f)=><button key={f} className={`rounded border px-3 py-1 ${advisorFilter===f?"bg-slate-100":""}`} onClick={()=>setAdvisorFilter(f)}>{f==="all"?"All Requests":f[0].toUpperCase()+f.slice(1)}</button>)}</div>{filtered.map((r)=>{const selectedAdvisorId=assignmentDrafts[r.id]||"";const selectedAdvisor=advisorOptions.find((a)=>a.id===selectedAdvisorId); return <div key={r.id} className="rounded border p-3"><p className="font-medium">{r.name} • {r.topic}</p><p className="text-sm">{r.email}</p><div className="mt-2 flex gap-2">{statusBadge(r.status||"new","advisor")} {!r.assigned_advisor_email && !r.assigned_advisor_id ? <Badge tone="bg-amber-100 text-amber-800">Unassigned</Badge> : <Badge tone="bg-green-100 text-green-800">Assigned</Badge>}</div><div className="mt-2 flex gap-2"><select className="rounded border px-2 py-1 text-sm" value={selectedAdvisorId} onChange={(e)=>setAssignmentDrafts((p)=>({...p,[r.id]:e.target.value}))}><option value="">Assign advisor...</option>{advisorOptions.map((a)=><option key={a.id} value={a.id}>{a.name || a.email}</option>)}</select><button disabled={!selectedAdvisorId} className="rounded bg-[#0A2540] px-3 py-1 text-white disabled:opacity-60" onClick={async()=>{if(!selectedAdvisor)return; const token=await getIdentityToken(user); if(!token)return; const response=await fetch('/.netlify/functions/admin-advisor-request-assign',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({requestId:r.id,advisorId:selectedAdvisor.id,advisorEmail:selectedAdvisor.email})}); if(!response.ok)return; const data=await response.json(); setAdvisor((prev)=>prev.map((item)=>item.id===r.id?{...item,...data.request}:item));}}>{r.assigned_advisor_email?"Reassign Advisor":"Assign"}</button></div></div>;})}</div>;})()}
+
+      {!loading && tab === "invite" && <form className="mx-auto max-w-xl rounded-xl border p-4" onSubmit={async (e) => { e.preventDefault(); await act("admin-user-invite", invite); setMsg("User added. Send signup link."); }}><h2 className="mb-3 text-lg font-semibold">Invite User</h2><div className="grid gap-3"><input className="rounded border px-3 py-2" placeholder="Name" value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} /><input className="rounded border px-3 py-2" placeholder="Email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} /><select className="rounded border px-3 py-2" value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}>{availableRoleOptions.map((roleOption) => <option key={roleOption.value} value={roleOption.value}>{roleOption.label}</option>)}</select><button type="submit" className="rounded bg-[#0A2540] px-3 py-2 text-white">Add User</button></div>{msg && <p className="mt-3 text-sm text-green-700">{msg}</p>}</form>}
     </div>
-  );
+  </div>;
 }

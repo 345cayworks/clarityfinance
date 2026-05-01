@@ -86,3 +86,8 @@ Expected advisor request fields (nullable):
 - `prequalification_share_url`: optional protected/internal URL to an artifact; if absent the UI shows a missing-artifact guidance state.
 - `recommendation_json`: structured object used for advisor summaries (readiness score/band, urgency/package, key notes, monthly surplus, DTI, housing ratio, total monthly pressure, missing documents).
 - Optional linking fields if present in schema: `loan_readiness_application_id`, `loan_readiness_report_id`, `artifact_type`.
+
+
+## Admin analytics aggregate model
+- Admin analytics uses aggregate counts only (roles, account lifecycle, advisor request statuses, recent activity windows, and coarse trend windows).
+- Loan readiness funnel stages are shown as `Not enough data yet` until a secure admin aggregate source is added for cross-user loan-readiness/report counts.

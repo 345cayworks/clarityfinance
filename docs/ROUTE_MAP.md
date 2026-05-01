@@ -53,3 +53,7 @@ Legend route types: `PUBLIC`, `USER_CORE`, `SCENARIO`, `LOAN_READINESS`, `ADVISO
 ## Advisor artifact UX notes
 - `/app/advisor/request/[requestId]` now has an **Attached Artifacts** section that shows Prequalification Summary links, Loan Readiness Report id, Recommendation Summary, and mapped Source Context labels.
 - Missing artifact behavior is explicit: advisors see a guidance message instead of a `-` URL placeholder.
+
+
+## Admin analytics
+- `/app/admin/accounts` includes a dedicated `📊 Analytics` tab for aggregate-only HUD cards, quick actions, conversion funnel, advisor operations snapshot, and trend indicators.
