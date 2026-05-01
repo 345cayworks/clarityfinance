@@ -9,9 +9,17 @@ export const handler: Handler = async (event) => {
   const body = parseJsonBody<{ requestId?: string; status?: string; advisorNotes?: string }>(event) ?? {};
   if (!body.requestId || !body.status || !allowed.has(body.status)) return json(400, { error: "Invalid payload" });
 
-  const targetRows = await sql`SELECT assigned_advisor_email FROM advisor_requests WHERE id = ${body.requestId} LIMIT 1` as Array<{ assigned_advisor_email: string | null }>;
+  const targetRows = await sql`
+    SELECT assigned_advisor_email, assigned_advisor_id
+    FROM advisor_requests
+    WHERE id = ${body.requestId}
+    LIMIT 1
+  ` as Array<{ assigned_advisor_email: string | null; assigned_advisor_id: string | null }>;
   if (!targetRows[0]) return json(404, { error: "Not found" });
-  const access = await requireAssignedAdvisorOrAdmin(event, targetRows[0].assigned_advisor_email);
+  const access = await requireAssignedAdvisorOrAdmin(event, {
+    assignedAdvisorEmail: targetRows[0].assigned_advisor_email,
+    assignedAdvisorId: targetRows[0].assigned_advisor_id
+  });
   if (!access.ok) return json(access.statusCode, access.body);
 
   await sql`UPDATE advisor_requests SET status=${body.status}, advisor_notes=${body.advisorNotes ?? null}, advisor_last_updated_at=NOW(), updated_at=NOW() WHERE id=${body.requestId}`;

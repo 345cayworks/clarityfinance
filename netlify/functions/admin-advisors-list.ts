@@ -10,7 +10,7 @@ export const handler: Handler = async (event) => {
   const advisors = await sql`
     SELECT id, name, email, role
     FROM users
-    WHERE role IN ('advisor', 'admin')
+    WHERE role IN ('advisor', 'admin', 'superadmin')
       AND account_status = 'active'
       AND approval_status = 'approved'
     ORDER BY name ASC NULLS LAST, email ASC

@@ -20,6 +20,7 @@ export const handler: Handler = async (event) => {
       SELECT id,user_id,name,email,phone,topic,urgency,message,status,created_at,updated_at,assigned_at,assigned_advisor_id,assigned_advisor_email,advisor_notes
       FROM advisor_requests
       WHERE assigned_advisor_email = ${access.user.email}
+         OR assigned_advisor_id = ${access.user.id}
       ORDER BY created_at DESC
       LIMIT 250`;
 

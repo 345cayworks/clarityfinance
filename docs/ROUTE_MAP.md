@@ -35,9 +35,9 @@ Legend route types: `PUBLIC`, `USER_CORE`, `SCENARIO`, `LOAN_READINESS`, `ADVISO
 | `/app/advisor` | `app/(workspace)/app/advisor/page.tsx` | Advisor module entry | ADVISOR | active_user+/advisor | varies | advisor module | keep |
 | `/app/advisor/request` | `app/(workspace)/app/advisor/request/page.tsx` | Submit advisor request | ADVISOR | active_user+ | `advisor-request-save` | request form | keep |
 | `/app/advisor/status` | `app/(workspace)/app/advisor/status/page.tsx` | User-visible status of own requests | ADVISOR | active_user+ | `advisor-requests-my` | status list | keep |
-| `/app/advisor/dashboard` | `app/(workspace)/app/advisor/dashboard/page.tsx` | Advisor assigned cases dashboard | ADVISOR | advisor+ | `advisor-requests-assigned`, `advisor-request-update` | advisor tables | protect strictly |
+| `/app/advisor/dashboard` | `app/(workspace)/app/advisor/dashboard/page.tsx` | Advisor assigned cases dashboard with notes/status actions | ADVISOR | advisor/admin/superadmin | `advisor-requests-assigned`, `advisor-request-update` | advisor cards/tabs | keep + hardened assignment visibility |
 | `/app/admin` | `app/(workspace)/app/admin/page.tsx` | Admin home | ADMIN | admin+ | `me` | admin nav | keep |
-| `/app/admin/accounts` | `app/(workspace)/app/admin/accounts/page.tsx` | User approval/roles/assignment | ADMIN | admin+ | `admin-users-list`, `admin-advisors-list`, admin-user* | admin account table | keep |
+| `/app/admin/accounts` | `app/(workspace)/app/admin/accounts/page.tsx` | User approval/roles and advisor request assignment visibility/filtering | ADMIN | admin/superadmin | `admin-users-list`, `admin-advisors-list`, `admin-advisor-request-assign`, `admin-advisor-request-update`, admin-user* | admin tabs + advisor request section | keep |
 | `/app/admin/notifications` | `app/(workspace)/app/admin/notifications/page.tsx` | Admin notifications workflow | ADMIN | admin+ | (verify linkage) | notifications UI | improve / wire fully |
 | `/app/settings` | `app/(workspace)/app/settings/page.tsx` | User settings | USER_CORE | active_user+ | none/limited | settings UI | keep |
 
@@ -46,3 +46,5 @@ Legend route types: `PUBLIC`, `USER_CORE`, `SCENARIO`, `LOAN_READINESS`, `ADVISO
 - Unauthenticated users are redirected to `/login`.
 - Authenticated users with unresolved or non-active status are redirected to `/app/pending-approval` (with profile/onboarding exceptions).
 - Unauthorized role access is redirected to `/app/dashboard` (or to `/app/pending-approval` for pending users).
+
+| `/app/advisor/request/[requestId]` | `app/(workspace)/app/advisor/request/[requestId]/page.tsx` | Advisor case detail view | ADVISOR | assigned advisor/admin/superadmin | `advisor-request-detail` | request detail card | keep |

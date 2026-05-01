@@ -72,11 +72,18 @@ export async function requireAdmin(event: HandlerEvent) {
   return active;
 }
 
-export async function requireAssignedAdvisorOrAdmin(event: HandlerEvent, assignedAdvisorEmail: string | null | undefined) {
+export async function requireAssignedAdvisorOrAdmin(
+  event: HandlerEvent,
+  assignment: { assignedAdvisorEmail?: string | null; assignedAdvisorId?: string | null } | string | null | undefined
+) {
   const advisor = await requireAdvisor(event);
   if (!advisor.ok) return advisor;
   if (["admin", "superadmin"].includes(advisor.user.role)) return advisor;
-  if (!assignedAdvisorEmail || assignedAdvisorEmail.toLowerCase() !== advisor.user.email.toLowerCase()) {
+  const assignedAdvisorEmail = typeof assignment === "string" ? assignment : assignment?.assignedAdvisorEmail;
+  const assignedAdvisorId = typeof assignment === "string" ? null : assignment?.assignedAdvisorId;
+  const emailMatch = assignedAdvisorEmail && assignedAdvisorEmail.toLowerCase() === advisor.user.email.toLowerCase();
+  const idMatch = assignedAdvisorId && assignedAdvisorId === advisor.user.id;
+  if (!emailMatch && !idMatch) {
     return { ok: false as const, statusCode: 403, body: { error: "Forbidden" } };
   }
   return advisor;
