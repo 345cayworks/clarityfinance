@@ -247,7 +247,7 @@ export default function ReportPage() {
   const nonHousingExpenses = totalExpenses(data?.expenseProfile ?? null);
   const housing = housingPayment(data?.housingProfile ?? null);
   const totalExpenseWithHousing = nonHousingExpenses + housing;
-  const expenses = nonHousingExpenses;
+  const expenses = totalExpenseWithHousing;
   const surplus = monthlySurplus(data?.incomeSources ?? [], data?.expenseProfile ?? null, data?.housingProfile ?? null);
   const debtPayments = monthlyDebtPayments(data?.debts ?? []);
   const totalMonthlyObligations = totalExpenseWithHousing + debtPayments;
@@ -526,8 +526,13 @@ export default function ReportPage() {
             <h2 className="text-lg font-semibold text-[#0A2540]">Expense Report</h2>
             <ReportActions
               reportName="expense-report"
-              csvRows={[["Category", "Amount", "Percentage of Total Expenses"], ...expenseRows.map((row) => [row.label, toCurrency(row.value, currency), `${row.pct.toFixed(1)}%`])]}
-              summaryText={`Expense Report: total monthly expenses ${toCurrency(totalExpenseWithHousing, currency)}. Top categories: ${
+              csvRows={[
+                ["Category", "Amount", "Percentage of Total Expenses"],
+                ["Total monthly expenses", toCurrency(totalExpenseWithHousing, currency), "100.0%"],
+                ["Housing included", toCurrency(housing, currency), totalExpenseWithHousing > 0 ? `${((housing / totalExpenseWithHousing) * 100).toFixed(1)}%` : "0.0%"],
+                ...expenseRows.map((row) => [row.label, toCurrency(row.value, currency), `${row.pct.toFixed(1)}%`])
+              ]}
+              summaryText={`Expense Report: total monthly expenses ${toCurrency(totalExpenseWithHousing, currency)}. Housing included: ${toCurrency(housing, currency)}. Top categories: ${
                 topExpenseRows.map((row) => row.label).join(", ") || "Missing data"
               }.`}
               copied={copiedReport === "expense"}
@@ -542,6 +547,7 @@ export default function ReportPage() {
             <span className="text-sm text-slate-500">total monthly expenses</span>
           </div>
           <p className="text-sm text-slate-600">Housing is included in total expenses and is sourced from mortgage or rent details.</p>
+          <p className="text-sm text-slate-600">Housing included: {toCurrency(housing, currency)}</p>
           <div className="grid gap-2 md:grid-cols-2">
             {expenseRows.map((row) => (
               <div key={row.label === "Housing" ? "Housing (Mortgage / Rent)" : row.label} className="rounded-lg border border-slate-200 p-3 text-sm">
