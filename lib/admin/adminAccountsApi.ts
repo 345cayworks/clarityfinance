@@ -1,5 +1,4 @@
-import { getIdentityToken } from "@/lib/auth/netlify-identity";
-import type { User as IdentityUser } from "@supabase/supabase-js";
+import { getIdentityToken, type IdentityUser } from "@/lib/auth/netlify-identity";
 import type { AdminAdvisorRequestRow, AdminUserRow, AdvisorOption } from "@/lib/types/admin";
 import type { UserRole } from "@/lib/types/roles";
 
@@ -32,10 +31,15 @@ export async function postAdminAction(user: IdentityUser | null, path: string, p
 }
 
 export const updateAdminUserRole = (user: IdentityUser | null, userId: string, role: UserRole) =>
-  postAdminAction(user, "admin-user-role-update", { user_id: userId, role });
+  postAdminAction(user, "admin-user-role-update", { userId, role });
 
-export const assignAdvisorToRequest = (user: IdentityUser | null, requestId: string, advisorId: string) =>
-  postAdminAction(user, "admin-advisor-request-assign", { request_id: requestId, advisor_id: advisorId });
+export const assignAdvisorToRequest = (
+  user: IdentityUser | null,
+  requestId: string,
+  advisorId: string,
+  advisorEmail?: string
+) =>
+  postAdminAction(user, "admin-advisor-request-assign", { requestId, advisorId, advisorEmail });
 
 export const inviteAdminUser = (user: IdentityUser | null, name: string, email: string, role: UserRole) =>
-  postAdminAction(user, "admin-invite-user", { name, email, role });
+  postAdminAction(user, "admin-user-invite", { name, email, role });
