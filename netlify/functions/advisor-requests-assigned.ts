@@ -3,8 +3,21 @@ import { sql } from "../../lib/db/neon";
 import { requireAdvisor } from "./_access";
 import { json } from "./_utils";
 
+const ENSURE_ADVISOR_COLUMNS_SQL = sql`
+  ALTER TABLE advisor_requests
+  ADD COLUMN IF NOT EXISTS advisor_notes text,
+  ADD COLUMN IF NOT EXISTS advisor_private_notes text,
+  ADD COLUMN IF NOT EXISTS last_contacted_at timestamptz,
+  ADD COLUMN IF NOT EXISTS closed_at timestamptz,
+  ADD COLUMN IF NOT EXISTS status_updated_at timestamptz,
+  ADD COLUMN IF NOT EXISTS advisor_last_updated_at timestamptz
+`;
+
 export const handler: Handler = async (event) => {
+  if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" });
   try {
+    await ENSURE_ADVISOR_COLUMNS_SQL;
+
     const access = await requireAdvisor(event);
     if (!access.ok) return json(access.statusCode, access.body);
 
@@ -27,7 +40,11 @@ export const handler: Handler = async (event) => {
 
     return json(200, { requests: requests ?? [] });
   } catch (err) {
-    console.error("advisor-requests-assigned error", err);
+    console.error("[advisor-requests-assigned] Failed to load advisor requests", {
+      error: err instanceof Error ? { message: err.message, stack: err.stack } : err,
+      method: event.httpMethod,
+      query: event.queryStringParameters ?? null
+    });
     return json(500, { error: "Failed to load assigned requests" });
   }
 };
