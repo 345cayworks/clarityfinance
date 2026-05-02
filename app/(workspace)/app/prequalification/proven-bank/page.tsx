@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
 import { calculateApprovalReadinessScore } from "@/lib/finance/approval-score";
-import { housingPayment, totalExpenses } from "@/lib/finance/calculations";
+import { getHousingExpense, getTotalMonthlyExpenses } from "@/lib/calculations/finance";
 import { buildLoanReadinessProfile } from "@/lib/finance/loan-readiness-mapper";
 
 type SavedOnboardingData = {
@@ -275,8 +275,8 @@ export default function ProvenBankPrequalificationPage() {
         const income = payload.incomeSources?.[0] ?? {};
 
         const debtPayments = debts.reduce<number>((sum, debt) => sum + toNumber(String(debt.monthly_payment ?? "0")), 0);
-        const nonHousingExpenses = totalExpenses(expenseProfile);
-        const currentHousingPayment = housingPayment(payload.housingProfile ?? null);
+        const nonHousingExpenses = getTotalMonthlyExpenses(expenseProfile);
+        const currentHousingPayment = getHousingExpense(payload.housingProfile ?? null);
 
         setForm((prev) => ({
           ...prev,

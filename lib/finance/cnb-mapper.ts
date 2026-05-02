@@ -1,4 +1,4 @@
-import { debtTotal, monthlyDebtPayments, toNumber } from "@/lib/finance/calculations";
+import { getTotalDebt, getMonthlyDebtPayments, numberValue as toNumber } from "@/lib/calculations/finance";
 import { buildLoanReadinessProfile, type LoanReadinessPayload } from "@/lib/finance/loan-readiness-mapper";
 
 const toText = (value: unknown, fallback = "") => {
@@ -12,8 +12,8 @@ export const CNB_MAPPING_AUDIT = true;
 export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
   const readiness = buildLoanReadinessProfile(profileData);
   const debts = profileData.debts ?? [];
-  const debtPayments = monthlyDebtPayments(debts);
-  const otherDebtBalances = debtTotal(debts);
+  const debtPayments = getMonthlyDebtPayments(debts);
+  const otherDebtBalances = getTotalDebt(debts);
 
   const loanPayments = debts
     .filter((debt) => {

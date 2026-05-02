@@ -1,12 +1,13 @@
 import {
-  debtTotal,
-  housingPayment,
-  monthlyDebtPayments,
-  savingsRunwayMonths,
-  toNumber,
-  totalIncome,
-  totalLivingExpenses
-} from "@/lib/finance/calculations";
+  numberValue as toNumber,
+  getMonthlyIncome,
+  getHousingExpense,
+  getMonthlyDebtPayments,
+  getTotalDebt,
+  getSavingsRunwayMonths,
+  getNonHousingNonDebtExpenses,
+  getTotalMonthlyExpenses
+} from "@/lib/calculations/finance";
 import { interpretDebtPressure } from "@/lib/finance/debt-pressure";
 
 type GenericRow = Record<string, unknown>;
@@ -38,7 +39,7 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
   const goals = data.goals ?? {};
 
   // Canonical source order: income
-  const recurringIncomeTotal = totalIncome(incomeSources);
+  const recurringIncomeTotal = getMonthlyIncome(profile, incomeSources).value;
   const monthlyNetIncome = toNumber(profile.monthly_net_income);
   const monthlyGrossIncome = toNumber(profile.monthly_gross_income);
   const monthlyIncomeUsed = monthlyNetIncome > 0 ? monthlyNetIncome : monthlyGrossIncome > 0 ? monthlyGrossIncome : recurringIncomeTotal > 0 ? recurringIncomeTotal : 0;
@@ -52,12 +53,12 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
           : "fallback.0";
 
   // Canonical source order: expenses
-  const nonHousingLivingExpenses = totalLivingExpenses(data.expenseProfile ?? null, null);
-  const housingExpense = housingPayment(data.housingProfile ?? null);
+  const nonHousingLivingExpenses = getNonHousingNonDebtExpenses(data.expenseProfile ?? null).value;
+  const housingExpense = getHousingExpense(data.housingProfile ?? null).value;
   const livingExpenses = nonHousingLivingExpenses + housingExpense;
-  const debtPayments = monthlyDebtPayments(debts);
-  const totalDebt = debtTotal(debts);
-  const totalMonthlyObligations = livingExpenses + debtPayments;
+  const debtPayments = getMonthlyDebtPayments(debts);
+  const totalDebt = getTotalDebt(debts);
+  const totalMonthlyObligations = getTotalMonthlyExpenses(data.expenseProfile ?? null, data.housingProfile ?? null, debts);
   const monthlySurplus = monthlyIncomeUsed - totalMonthlyObligations;
 
   // Canonical source order: assets
@@ -91,7 +92,7 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
   const debtToIncome = monthlyIncomeUsed > 0 ? debtPayments / monthlyIncomeUsed : null;
   const housingRatio = monthlyIncomeUsed > 0 ? housingExpense / monthlyIncomeUsed : null;
   const totalObligationsRatio = monthlyIncomeUsed > 0 ? totalMonthlyObligations / monthlyIncomeUsed : null;
-  const runwayMonths = savingsRunwayMonths(data.savingsProfile ?? null, data.expenseProfile ?? null, data.housingProfile ?? null);
+  const runwayMonths = getSavingsRunwayMonths(data.savingsProfile ?? null, data.expenseProfile ?? null, data.housingProfile ?? null);
   const debtPressure = interpretDebtPressure({
     debtToIncome,
     housingRatio,
