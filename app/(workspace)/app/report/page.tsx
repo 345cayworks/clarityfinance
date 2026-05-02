@@ -248,7 +248,7 @@ export default function ReportPage() {
   const housing = housingPayment(data?.housingProfile ?? null);
   const totalExpenseWithHousing = nonHousingExpenses + housing;
   const expenses = totalExpenseWithHousing;
-  const surplus = monthlySurplus(data?.incomeSources ?? [], data?.expenseProfile ?? null, data?.housingProfile ?? null);
+  const surplus = monthlySurplus(data?.incomeSources ?? [], data?.expenseProfile ?? null, data?.housingProfile ?? null, data?.debts ?? []);
   const debtPayments = monthlyDebtPayments(data?.debts ?? []);
   const totalMonthlyObligations = totalExpenseWithHousing + debtPayments;
   const totalDebtAmount = debtTotal(data?.debts ?? []);
@@ -272,7 +272,7 @@ export default function ReportPage() {
     downPaymentSavings +
     toNumber(data?.savingsProfile?.investments) +
     toNumber(data?.savingsProfile?.retirement_savings);
-  const runwayMonths = savingsRunwayMonths(data?.savingsProfile ?? null, data?.expenseProfile ?? null);
+  const runwayMonths = savingsRunwayMonths(data?.savingsProfile ?? null, data?.expenseProfile ?? null, data?.housingProfile ?? null);
   const readinessProfile = useMemo(() => (data ? buildLoanReadinessProfile(data) : null), [data]);
   const approvalScore = useMemo(() => (readinessProfile ? calculateApprovalReadinessScore(readinessProfile) : null), [readinessProfile]);
 
