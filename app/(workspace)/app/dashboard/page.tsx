@@ -302,7 +302,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <Link href="/app/report" className="card transition-colors hover:border-blue-300">
+        <Link href="/app/reports" className="card transition-colors hover:border-blue-300">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Report</p>
           <h3 className="mt-1 text-lg font-semibold text-[#0A2540]">View financial report</h3>
           <p className="mt-1 text-sm text-slate-600">See your profile summary, cash flow, debt, savings, and goals in one place.</p>
