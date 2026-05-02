@@ -152,7 +152,7 @@ export default function DashboardPage() {
     Number(savings?.emergency_fund ?? 0) +
     Number(savings?.investments ?? 0) +
     Number(savings?.retirement_savings ?? 0);
-  const runway = savingsRunwayMonths(data?.savingsProfile ?? null, data?.expenseProfile ?? null);
+  const runway = savingsRunwayMonths(data?.savingsProfile ?? null, data?.expenseProfile ?? null, data?.housingProfile ?? null);
   const cashAndEmergency = Number(savings?.cash_savings ?? 0) + Number(savings?.emergency_fund ?? 0);
   const runwaySupportingText =
     runway === null
