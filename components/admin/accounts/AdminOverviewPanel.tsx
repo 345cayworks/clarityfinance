@@ -1,0 +1,1 @@
+export function AdminOverviewPanel({ metrics }: { metrics: Record<string, number> }) { return <div className="grid gap-3 md:grid-cols-3">{Object.entries(metrics).map(([k,v])=><div key={k} className="rounded border p-3"><p className="text-xs text-slate-500">{k}</p><p className="text-2xl font-semibold">{v}</p></div>)}</div>; }

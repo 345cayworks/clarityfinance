@@ -41,7 +41,7 @@ const navSections: NavSection[] = [
       },
       {
         label: "Reports",
-        href: "/app/report",
+        href: "/app/reports",
         icon: (
           <Icon>
             <path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M14 3v5h5 M9 13h6 M9 17h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
