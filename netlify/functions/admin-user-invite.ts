@@ -1,7 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
 import { requireAdmin } from "./_access";
-import { ADMIN_EMAIL } from "./_admin";
+import { isPrimaryAdminEmail } from "./_admin";
 import { writeAuditLog } from "./_audit";
 import { json, parseJsonBody, randomId } from "./_utils";
 
@@ -19,13 +19,15 @@ export const handler: Handler = async (event) => {
   const role = (body.role ?? "").trim();
   if (!email || !emailPattern.test(email)) return json(400, { error: "Valid email is required" });
   if (!allowedRoles.has(role)) return json(400, { error: "Valid role is required" });
-  if (email === ADMIN_EMAIL) return json(403, { error: "Permanent admin record cannot be modified" });
+  if (isPrimaryAdminEmail(email)) return json(403, { error: "Permanent admin record cannot be modified" });
 
   const actorIsSuperadmin = admin.user.role === "superadmin";
   if (!actorIsSuperadmin && role === "superadmin") return json(403, { error: "Only superadmin can invite superadmin" });
+  if (!actorIsSuperadmin && role === "admin") return json(403, { error: "Only superadmin can create or promote admin users" });
 
   const existing = (await sql`SELECT id, email, role, account_status, approval_status FROM users WHERE email = ${email} LIMIT 1`) as Array<{id:string;email:string;role:string;account_status:string;approval_status:string}>;
   if (existing[0]?.role === "superadmin" && !actorIsSuperadmin) return json(403, { error: "Only superadmin can modify an existing superadmin" });
+  if (existing[0]?.role === "admin" && !actorIsSuperadmin) return json(403, { error: "Only superadmin can modify an existing admin user" });
 
   const isUpdate = Boolean(existing[0]);
   const userRows = (await sql`

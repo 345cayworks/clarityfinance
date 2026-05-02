@@ -1,7 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
 import { requireAdmin } from "./_access";
-import { ADMIN_EMAIL } from "./_admin";
+import { isPrimaryAdminEmail } from "./_admin";
 import { writeAuditLog } from "./_audit";
 import { json, parseJsonBody } from "./_utils";
 import { notifyUser } from "../../lib/notifications/notify";
@@ -18,7 +18,7 @@ export const handler: Handler = async (event) => {
   const targetRows = (await sql`SELECT id, email, name, role FROM users WHERE id = ${userId} LIMIT 1`) as Array<{id:string;email:string;name:string;role:string}>;
   const target = targetRows[0];
   if (!target) return json(404, { error: "User not found" });
-  if (target.email.toLowerCase() === ADMIN_EMAIL) return json(403, { error: "Primary admin cannot be deactivated" });
+  if (isPrimaryAdminEmail(target.email)) return json(403, { error: "Primary admin cannot be deactivated" });
   if (target.id === admin.user.id) return json(403, { error: "You cannot deactivate your own account" });
   if (target.role === "superadmin" && admin.user.role !== "superadmin") return json(403, { error: "Only superadmin can deactivate a superadmin" });
 
