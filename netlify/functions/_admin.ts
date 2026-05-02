@@ -5,6 +5,10 @@ import { getIdentityUser, type IdentityUser } from "./_identity";
 type RoleRow = { role: string | null };
 export const ADMIN_EMAIL = "info@cayworks.com";
 
+export function isPrimaryAdminEmail(email?: string | null) {
+  return (email ?? "").trim().toLowerCase() === ADMIN_EMAIL;
+}
+
 export async function requireAdmin(event: HandlerEvent): Promise<{ ok: true; identityUser: IdentityUser } | { ok: false; statusCode: number; body: { error: string } }> {
   const identityUser = getIdentityUser(event);
   if (!identityUser?.email) {
