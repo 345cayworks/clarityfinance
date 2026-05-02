@@ -4,6 +4,7 @@ import { requireAdvisor } from "./_access";
 import { json } from "./_utils";
 
 export const handler: Handler = async (event) => {
+  if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" });
   try {
     const access = await requireAdvisor(event);
     if (!access.ok) return json(access.statusCode, access.body);

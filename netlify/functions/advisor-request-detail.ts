@@ -29,6 +29,7 @@ const REQUEST_FIELDS = [
 ] as const;
 
 export const handler: Handler = async (event) => {
+  if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" });
   const requestId = event.queryStringParameters?.requestId;
   if (!requestId) return json(400, { error: "requestId required" });
 
