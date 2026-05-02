@@ -247,14 +247,15 @@ export default function ReportPage() {
   const nonHousingExpenses = totalExpenses(data?.expenseProfile ?? null);
   const housing = housingPayment(data?.housingProfile ?? null);
   const totalExpenseWithHousing = nonHousingExpenses + housing;
-  const expenses = totalExpenseWithHousing;
-  const surplus = monthlySurplus(data?.incomeSources ?? [], data?.expenseProfile ?? null, data?.housingProfile ?? null, data?.debts ?? []);
   const debtPayments = monthlyDebtPayments(data?.debts ?? []);
-  const totalMonthlyObligations = totalExpenseWithHousing + debtPayments;
+  const totalMonthlyExpenses = totalExpenseWithHousing + debtPayments;
+  const expenses = totalMonthlyExpenses;
+  const surplus = monthlySurplus(data?.incomeSources ?? [], data?.expenseProfile ?? null, data?.housingProfile ?? null, data?.debts ?? []);
+  const totalMonthlyObligations = totalMonthlyExpenses;
   const totalDebtAmount = debtTotal(data?.debts ?? []);
   const dti = income > 0 ? debtPayments / income : null;
   const totalObligationsRatio = income > 0 ? totalMonthlyObligations / income : null;
-  const adjustedSurplus = income - totalExpenseWithHousing - debtPayments;
+  const adjustedSurplus = income - totalMonthlyExpenses;
 
   const homeValue = toNumber(data?.housingProfile?.estimated_home_value);
   const mortgageBalance = toNumber(data?.housingProfile?.mortgage_balance);
@@ -287,14 +288,15 @@ export default function ReportPage() {
       { label: "Insurance", value: toNumber(data?.expenseProfile?.insurance) },
       { label: "Childcare", value: toNumber(data?.expenseProfile?.childcare) },
       { label: "Discretionary", value: toNumber(data?.expenseProfile?.discretionary) },
-      { label: "Other", value: toNumber(data?.expenseProfile?.other) }
+      { label: "Other non-debt expenses", value: toNumber(data?.expenseProfile?.other) },
+      { label: "Debt payments", value: debtPayments }
     ];
 
     return categories.map((row) => ({
       ...row,
-      pct: totalExpenseWithHousing > 0 ? (row.value / totalExpenseWithHousing) * 100 : 0
+      pct: totalMonthlyExpenses > 0 ? (row.value / totalMonthlyExpenses) * 100 : 0
     }));
-  }, [data?.expenseProfile, totalExpenseWithHousing, housing]);
+  }, [data?.expenseProfile, totalMonthlyExpenses, housing, debtPayments]);
 
   const topExpenseRows = [...expenseRows].sort((a, b) => b.value - a.value).slice(0, 3);
 

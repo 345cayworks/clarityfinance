@@ -1,6 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
 import { requireAdmin } from "./_access";
+import { isPrimaryAdminEmail } from "./_admin";
 import { json, parseJsonBody } from "./_utils";
 import { notifyUser } from "../../lib/notifications/notify";
 
@@ -11,7 +12,10 @@ export const handler: Handler = async (event) => {
   const body = parseJsonBody<{ userId?: string; reason?: string }>(event) ?? {};
   if (!body.userId) return json(400, { error: "userId is required" });
 
-  const target = await sql`SELECT id,email,name FROM users WHERE id=${body.userId} LIMIT 1` as Array<{id:string;email:string;name:string}>;
+  const target = await sql`SELECT id,email,name,role FROM users WHERE id=${body.userId} LIMIT 1` as Array<{id:string;email:string;name:string;role:string}>;
+  if (!target[0]) return json(404, { error: "User not found" });
+  if (isPrimaryAdminEmail(target[0].email)) return json(403, { error: "Primary superadmin cannot be rejected" });
+  if (target[0].role === "superadmin" && admin.user.role !== "superadmin") return json(403, { error: "Only superadmin can modify a superadmin" });
   if ((body.reason ?? '').trim()) {
     await sql`UPDATE users SET approval_status='rejected', rejection_reason=${body.reason ?? ''}, approved_at=NULL, approved_by=NULL, updated_at=NOW() WHERE id=${body.userId}`;
   } else {
