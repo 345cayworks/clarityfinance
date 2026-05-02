@@ -2,8 +2,6 @@ export {
   numberValue as toNumber,
   getMonthlyIncome,
   getHousingExpense,
-  getNonHousingLivingExpenses,
-  getTotalLivingExpenses,
   getMonthlyDebtPayments,
   getTotalMonthlyObligations,
   getMonthlySurplus,
@@ -20,6 +18,13 @@ export {
 } from "@/lib/calculations/finance";
 
 import { numberValue, getMonthlyDebtPayments, getTotalDebt, getSavingsRunwayMonths, formatMoney, getHousingExpense, getNonHousingNonDebtExpenses, getTotalMonthlyExpenses } from "@/lib/calculations/finance";
+
+export const getNonHousingLivingExpenses = getNonHousingNonDebtExpenses;
+export const getTotalLivingExpenses = (
+  expenseProfile: Record<string, unknown> | null,
+  housingProfile: Record<string, unknown> | null,
+  debts: Array<Record<string, unknown>> = []
+) => getTotalMonthlyExpenses(expenseProfile, housingProfile, debts);
 
 export const totalIncome = (incomeSources: Array<Record<string, unknown>>) => incomeSources.reduce((sum, row) => sum + numberValue(row.monthly_amount), 0);
 export const totalNonHousingExpenses = (expenseProfile: Record<string, unknown> | null) => getNonHousingNonDebtExpenses(expenseProfile).value;
