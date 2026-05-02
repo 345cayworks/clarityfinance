@@ -38,11 +38,15 @@ export const monthlySurplus = (incomeSources: Array<Record<string, unknown>>, ex
 export const savingsRunwayMonths = (savingsProfile: Record<string, unknown> | null, expenseProfile: Record<string, unknown> | null, housingProfile: Record<string, unknown> | null = null) => getSavingsRunwayMonths(savingsProfile, expenseProfile, housingProfile);
 export const emergencyFundMonths = (
   savingsProfile: Record<string, unknown> | null,
-  totalLivingExpensesAmount: number
+  totalLivingExpenses: number
 ) => {
-  if (!savingsProfile || totalLivingExpensesAmount <= 0) return 0;
-  const emergencyFund = numberValue(savingsProfile.emergency_fund ?? savingsProfile.emergencyFund);
-  return emergencyFund / totalLivingExpensesAmount;
+  if (!savingsProfile || totalLivingExpenses <= 0) return 0;
+
+  const emergencyFund = numberValue(
+    savingsProfile.emergency_fund ?? savingsProfile.emergencyFund ?? 0
+  );
+
+  return Number.isFinite(emergencyFund) ? emergencyFund / totalLivingExpenses : 0;
 };
 
 export const housingEquity = (housingProfile: Record<string, unknown> | null) => numberValue(housingProfile?.estimated_home_value)-numberValue(housingProfile?.mortgage_balance);
