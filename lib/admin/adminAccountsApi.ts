@@ -2,6 +2,12 @@ import { getIdentityToken, type IdentityUser } from "@/lib/auth/netlify-identity
 import type { AdminAdvisorRequestRow, AdminUserRow, AdvisorOption } from "@/lib/types/admin";
 import type { UserRole } from "@/lib/types/roles";
 
+type IdentityUser = {
+  id?: string;
+  email?: string;
+  name?: string;
+} | null;
+
 type AdminAccountsData = { users: AdminUserRow[]; advisorRequests: AdminAdvisorRequestRow[]; advisors: AdvisorOption[] };
 
 async function getAuthHeader(user: IdentityUser | null) {
