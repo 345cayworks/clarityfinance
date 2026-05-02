@@ -20,8 +20,21 @@ type AdvisorRequestRow = {
   assigned_advisor_email: string | null;
 };
 
-const isUndefinedColumnError = (err: unknown): boolean =>
-  Boolean(err && typeof err === "object" && "code" in err && (err as { code?: string }).code === "42703");
+const getAssignmentColumnAvailability = async () => {
+  const rows = await sql`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'advisor_requests'
+      AND column_name IN ('assigned_at', 'assigned_advisor_id', 'assigned_advisor_email')
+  ` as Array<{ column_name: string }>;
+  const names = new Set(rows.map((row) => row.column_name));
+  return {
+    hasAssignedAt: names.has("assigned_at"),
+    hasAssignedAdvisorId: names.has("assigned_advisor_id"),
+    hasAssignedAdvisorEmail: names.has("assigned_advisor_email")
+  };
+};
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" });
@@ -31,36 +44,35 @@ export const handler: Handler = async (event) => {
 
     const assignedOnly = (event.queryStringParameters?.assignedOnly ?? "false") === "true";
 
-    let requests: AdvisorRequestRow[] = [];
-    try {
-      requests = ["admin", "superadmin"].includes(access.user.role)
-        ? await sql`
-          SELECT id,user_id,name,email,phone,topic,urgency,message,status,created_at,updated_at,assigned_at,assigned_advisor_id,assigned_advisor_email
-          FROM advisor_requests
-          ${assignedOnly ? sql`WHERE assigned_advisor_email IS NOT NULL` : sql``}
-          ORDER BY created_at DESC
-          LIMIT 250` as AdvisorRequestRow[]
-        : await sql`
-          SELECT id,user_id,name,email,phone,topic,urgency,message,status,created_at,updated_at,assigned_at,assigned_advisor_id,assigned_advisor_email
-          FROM advisor_requests
-          WHERE assigned_advisor_email = ${access.user.email}
-             OR assigned_advisor_id = ${access.user.id}
-          ORDER BY created_at DESC
-          LIMIT 250` as AdvisorRequestRow[];
-    } catch (err) {
-      if (!isUndefinedColumnError(err)) throw err;
-
-      requests = ["admin", "superadmin"].includes(access.user.role)
+    const availability = await getAssignmentColumnAvailability();
+    const canFilterByAssignment = availability.hasAssignedAdvisorEmail || availability.hasAssignedAdvisorId;
+    const requests: AdvisorRequestRow[] = ["admin", "superadmin"].includes(access.user.role)
+      ? await sql`
+        SELECT id,user_id,name,email,phone,topic,urgency,message,status,created_at,updated_at,
+               ${availability.hasAssignedAt ? sql`assigned_at` : sql`NULL::timestamptz`} AS assigned_at,
+               ${availability.hasAssignedAdvisorId ? sql`assigned_advisor_id` : sql`NULL::text`} AS assigned_advisor_id,
+               ${availability.hasAssignedAdvisorEmail ? sql`assigned_advisor_email` : sql`NULL::text`} AS assigned_advisor_email
+        FROM advisor_requests
+        ${
+          assignedOnly && availability.hasAssignedAdvisorEmail
+            ? sql`WHERE assigned_advisor_email IS NOT NULL`
+            : sql``
+        }
+        ORDER BY created_at DESC
+        LIMIT 250` as AdvisorRequestRow[]
+      : canFilterByAssignment
         ? await sql`
           SELECT id,user_id,name,email,phone,topic,urgency,message,status,created_at,updated_at,
-                 NULL::timestamptz AS assigned_at,
-                 NULL::text AS assigned_advisor_id,
-                 NULL::text AS assigned_advisor_email
+                 ${availability.hasAssignedAt ? sql`assigned_at` : sql`NULL::timestamptz`} AS assigned_at,
+                 ${availability.hasAssignedAdvisorId ? sql`assigned_advisor_id` : sql`NULL::text`} AS assigned_advisor_id,
+                 ${availability.hasAssignedAdvisorEmail ? sql`assigned_advisor_email` : sql`NULL::text`} AS assigned_advisor_email
           FROM advisor_requests
+          WHERE
+            ${availability.hasAssignedAdvisorEmail ? sql`assigned_advisor_email = ${access.user.email}` : sql`FALSE`}
+            OR ${availability.hasAssignedAdvisorId ? sql`assigned_advisor_id = ${access.user.id}` : sql`FALSE`}
           ORDER BY created_at DESC
           LIMIT 250` as AdvisorRequestRow[]
         : [];
-    }
 
     return json(200, { requests: requests ?? [] });
   } catch (err) {
