@@ -19,21 +19,17 @@ export {
   formatPercent
 } from "@/lib/calculations/finance";
 
-import { numberValue, getMonthlyDebtPayments, getTotalDebt, getSavingsRunwayMonths, formatMoney } from "@/lib/calculations/finance";
+import { numberValue, getMonthlyDebtPayments, getTotalDebt, getSavingsRunwayMonths, formatMoney, getHousingExpense, getNonHousingNonDebtExpenses, getTotalMonthlyExpenses } from "@/lib/calculations/finance";
 
 export const totalIncome = (incomeSources: Array<Record<string, unknown>>) => incomeSources.reduce((sum, row) => sum + numberValue(row.monthly_amount), 0);
-export const totalNonHousingExpenses = (expenseProfile: Record<string, unknown> | null) => ["utilities","transport","groceries","insurance","childcare","discretionary","other"].reduce((s,k)=>s+numberValue(expenseProfile?.[k]),0);
+export const totalNonHousingExpenses = (expenseProfile: Record<string, unknown> | null) => getNonHousingNonDebtExpenses(expenseProfile).value;
 export const totalExpenses = totalNonHousingExpenses;
-export const housingPayment = (housingProfile: Record<string, unknown> | null) => {
-  const m = numberValue(housingProfile?.mortgage_payment);
-  if (m > 0) return m;
-  const r = numberValue(housingProfile?.rent_amount);
-  return r > 0 ? r : 0;
-};
+export const housingPayment = (housingProfile: Record<string, unknown> | null) => getHousingExpense(housingProfile).value;
 export const totalLivingExpenses = (expenseProfile: Record<string, unknown> | null, housingProfile: Record<string, unknown> | null) => totalNonHousingExpenses(expenseProfile)+housingPayment(housingProfile);
 export const debtTotal = (debts: Array<Record<string, unknown>>, housingProfile: Record<string, unknown> | null = null) => getTotalDebt(debts, housingProfile);
 export const monthlyDebtPayments = (debts: Array<Record<string, unknown>>) => getMonthlyDebtPayments(debts);
-export const totalMonthlyObligations = (expenseProfile: Record<string, unknown> | null, housingProfile: Record<string, unknown> | null, debts: Array<Record<string, unknown>>) => totalLivingExpenses(expenseProfile, housingProfile)+monthlyDebtPayments(debts);
+export const totalMonthlyExpenses = (expenseProfile: Record<string, unknown> | null, housingProfile: Record<string, unknown> | null, debts: Array<Record<string, unknown>>) => getTotalMonthlyExpenses(expenseProfile, housingProfile, debts);
+export const totalMonthlyObligations = (expenseProfile: Record<string, unknown> | null, housingProfile: Record<string, unknown> | null, debts: Array<Record<string, unknown>>) => totalMonthlyExpenses(expenseProfile, housingProfile, debts);
 export const monthlySurplus = (incomeSources: Array<Record<string, unknown>>, expenseProfile: Record<string, unknown> | null, housingProfile: Record<string, unknown> | null, debts: Array<Record<string, unknown>> = []) => totalIncome(incomeSources)-totalMonthlyObligations(expenseProfile,housingProfile,debts);
 export const savingsRunwayMonths = (savingsProfile: Record<string, unknown> | null, expenseProfile: Record<string, unknown> | null, housingProfile: Record<string, unknown> | null = null) => getSavingsRunwayMonths(savingsProfile, expenseProfile, housingProfile);
 export const emergencyFundMonths = (
