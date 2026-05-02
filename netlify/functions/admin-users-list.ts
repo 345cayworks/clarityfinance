@@ -4,6 +4,7 @@ import { requireAdmin } from "./_access";
 import { json } from "./_utils";
 
 export const handler: Handler = async (event) => {
+  if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" });
   const admin = await requireAdmin(event);
   if (!admin.ok) return json(admin.statusCode, admin.body);
 
