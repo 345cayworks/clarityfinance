@@ -1,7 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
 import { requireAdmin } from "./_access";
-import { ADMIN_EMAIL } from "./_admin";
+import { isPrimaryAdminEmail } from "./_admin";
 import { writeAuditLog } from "./_audit";
 import { json, parseJsonBody } from "./_utils";
 
@@ -24,9 +24,10 @@ export const handler: Handler = async (event) => {
   const targetRows = (await sql`SELECT id, email, role, account_status, approval_status FROM users WHERE id = ${userId} LIMIT 1`) as Array<{id:string;email:string;role:string;account_status:string;approval_status:string}>;
   const target = targetRows[0];
   if (!target) return json(404, { error: "User not found" });
-  if (target.email.toLowerCase() === ADMIN_EMAIL) return json(403, { error: "Primary admin role cannot be changed" });
+  if (isPrimaryAdminEmail(target.email)) return json(403, { error: "Primary admin role cannot be changed" });
   if (!actorIsSuperadmin && role === "superadmin") return json(403, { error: "Only superadmin can assign superadmin role" });
   if (!actorIsSuperadmin && target.role === "superadmin") return json(403, { error: "Only superadmin can modify a superadmin" });
+  if (!actorIsSuperadmin && (target.role === "admin" || role === "admin")) return json(403, { error: "Only superadmin can promote, demote, or modify admin users" });
 
   const updatedRows = (await sql`
     UPDATE users
