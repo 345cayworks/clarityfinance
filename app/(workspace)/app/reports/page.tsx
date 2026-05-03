@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
@@ -33,7 +34,7 @@ type ReportDefinition = {
   primaryMetric: string;
   secondaryMetric: string;
   status: string;
-  href: string;
+  href: Route;
 };
 
 function numberValue(value: unknown) {
@@ -147,7 +148,6 @@ export default function ReportsPage() {
     const runway = savingsRunwayMonths(savingsProfile, expenseProfile, housingProfile);
     const debtTotal = debts.reduce((sum, debt) => sum + numberValue(debt.balance), 0);
     const cashSavings = numberValue(savingsProfile?.cash_savings) + numberValue(savingsProfile?.emergency_fund);
-    const totalSavings = cashSavings + numberValue(savingsProfile?.investments) + numberValue(savingsProfile?.retirement_savings) + numberValue(savingsProfile?.down_payment_savings);
     const equity = housingEquity(housingProfile);
     const estimatedHomeValue = numberValue(housingProfile?.estimated_home_value);
     const mortgageBalance = numberValue(housingProfile?.mortgage_balance);
@@ -167,7 +167,6 @@ export default function ReportsPage() {
       runway,
       debtTotal,
       cashSavings,
-      totalSavings,
       equity,
       estimatedHomeValue,
       mortgageBalance,
@@ -240,7 +239,7 @@ export default function ReportsPage() {
       primaryMetric: `Total debt: ${toCurrency(metrics.debtTotal, metrics.currency)}`,
       secondaryMetric: `Monthly debt payments: ${toCurrency(metrics.debtPayments, metrics.currency)}`,
       status: metrics.debtCount > 0 ? `${metrics.debtCount} debt record(s) included` : "No debt records saved",
-      href: "/app/tools/debt-plan"
+      href: "/app/tools/debt-plan" as Route
     },
     {
       type: "housing_equity",
