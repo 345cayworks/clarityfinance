@@ -76,6 +76,21 @@ async function resolveUserId(identityUserId: string, email: string) {
   return existingUserByEmail[0]?.id ?? identityUserId;
 }
 
+function withReportAliases(incomeJson: AnyRecord, resultJson: AnyRecord) {
+  const normalizedIncome = {
+    ...incomeJson,
+    monthlyRent: incomeJson.monthlyRent ?? incomeJson.expectedMonthlyRent ?? 0
+  };
+
+  const normalizedResult = {
+    ...resultJson,
+    netMonthly: resultJson.netMonthly ?? resultJson.netMonthlyProfit ?? 0,
+    monthlyNetProfit: resultJson.monthlyNetProfit ?? resultJson.netMonthlyProfit ?? resultJson.netMonthly ?? 0
+  };
+
+  return { normalizedIncome, normalizedResult };
+}
+
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
 
@@ -85,9 +100,10 @@ export const handler: Handler = async (event) => {
   const body = parseJsonBody<AnyRecord>(event) ?? {};
   const input = (body.input as AnyRecord | undefined) ?? {};
   const setupJson = ((input.setup as AnyRecord | undefined) ?? {}) as AnyRecord;
-  const incomeJson = ((input.income as AnyRecord | undefined) ?? {}) as AnyRecord;
+  const rawIncomeJson = ((input.income as AnyRecord | undefined) ?? {}) as AnyRecord;
   const costsJson = ((input.costs as AnyRecord | undefined) ?? {}) as AnyRecord;
-  const resultJson = ((body.result as AnyRecord | undefined) ?? {}) as AnyRecord;
+  const rawResultJson = ((body.result as AnyRecord | undefined) ?? {}) as AnyRecord;
+  const { normalizedIncome: incomeJson, normalizedResult: resultJson } = withReportAliases(rawIncomeJson, rawResultJson);
 
   try {
     await ensureRentRoomScenarioTable();
