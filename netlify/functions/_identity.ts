@@ -10,9 +10,16 @@ export type IdentityUser = {
 
 type VerifiedJwtPayload = {
   sub?: unknown;
+  id?: unknown;
   email?: unknown;
   user_metadata?: unknown;
   app_metadata?: unknown;
+};
+
+type EventWithClientContext = HandlerEvent & {
+  clientContext?: {
+    user?: VerifiedJwtPayload | null;
+  } | null;
 };
 
 function readCookie(cookieHeader: string | undefined, name: string): string | null {
@@ -38,11 +45,23 @@ function getJwtSecret() {
   return process.env.NETLIFY_IDENTITY_JWT_SECRET ?? process.env.NETLIFY_JWT_SECRET ?? process.env.JWT_SECRET ?? null;
 }
 
+function getClientContextUser(event: HandlerEvent): VerifiedJwtPayload | null {
+  const contextUser = (event as EventWithClientContext).clientContext?.user;
+  return contextUser && typeof contextUser === "object" ? contextUser : null;
+}
+
 function toIdentityUser(payload: VerifiedJwtPayload): IdentityUser | null {
   const metadata = payload.user_metadata as Record<string, unknown> | undefined;
   const appMetadata = payload.app_metadata as Record<string, unknown> | undefined;
 
-  const id = typeof payload.sub === "string" ? payload.sub : "";
+  const id =
+    typeof payload.sub === "string"
+      ? payload.sub
+      : typeof payload.id === "string"
+        ? payload.id
+        : typeof metadata?.sub === "string"
+          ? metadata.sub
+          : "";
   const email = typeof payload.email === "string" ? payload.email : "";
   const name =
     typeof metadata?.full_name === "string"
@@ -60,6 +79,10 @@ function toIdentityUser(payload: VerifiedJwtPayload): IdentityUser | null {
 }
 
 export async function getIdentityUser(event: HandlerEvent): Promise<IdentityUser | null> {
+  const contextUser = getClientContextUser(event);
+  const identityUser = contextUser ? toIdentityUser(contextUser) : null;
+  if (identityUser) return identityUser;
+
   const token = extractToken(event);
   if (!token) return null;
 
