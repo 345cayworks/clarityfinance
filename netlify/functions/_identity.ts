@@ -22,6 +22,12 @@ type EventWithClientContext = HandlerEvent & {
   } | null;
 };
 
+type JwtSecretAvailability = {
+  netlifyIdentityJwtSecretExists: boolean;
+  netlifyJwtSecretExists: boolean;
+  jwtSecretExists: boolean;
+};
+
 function readCookie(cookieHeader: string | undefined, name: string): string | null {
   if (!cookieHeader) return null;
   const pairs = cookieHeader.split(/;\s*/g);
@@ -30,6 +36,16 @@ function readCookie(cookieHeader: string | undefined, name: string): string | nu
     if (key === name) return decodeURIComponent(rest.join("="));
   }
   return null;
+}
+
+function hasAuthorizationHeader(event: HandlerEvent): boolean {
+  const authHeader = event.headers.authorization ?? event.headers.Authorization;
+  return typeof authHeader === "string" && authHeader.length > 0;
+}
+
+function hasNfJwtCookie(event: HandlerEvent): boolean {
+  const cookie = event.headers.cookie ?? event.headers.Cookie;
+  return readCookie(typeof cookie === "string" ? cookie : undefined, "nf_jwt") !== null;
 }
 
 function extractToken(event: HandlerEvent): string | null {
@@ -45,9 +61,32 @@ function getJwtSecret() {
   return process.env.NETLIFY_IDENTITY_JWT_SECRET ?? process.env.NETLIFY_JWT_SECRET ?? process.env.JWT_SECRET ?? null;
 }
 
+function getJwtSecretAvailability(): JwtSecretAvailability {
+  return {
+    netlifyIdentityJwtSecretExists: Boolean(process.env.NETLIFY_IDENTITY_JWT_SECRET),
+    netlifyJwtSecretExists: Boolean(process.env.NETLIFY_JWT_SECRET),
+    jwtSecretExists: Boolean(process.env.JWT_SECRET)
+  };
+}
+
 function getClientContextUser(event: HandlerEvent): VerifiedJwtPayload | null {
   const contextUser = (event as EventWithClientContext).clientContext?.user;
   return contextUser && typeof contextUser === "object" ? contextUser : null;
+}
+
+function logIdentityDiagnostics(event: HandlerEvent, jwtVerifyErrorName: string | null = null): void {
+  const clientContext = (event as EventWithClientContext).clientContext;
+  console.info(
+    "[identity-diagnostics]",
+    JSON.stringify({
+      clientContextExists: Boolean(clientContext),
+      clientContextUserExists: Boolean(clientContext?.user),
+      authorizationHeaderExists: hasAuthorizationHeader(event),
+      nfJwtCookieExists: hasNfJwtCookie(event),
+      ...getJwtSecretAvailability(),
+      jwtVerifyErrorName
+    })
+  );
 }
 
 function toIdentityUser(payload: VerifiedJwtPayload): IdentityUser | null {
@@ -81,18 +120,29 @@ function toIdentityUser(payload: VerifiedJwtPayload): IdentityUser | null {
 export async function getIdentityUser(event: HandlerEvent): Promise<IdentityUser | null> {
   const contextUser = getClientContextUser(event);
   const identityUser = contextUser ? toIdentityUser(contextUser) : null;
-  if (identityUser) return identityUser;
+  if (identityUser) {
+    logIdentityDiagnostics(event);
+    return identityUser;
+  }
 
   const secret = getJwtSecret();
-  if (!secret) return null;
+  if (!secret) {
+    logIdentityDiagnostics(event);
+    return null;
+  }
 
   const token = extractToken(event);
-  if (!token) return null;
+  if (!token) {
+    logIdentityDiagnostics(event);
+    return null;
+  }
 
   try {
     const { payload } = await jwtVerify(token, new TextEncoder().encode(secret));
+    logIdentityDiagnostics(event);
     return toIdentityUser(payload as VerifiedJwtPayload);
-  } catch {
+  } catch (error) {
+    logIdentityDiagnostics(event, error instanceof Error ? error.name : "UnknownError");
     return null;
   }
 }
