@@ -33,11 +33,23 @@ export async function postAdminAction(user: IdentityUser | null, path: string, p
 export async function postAdminActionWithMessage(user: IdentityUser | null, path: string, payload: Record<string, unknown>) {
   const headers = await getAuthHeader(user);
   const response = await fetch(`/.netlify/functions/${path}`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-  return parseResponse<{ success?: boolean; message?: string }>(response, "Admin action failed");
+  return parseResponse<{ success?: boolean; message?: string; user?: AdminUserRow }>(response, "Admin action failed");
 }
 
 export const updateAdminUserRole = (user: IdentityUser | null, userId: string, role: UserRole) =>
-  postAdminAction(user, "admin-user-role-update", { userId, role });
+  postAdminActionWithMessage(user, "admin-user-role-update", { userId, role });
+
+export const approveAdminUser = (user: IdentityUser | null, userId: string) =>
+  postAdminActionWithMessage(user, "admin-user-approve", { userId });
+
+export const rejectAdminUser = (user: IdentityUser | null, userId: string, reason?: string) =>
+  postAdminActionWithMessage(user, "admin-user-reject", { userId, reason: reason ?? "" });
+
+export const activateAdminUser = (user: IdentityUser | null, userId: string) =>
+  postAdminActionWithMessage(user, "admin-user-activate", { userId });
+
+export const deactivateAdminUser = (user: IdentityUser | null, userId: string) =>
+  postAdminActionWithMessage(user, "admin-user-deactivate", { userId });
 
 export const assignAdvisorToRequest = (
   user: IdentityUser | null,
