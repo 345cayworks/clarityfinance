@@ -29,11 +29,7 @@ const toBoolean = (value: unknown) => {
 };
 
 const logSaveError = (error: unknown) => {
-  const safeError =
-    error instanceof Error
-      ? { name: error.name, message: error.message }
-      : { message: "Unknown profile-save error" };
-
+  const safeError = error instanceof Error ? { name: error.name, message: error.message } : { message: "Unknown profile-save error" };
   console.error("profile-save database write failed", safeError);
 };
 
@@ -48,12 +44,9 @@ type UserIdRow = { id: string };
 const upsertUser = async (userId: string, identityUser: ReturnType<typeof getIdentityUser>) => {
   if (!identityUser) return userId;
 
-  const existingUserByEmail = await sql`
-    SELECT id FROM users WHERE email = ${identityUser.email} LIMIT 1
-  ` as UserIdRow[];
+  const existingUserByEmail = await sql`SELECT id FROM users WHERE email = ${identityUser.email} LIMIT 1` as UserIdRow[];
   const effectiveUserId = existingUserByEmail[0]?.id ?? userId;
 
-  // Profile saves must not mutate monetization/access roles. Role changes belong in admin-user-role-update.
   try {
     await sql`
       INSERT INTO users (id, email, name, role, approval_status, account_status)
@@ -68,7 +61,6 @@ const upsertUser = async (userId: string, identityUser: ReturnType<typeof getIde
     `;
   } catch (error) {
     if (!isMissingRoleColumnError(error)) throw error;
-
     await sql`
       INSERT INTO users (id, email, name, approval_status, account_status)
       VALUES (${effectiveUserId}, ${identityUser.email}, ${identityUser.name}, 'pending', 'active')
@@ -84,6 +76,31 @@ const upsertUser = async (userId: string, identityUser: ReturnType<typeof getIde
   return effectiveUserId;
 };
 
+function getIncomeSourcesFromBody(body: AnyRecord) {
+  const sourceNumbers = [1, 2, 3];
+  const multiSources = sourceNumbers
+    .map((slot) => ({
+      type: String(body[`incomeSource${slot}Type`] ?? ""),
+      label: String(body[`incomeSource${slot}Label`] ?? ""),
+      monthlyAmount: toNumber(body[`incomeSource${slot}MonthlyAmount`]),
+      frequency: String(body[`incomeSource${slot}Frequency`] ?? "monthly"),
+      stability: String(body[`incomeSource${slot}Stability`] ?? "stable")
+    }))
+    .filter((source) => source.monthlyAmount > 0 || source.label.trim() || source.type.trim());
+
+  if (multiSources.length > 0) return multiSources;
+
+  const legacyAmount = toNumber(body.incomeMonthlyAmount);
+  if (legacyAmount <= 0) return [];
+  return [{
+    type: String(body.incomeType ?? "salary"),
+    label: String(body.incomeLabel ?? "Primary Income"),
+    monthlyAmount: legacyAmount,
+    frequency: String(body.incomeFrequency ?? "monthly"),
+    stability: String(body.incomeStability ?? "stable")
+  }];
+}
+
 export const handler: Handler = async (event) => {
   try {
     if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -95,8 +112,11 @@ export const handler: Handler = async (event) => {
     const approval = await getUserApprovalStatus(identityUser);
 
     if (!userId) return json(500, { error: "Profile could not be saved. Please try again." });
+    if (!approval.approved) await notifyAdmin("user_pending_approval", { userId, email: identityUser.email, name: identityUser.name });
 
-    if (!approval.approved) { await notifyAdmin("user_pending_approval", { userId, email: identityUser.email, name: identityUser.name }); }
+    const incomeSources = getIncomeSourcesFromBody(body);
+    const totalMonthlyIncome = incomeSources.reduce((sum, source) => sum + source.monthlyAmount, 0);
+    const primaryIncome = incomeSources[0];
 
     await sql`
     INSERT INTO profiles (
@@ -114,7 +134,7 @@ export const handler: Handler = async (event) => {
       ${randomId("pro")}, ${userId}, ${String(body.countryOrMarket ?? "")}, ${String(body.preferredCurrency ?? "")}, ${String(body.ageRange ?? "")}, ${String(body.employmentType ?? "")}, ${String(body.householdStatus ?? "")}, ${toNumber(body.dependents)},
       ${toBoolean(body.creditScoreKnown)}, ${String(body.creditScoreOrProfile ?? "") || null}, ${String(body.customerName ?? "")}, ${String(body.dateOfBirth ?? "")}, ${String(body.physicalAddress ?? "")}, ${String(body.phone ?? "")}, ${String(body.employer ?? "")}, ${String(body.jobTitle ?? "")},
       ${String(body.nationality ?? "")}, ${String(body.citizenshipStatus ?? "")}, ${toBoolean(body.workPermitRequired)}, ${String(body.workPermitExpiryDate ?? "")}, ${String(body.mailingAddress ?? "")}, ${String(body.alternatePhone ?? "")},
-      ${String(body.employmentLength ?? "")}, ${String(body.employerAddress ?? "")}, ${toNumber(body.monthlyGrossIncome)}, ${toNumber(body.monthlyNetIncome)}, ${toNumber(body.otherIncomeAmount)}, ${String(body.otherIncomeDescription ?? "")},
+      ${String(body.employmentLength ?? "")}, ${String(body.employerAddress ?? "")}, ${toNumber(body.monthlyGrossIncome) || totalMonthlyIncome}, ${toNumber(body.monthlyNetIncome) || totalMonthlyIncome}, ${toNumber(body.otherIncomeAmount)}, ${String(body.otherIncomeDescription ?? "")},
       ${String(body.loanPurpose ?? "")}, ${toNumber(body.requestedLoanAmount)}, ${Math.trunc(toNumber(body.desiredLoanTermYears)) || null}, ${String(body.propertyType ?? "")}, ${String(body.propertyLocation ?? "")}, ${toBoolean(body.propertyIdentified)},
       ${toBoolean(body.purchaseAgreementAvailable)}, ${String(body.primaryBankName ?? "")}, ${toBoolean(body.existingBankRelationship)}, ${toBoolean(body.bankStatementsAvailable)},
       ${toBoolean(body.missedPaymentsHistory)}, ${toBoolean(body.bankruptcyHistory)}, ${toBoolean(body.hasID)}, ${toBoolean(body.hasProofOfAddress)}, ${toBoolean(body.hasPayslips)}, ${toBoolean(body.hasEmploymentLetter)},
@@ -237,12 +257,23 @@ export const handler: Handler = async (event) => {
       updated_at = NOW()
   `;
 
-    if (toNumber(body.incomeMonthlyAmount) > 0) {
-      await sql`DELETE FROM income_sources WHERE user_id = ${userId}`;
+    await sql`DELETE FROM income_sources WHERE user_id = ${userId}`;
+    for (const [index, source] of incomeSources.slice(0, 3).entries()) {
       await sql`
-      INSERT INTO income_sources (id, user_id, type, label, monthly_amount, frequency, stability)
-      VALUES (${randomId("inc")}, ${userId}, ${String(body.incomeType ?? "salary")}, ${String(body.incomeLabel ?? "Primary Income")}, ${toNumber(body.incomeMonthlyAmount)}, ${String(body.incomeFrequency ?? "monthly")}, ${String(body.incomeStability ?? "stable")})
-    `;
+        INSERT INTO income_sources (id, user_id, type, label, monthly_amount, frequency, stability)
+        VALUES (${randomId("inc")}, ${userId}, ${source.type || (index === 0 ? "salary" : "other")}, ${source.label || `Income Source ${index + 1}`}, ${source.monthlyAmount}, ${source.frequency || "monthly"}, ${source.stability || "stable"})
+      `;
+    }
+
+    if (primaryIncome) {
+      await sql`
+        UPDATE profiles
+        SET monthly_gross_income = ${toNumber(body.monthlyGrossIncome) || totalMonthlyIncome},
+            monthly_net_income = ${toNumber(body.monthlyNetIncome) || totalMonthlyIncome},
+            other_income_amount = ${incomeSources.slice(1).reduce((sum, source) => sum + source.monthlyAmount, 0)},
+            other_income_description = ${incomeSources.slice(1).map((source) => source.label || source.type).filter(Boolean).join(", ")}
+        WHERE user_id = ${userId}
+      `;
     }
 
     if (String(body.debtName ?? "").trim()) {
@@ -253,7 +284,7 @@ export const handler: Handler = async (event) => {
     `;
     }
 
-    return json(200, { success: true, redirectTo: approval.approved ? "/app/dashboard" : "/app/pending-approval" });
+    return json(200, { success: true, redirectTo: approval.approved ? "/app/dashboard" : "/app/pending-approval", totalMonthlyIncome });
   } catch (error) {
     logSaveError(error);
     return json(500, { error: "Profile could not be saved. Please try again." });
