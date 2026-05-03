@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
 import { isAdminRole } from "@/lib/types/roles";
-import type { AdminAdvisorRequestRow, AdminUserRow } from "@/lib/types/admin";
+import type { AdminAdvisorRequestRow, AdminUserRow, AdvisorOption } from "@/lib/types/admin";
 import type { AdvisorRequestFilter, RoleFilter, UserActivityFilter } from "@/lib/admin/adminAccountsFilters";
 import { fetchAdminAccountsData } from "@/lib/admin/adminAccountsApi";
 import { buildAdminMetrics } from "@/lib/admin/adminAccountsMetrics";
@@ -20,6 +20,7 @@ export function AdminAccountsDashboard() {
   const [tab, setTab] = useState<AdminTabKey>("overview");
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [advisorRequests, setAdvisorRequests] = useState<AdminAdvisorRequestRow[]>([]);
+  const [advisors, setAdvisors] = useState<AdvisorOption[]>([]);
   const [inviteMessage, setInviteMessage] = useState("");
   const [toast, setToast] = useState("");
   const [roleFilter] = useState<RoleFilter>("all");
@@ -31,6 +32,7 @@ export function AdminAccountsDashboard() {
       const data = await fetchAdminAccountsData(user);
       setUsers(data.users);
       setAdvisorRequests(data.advisorRequests);
+      setAdvisors(data.advisors);
     } catch (error) {
       setToast(error instanceof Error ? error.message : "Failed to load admin data.");
     }
@@ -56,7 +58,7 @@ export function AdminAccountsDashboard() {
         {toast ? <p className="mb-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{toast}</p> : null}
         {tab === "overview" && <AdminOverviewPanel metrics={metrics as unknown as Record<string, number>} />}
         {tab === "users" && <AdminUsersPanel users={users} currentUser={user} onRefresh={loadAdminAccountsData} />}
-        {tab === "advisor" && <AdminAdvisorRequestsPanel advisorRequests={advisorRequests} />}
+        {tab === "advisor" && <AdminAdvisorRequestsPanel advisorRequests={advisorRequests} advisors={advisors} currentUser={user} onRefresh={loadAdminAccountsData} />}
         {tab === "approvals" && <AdminApprovalsPanel users={users} currentUser={user} onRefresh={loadAdminAccountsData} />}
         {tab === "deactivated" && <AdminDeactivatedUsersPanel users={users} />}
         {tab === "invite" && <AdminInviteUserPanel inviteMessage={inviteMessage} setInviteMessage={setInviteMessage} />}
