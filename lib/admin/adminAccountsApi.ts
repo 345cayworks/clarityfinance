@@ -33,7 +33,7 @@ export async function postAdminAction(user: IdentityUser | null, path: string, p
 export async function postAdminActionWithMessage(user: IdentityUser | null, path: string, payload: Record<string, unknown>) {
   const headers = await getAuthHeader(user);
   const response = await fetch(`/.netlify/functions/${path}`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-  return parseResponse<{ success?: boolean; message?: string; user?: AdminUserRow }>(response, "Admin action failed");
+  return parseResponse<{ success?: boolean; message?: string; user?: AdminUserRow; request?: AdminAdvisorRequestRow }>(response, "Admin action failed");
 }
 
 export const updateAdminUserRole = (user: IdentityUser | null, userId: string, role: UserRole) =>
@@ -55,9 +55,15 @@ export const assignAdvisorToRequest = (
   user: IdentityUser | null,
   requestId: string,
   advisorId: string,
-  advisorEmail?: string
+  advisorEmail: string
 ) =>
-  postAdminAction(user, "admin-advisor-request-assign", { requestId, advisorId, advisorEmail });
+  postAdminActionWithMessage(user, "admin-advisor-request-assign", { requestId, advisorId, advisorEmail });
+
+export const updateAdvisorRequest = (
+  user: IdentityUser | null,
+  id: string,
+  updates: { status?: string; advisorNotes?: string; adminNotes?: string }
+) => postAdminActionWithMessage(user, "admin-advisor-request-update", { id, ...updates });
 
 export const inviteAdminUser = (user: IdentityUser | null, name: string, email: string, role: UserRole) =>
   postAdminAction(user, "admin-user-invite", { name, email, role });
