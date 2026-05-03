@@ -57,7 +57,7 @@ export function AdminAccountsDashboard() {
         {tab === "overview" && <AdminOverviewPanel metrics={metrics as unknown as Record<string, number>} />}
         {tab === "users" && <AdminUsersPanel users={users} currentUser={user} onRefresh={loadAdminAccountsData} />}
         {tab === "advisor" && <AdminAdvisorRequestsPanel advisorRequests={advisorRequests} />}
-        {tab === "approvals" && <AdminApprovalsPanel users={users} />}
+        {tab === "approvals" && <AdminApprovalsPanel users={users} currentUser={user} onRefresh={loadAdminAccountsData} />}
         {tab === "deactivated" && <AdminDeactivatedUsersPanel users={users} />}
         {tab === "invite" && <AdminInviteUserPanel inviteMessage={inviteMessage} setInviteMessage={setInviteMessage} />}
       </div>
