@@ -20,19 +20,27 @@ function mapCounts(rows: CountRow[]) {
   }, {});
 }
 
+async function countRows(query: Promise<Record<string, unknown>[]>): Promise<CountRow[]> {
+  return (await query) as unknown as CountRow[];
+}
+
+async function advisorLoadRows(query: Promise<Record<string, unknown>[]>): Promise<AdvisorLoadRow[]> {
+  return (await query) as unknown as AdvisorLoadRow[];
+}
+
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" });
   const admin = await requireAdmin(event);
   if (!admin.ok) return json(admin.statusCode, admin.body);
 
   try {
-    const [roleRows, approvalRows, accountRows, requestStatusRows, requestUrgencyRows, advisorLoadRows, recentSignupRows] = await Promise.all([
-      sql`SELECT COALESCE(role, 'unknown') AS label, COUNT(*) FROM users GROUP BY COALESCE(role, 'unknown') ORDER BY COUNT(*) DESC` as Promise<CountRow[]>,
-      sql`SELECT COALESCE(approval_status, 'unknown') AS label, COUNT(*) FROM users GROUP BY COALESCE(approval_status, 'unknown') ORDER BY COUNT(*) DESC` as Promise<CountRow[]>,
-      sql`SELECT COALESCE(account_status, 'unknown') AS label, COUNT(*) FROM users GROUP BY COALESCE(account_status, 'unknown') ORDER BY COUNT(*) DESC` as Promise<CountRow[]>,
-      sql`SELECT COALESCE(status, 'unknown') AS label, COUNT(*) FROM advisor_requests GROUP BY COALESCE(status, 'unknown') ORDER BY COUNT(*) DESC` as Promise<CountRow[]>,
-      sql`SELECT COALESCE(urgency, 'normal') AS label, COUNT(*) FROM advisor_requests GROUP BY COALESCE(urgency, 'normal') ORDER BY COUNT(*) DESC` as Promise<CountRow[]>,
-      sql`
+    const [roleRows, approvalRows, accountRows, requestStatusRows, requestUrgencyRows, advisorLoad, recentSignupRows] = await Promise.all([
+      countRows(sql`SELECT COALESCE(role, 'unknown') AS label, COUNT(*) FROM users GROUP BY COALESCE(role, 'unknown') ORDER BY COUNT(*) DESC`),
+      countRows(sql`SELECT COALESCE(approval_status, 'unknown') AS label, COUNT(*) FROM users GROUP BY COALESCE(approval_status, 'unknown') ORDER BY COUNT(*) DESC`),
+      countRows(sql`SELECT COALESCE(account_status, 'unknown') AS label, COUNT(*) FROM users GROUP BY COALESCE(account_status, 'unknown') ORDER BY COUNT(*) DESC`),
+      countRows(sql`SELECT COALESCE(status, 'unknown') AS label, COUNT(*) FROM advisor_requests GROUP BY COALESCE(status, 'unknown') ORDER BY COUNT(*) DESC`),
+      countRows(sql`SELECT COALESCE(urgency, 'normal') AS label, COUNT(*) FROM advisor_requests GROUP BY COALESCE(urgency, 'normal') ORDER BY COUNT(*) DESC`),
+      advisorLoadRows(sql`
         SELECT
           ar.assigned_advisor_id AS advisor_id,
           ar.assigned_advisor_email AS advisor_email,
@@ -46,21 +54,22 @@ export const handler: Handler = async (event) => {
         GROUP BY ar.assigned_advisor_id, ar.assigned_advisor_email, u.name
         ORDER BY COUNT(*) DESC
         LIMIT 10
-      ` as Promise<AdvisorLoadRow[]>,
-      sql`
+      `),
+      countRows(sql`
         SELECT to_char(created_at::date, 'YYYY-MM-DD') AS label, COUNT(*)
         FROM users
         WHERE created_at >= NOW() - INTERVAL '30 days'
         GROUP BY created_at::date
         ORDER BY created_at::date DESC
         LIMIT 30
-      ` as Promise<CountRow[]>
+      `)
     ]);
 
     const totalUsers = Object.values(mapCounts(roleRows)).reduce((sum, value) => sum + value, 0);
     const approvalCounts = mapCounts(approvalRows);
     const requestStatusCounts = mapCounts(requestStatusRows);
-    const unassignedRequests = Number((await sql`SELECT COUNT(*) FROM advisor_requests WHERE assigned_advisor_id IS NULL`)?.[0]?.count ?? 0);
+    const unassignedRows = (await sql`SELECT COUNT(*) FROM advisor_requests WHERE assigned_advisor_id IS NULL`) as unknown as Array<{ count: string | number }>;
+    const unassignedRequests = Number(unassignedRows[0]?.count ?? 0);
 
     return json(200, {
       generatedAt: new Date().toISOString(),
@@ -79,7 +88,7 @@ export const handler: Handler = async (event) => {
       advisorRequests: {
         byStatus: requestStatusCounts,
         byUrgency: mapCounts(requestUrgencyRows),
-        workload: advisorLoadRows.map((row) => ({
+        workload: advisorLoad.map((row) => ({
           advisorId: row.advisor_id,
           advisorEmail: row.advisor_email,
           advisorName: row.advisor_name,
