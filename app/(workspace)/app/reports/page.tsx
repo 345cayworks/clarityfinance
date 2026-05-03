@@ -27,6 +27,13 @@ type ProfilePayload = {
   goals: Record<string, unknown> | null;
 } | null;
 
+type SavedReport = {
+  id: string;
+  title: string;
+  reportType: string;
+  generatedAt: string | null;
+};
+
 type ReportDefinition = {
   type: string;
   title: string;
@@ -40,6 +47,12 @@ type ReportDefinition = {
 function numberValue(value: unknown) {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "Unknown date";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
 function ReportMetric({ label, value, hint }: { label: string; value: string; hint?: string }) {
@@ -86,10 +99,23 @@ function ReportCard({ report, generatingType, onGenerate }: { report: ReportDefi
 export default function ReportsPage() {
   const { user } = useWorkspaceUser();
   const [data, setData] = useState<ProfilePayload>(null);
+  const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [generatingType, setGeneratingType] = useState<string | null>(null);
+
+  async function loadSavedReports(token: string) {
+    const response = await fetch("/.netlify/functions/reports-list", {
+      credentials: "same-origin",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (response.ok) {
+      const payload = await response.json() as { reports?: SavedReport[] };
+      setSavedReports(payload.reports ?? []);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -115,6 +141,7 @@ export default function ReportsPage() {
       if (!cancelled) {
         if (response.ok) {
           setData((await response.json()) as Exclude<ProfilePayload, null>);
+          await loadSavedReports(token);
         } else {
           setError(response.status === 401 ? "Your session has expired. Please sign in again." : "Failed to load report dashboard data.");
         }
@@ -275,7 +302,12 @@ export default function ReportsPage() {
       setError(response.status === 401 ? "Your session has expired. Please sign in again." : `Failed to generate ${reportTitle}.`);
       return;
     }
+    const payload = await response.json() as { reportId?: string };
+    await loadSavedReports(token);
     setMessage(`${reportTitle} generated.`);
+    if (payload.reportId) {
+      window.location.href = `/app/reports/${payload.reportId}`;
+    }
   }
 
   return (
@@ -334,6 +366,34 @@ export default function ReportsPage() {
                 <ReportCard key={report.type} report={report} generatingType={generatingType} onGenerate={(type, title) => void generate(type, title)} />
               ))}
             </div>
+          </div>
+
+          <div className="card">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Saved Reports</p>
+                <h2 className="mt-1 text-xl font-semibold text-[#0A2540]">Recent generated reports</h2>
+              </div>
+            </div>
+            {savedReports.length === 0 ? (
+              <p className="mt-4 text-sm text-slate-600">No saved reports yet. Generate a report above to view it here.</p>
+            ) : (
+              <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
+                {savedReports.map((report) => (
+                  <Link
+                    key={report.id}
+                    href={`/app/reports/${report.id}` as Route}
+                    className="flex flex-wrap items-center justify-between gap-3 p-4 transition-colors hover:bg-slate-50"
+                  >
+                    <div>
+                      <p className="font-semibold text-[#0A2540]">{report.title}</p>
+                      <p className="text-xs text-slate-500">{formatDate(report.generatedAt)}</p>
+                    </div>
+                    <span className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700">View report</span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="grid gap-3 md:grid-cols-3">
