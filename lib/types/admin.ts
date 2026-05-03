@@ -30,4 +30,6 @@ export type AdminAdvisorRequestRow = {
   assigned_at?: string | null;
   assigned_by?: string | null;
   assigned_advisor_name?: string | null;
+  advisor_notes?: string | null;
+  admin_notes?: string | null;
 };
