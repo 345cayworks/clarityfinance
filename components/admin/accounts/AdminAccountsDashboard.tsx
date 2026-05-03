@@ -55,7 +55,7 @@ export function AdminAccountsDashboard() {
         <AdminTabs tab={tab} onChange={setTab} />
         {toast ? <p className="mb-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{toast}</p> : null}
         {tab === "overview" && <AdminOverviewPanel metrics={metrics as unknown as Record<string, number>} />}
-        {tab === "users" && <AdminUsersPanel users={users} currentUser={user} />}
+        {tab === "users" && <AdminUsersPanel users={users} currentUser={user} onRefresh={loadAdminAccountsData} />}
         {tab === "advisor" && <AdminAdvisorRequestsPanel advisorRequests={advisorRequests} />}
         {tab === "approvals" && <AdminApprovalsPanel users={users} />}
         {tab === "deactivated" && <AdminDeactivatedUsersPanel users={users} />}
