@@ -25,6 +25,7 @@ function canAccess(pathname: string, status: AccountStatus) {
 function Inner({ children }: { children: React.ReactNode }) {
   const router = useRouter(); const pathname = usePathname(); const searchParams = useSearchParams();
   const [checking, setChecking] = useState(true); const [user, setUser] = useState<IdentityUser | null>(null); const [accountStatus, setAccountStatus] = useState<AccountStatus | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
   const mountedRef = useRef(false);
   const searchString = searchParams.toString();
   const currentPath = useMemo(() => `${pathname}${searchString ? `?${searchString}` : ""}`, [pathname, searchString]);
@@ -40,12 +41,14 @@ function Inner({ children }: { children: React.ReactNode }) {
     const token = await getIdentityToken(current);
     if (!mountedRef.current) return;
     if (!token) {
+      setUser(null);
       setAccountStatus(null);
       return;
     }
     const res = await fetch("/.netlify/functions/account-status", { credentials: "same-origin", headers: { Authorization: `Bearer ${token}` } });
     if (!mountedRef.current) return;
     if (!res.ok) {
+      if (res.status === 401 || res.status === 403) setUser(null);
       setAccountStatus(null);
       return;
     }
@@ -54,24 +57,25 @@ function Inner({ children }: { children: React.ReactNode }) {
     setAccountStatus(status);
   }, []);
 
-  useEffect(() => { let mounted = true; let redirected = false; mountedRef.current = true;
+  useEffect(() => { let mounted = true; let redirected = false; mountedRef.current = true; setRedirecting(false); setChecking(true);
     const safeRedirect = (href: string) => {
       if (!mounted || redirected) return;
       redirected = true;
+      setRedirecting(true);
       setChecking(false);
       router.replace(href as Parameters<typeof router.replace>[0]);
     };
     const refresh = async () => {
       try {
         const current = await getUser(); if (!mounted) return; setUser(current);
-        if (!current) { setAccountStatus(null); safeRedirect(loginRedirect); return; }
+        if (!current) { setUser(null); setAccountStatus(null); safeRedirect(loginRedirect); return; }
         const token = await getIdentityToken(current); if (!mounted) return;
-        if (!token) { setAccountStatus(null); safeRedirect(loginRedirect); return; }
+        if (!token) { setUser(null); setAccountStatus(null); safeRedirect(loginRedirect); return; }
         const res = await fetch("/.netlify/functions/account-status", { credentials: "same-origin", headers: { Authorization: `Bearer ${token}` } });
         if (!mounted) return;
         if (!res.ok) {
           setAccountStatus(null);
-          if (res.status === 401 || res.status === 403) { safeRedirect(loginRedirect); return; }
+          if (res.status === 401 || res.status === 403) { setUser(null); safeRedirect(loginRedirect); return; }
           setChecking(false);
           return;
         }
@@ -91,6 +95,7 @@ function Inner({ children }: { children: React.ReactNode }) {
     refresh(); const unsub = onAuthChange((_e,u)=>{if(!mounted) return; if(!u){setUser(null); setAccountStatus(null); safeRedirect(loginRedirect);return;} setUser(u);});
     return ()=>{mounted=false; mountedRef.current=false; unsub();};
   }, [pathname, router, loginRedirect]);
-  if (checking) return <WorkspaceLoader />;
+  if (checking || redirecting) return <WorkspaceLoader />;
+  if (!user || !accountStatus) return <WorkspaceLoader />;
   return <WorkspaceContext.Provider value={{ user, accountStatus, refresh: refreshContext }}>{children}</WorkspaceContext.Provider>;
 }
