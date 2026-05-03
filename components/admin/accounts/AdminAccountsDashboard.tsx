@@ -22,9 +22,9 @@ export function AdminAccountsDashboard() {
   const [advisorRequests, setAdvisorRequests] = useState<AdminAdvisorRequestRow[]>([]);
   const [inviteMessage, setInviteMessage] = useState("");
   const [toast, setToast] = useState("");
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
-  const [advisorFilter, setAdvisorFilter] = useState<AdvisorRequestFilter>("all");
-  const [userFilter, setUserFilter] = useState<UserActivityFilter>("all");
+  const [roleFilter] = useState<RoleFilter>("all");
+  const [advisorFilter] = useState<AdvisorRequestFilter>("all");
+  const [userFilter] = useState<UserActivityFilter>("all");
 
   const loadAdminAccountsData = useCallback(async () => {
     try {
@@ -44,5 +44,24 @@ export function AdminAccountsDashboard() {
 
   if (!isAdminRole(accountStatus?.role)) return <div className="card">Admin access required.</div>;
 
-  return <div className="space-y-6"><div className="card"><h1 className="text-2xl font-semibold text-[#0A2540]">Admin Dashboard</h1></div><div className="card"><AdminTabs tab={tab} onChange={setTab} />{toast ? <p className="mb-2 text-sm text-red-700">{toast}</p> : null}{tab==="overview" && <AdminOverviewPanel metrics={metrics as unknown as Record<string, number>} />}{tab==="users" && <AdminUsersPanel users={users} />}{tab==="advisor" && <AdminAdvisorRequestsPanel advisorRequests={advisorRequests} />}{tab==="approvals" && <AdminApprovalsPanel users={users} />}{tab==="deactivated" && <AdminDeactivatedUsersPanel users={users} />}{tab==="invite" && <AdminInviteUserPanel inviteMessage={inviteMessage} setInviteMessage={setInviteMessage} />}</div></div>;
+  return (
+    <div className="space-y-6">
+      <div className="card">
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Admin operations</p>
+        <h1 className="mt-1 text-2xl font-semibold text-[#0A2540]">Admin Dashboard</h1>
+        <p className="mt-2 text-sm text-slate-600">Manage users, approvals, advisor requests, invitations, and account support workflows.</p>
+      </div>
+      <div className="card">
+        <AdminTabs tab={tab} onChange={setTab} />
+        {toast ? <p className="mb-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{toast}</p> : null}
+        {tab === "overview" && <AdminOverviewPanel metrics={metrics as unknown as Record<string, number>} />}
+        {tab === "users" && <AdminUsersPanel users={users} currentUser={user} />}
+        {tab === "advisor" && <AdminAdvisorRequestsPanel advisorRequests={advisorRequests} />}
+        {tab === "approvals" && <AdminApprovalsPanel users={users} />}
+        {tab === "deactivated" && <AdminDeactivatedUsersPanel users={users} />}
+        {tab === "invite" && <AdminInviteUserPanel inviteMessage={inviteMessage} setInviteMessage={setInviteMessage} />}
+      </div>
+      <p className="text-xs text-slate-400">Filters reserved for Phase 2+: role={roleFilter}, user={userFilter}, advisor={advisorFilter}</p>
+    </div>
+  );
 }
