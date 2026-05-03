@@ -30,6 +30,12 @@ export async function postAdminAction(user: IdentityUser | null, path: string, p
   await parseResponse<Record<string, unknown>>(response, "Admin action failed");
 }
 
+export async function postAdminActionWithMessage(user: IdentityUser | null, path: string, payload: Record<string, unknown>) {
+  const headers = await getAuthHeader(user);
+  const response = await fetch(`/.netlify/functions/${path}`, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  return parseResponse<{ success?: boolean; message?: string }>(response, "Admin action failed");
+}
+
 export const updateAdminUserRole = (user: IdentityUser | null, userId: string, role: UserRole) =>
   postAdminAction(user, "admin-user-role-update", { userId, role });
 
@@ -43,3 +49,6 @@ export const assignAdvisorToRequest = (
 
 export const inviteAdminUser = (user: IdentityUser | null, name: string, email: string, role: UserRole) =>
   postAdminAction(user, "admin-user-invite", { name, email, role });
+
+export const sendAdminPasswordReset = (user: IdentityUser | null, targetUserId: string, email: string) =>
+  postAdminActionWithMessage(user, "admin-user-password-reset", { userId: targetUserId, email });
