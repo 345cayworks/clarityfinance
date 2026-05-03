@@ -93,6 +93,18 @@ function downloadCsv(filename: string, rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
+function getScenarioNumber(record: Record<string, unknown> | undefined, keys: string[]) {
+  for (const key of keys) {
+    const value = toNumber(record?.[key]);
+    if (value !== 0) return value;
+  }
+  return 0;
+}
+
+function formatBreakEven(value: number) {
+  return value > 0 ? `${value.toFixed(1)} months` : "Not profitable with current assumptions.";
+}
+
 function ReportActions({ reportName, csvRows, summaryText, copied, onCopy }: { reportName: string; csvRows: string[][]; summaryText: string; copied: boolean; onCopy: () => void }) {
   return (
     <div className="print:hidden grid w-full gap-2 sm:w-auto sm:grid-cols-3">
@@ -117,6 +129,16 @@ function AmountCard({ title, value, status, note }: { title: string; value: stri
       <p className="mt-2 text-sm text-slate-600">{value}</p>
       {note ? <p className="mt-1 text-xs text-slate-500">{note}</p> : null}
       <div className="mt-2"><StatusBadge status={status} /></div>
+    </div>
+  );
+}
+
+function ScenarioMetric({ label, value, note }: { label: string; value: string; note?: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm print:shadow-none">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-2 text-xl font-semibold text-[#0A2540]">{value}</p>
+      {note ? <p className="mt-1 text-xs text-slate-500">{note}</p> : null}
     </div>
   );
 }
@@ -274,6 +296,16 @@ export default function ReportsPage() {
   const rentRoomCostsTotal = rentRoomScenario
     ? Object.values(rentRoomScenario.costs_json ?? {}).reduce<number>((sum, value) => sum + toNumber(value), 0)
     : 0;
+  const rentRoomResult = rentRoomScenario?.result_json ?? {};
+  const rentRoomIncome = rentRoomScenario?.income_json ?? {};
+  const totalSetupCost = getScenarioNumber(rentRoomResult, ["totalSetupCost"]);
+  const effectiveMonthlyRent = getScenarioNumber(rentRoomResult, ["effectiveMonthlyRent", "monthlyRent"]);
+  const monthlyAddedCosts = getScenarioNumber(rentRoomResult, ["monthlyAddedCosts"]);
+  const netMonthlyProfit = getScenarioNumber(rentRoomResult, ["netMonthlyProfit", "monthlyNetProfit", "netMonthly"]);
+  const breakEvenMonths = getScenarioNumber(rentRoomResult, ["breakEvenMonths"]);
+  const firstYearNet = getScenarioNumber(rentRoomResult, ["firstYearNet"]);
+  const annualProfitAfterBreakEven = getScenarioNumber(rentRoomResult, ["annualProfitAfterBreakEven"]);
+  const securityDepositCollected = getScenarioNumber(rentRoomIncome, ["securityDepositCollected"]);
 
   return (
     <div className="space-y-4 print:bg-white">
@@ -339,7 +371,7 @@ export default function ReportsPage() {
 
       {activeReport === "loan-docs" ? <section className="card space-y-3"><div className="flex flex-wrap items-start justify-between gap-3"><h2 className="text-lg font-semibold text-[#0A2540]">Loan Document Checklist</h2><ReportActions reportName="loan-document-checklist" csvRows={[["Document"], ...bankChecklist.map((item) => [item])]} summaryText={`Loan Document Checklist: prepare ${bankChecklist.length} core documents before lender submission.`} copied={copiedReport === "loan-docs"} onCopy={() => { setCopiedReport("loan-docs"); window.setTimeout(() => setCopiedReport(null), 1500); }} /></div><div className="grid gap-2 md:grid-cols-2">{bankChecklist.map((item) => <div key={item} className="rounded-lg border border-slate-200 p-3 text-sm text-slate-700">□ {item}</div>)}</div></section> : null}
 
-      {activeReport === "rent-room" ? <section className="card space-y-3"><div className="flex flex-wrap items-start justify-between gap-3"><h2 className="text-lg font-semibold text-[#0A2540]">Rent a Room Scenario Report</h2><Link href="/app/tools/rent-a-room" className="print:hidden rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400">Update Scenario</Link></div>{rentRoomLoading ? <p className="text-sm text-slate-600">Loading rent-a-room scenario…</p> : rentRoomScenario ? <div className="grid gap-3 md:grid-cols-3"><AmountCard title="Monthly rent income" value={toCurrency(toNumber(rentRoomScenario.income_json?.monthlyRent), metrics.currency)} status="Strong" /><AmountCard title="Monthly costs" value={toCurrency(rentRoomCostsTotal, metrics.currency)} status="Review carefully" /><AmountCard title="Estimated result" value={toCurrency(toNumber(rentRoomScenario.result_json?.monthlyNetProfit ?? rentRoomScenario.result_json?.netMonthly), metrics.currency)} status="Strong" /></div> : <p className="text-sm text-slate-600">No rent-a-room scenario found. Use the Rent-a-Room tool to create one.</p>}</section> : null}
+      {activeReport === "rent-room" ? <section className="card space-y-3"><div className="flex flex-wrap items-start justify-between gap-3"><h2 className="text-lg font-semibold text-[#0A2540]">Rent a Room Scenario Report</h2><Link href="/app/tools/rent-a-room" className="print:hidden rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400">Update Scenario</Link></div>{rentRoomLoading ? <p className="text-sm text-slate-600">Loading rent-a-room scenario…</p> : rentRoomScenario ? <><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"><ScenarioMetric label="Total setup cost" value={toCurrency(totalSetupCost, metrics.currency)} /><ScenarioMetric label="Effective monthly rent" value={toCurrency(effectiveMonthlyRent, metrics.currency)} /><ScenarioMetric label="Monthly added costs" value={toCurrency(monthlyAddedCosts || rentRoomCostsTotal, metrics.currency)} /><ScenarioMetric label="Net monthly profit" value={toCurrency(netMonthlyProfit, metrics.currency)} /><ScenarioMetric label="Break-even timeline" value={formatBreakEven(breakEvenMonths)} /><ScenarioMetric label="First-year net result" value={toCurrency(firstYearNet, metrics.currency)} /><ScenarioMetric label="Annual profit after break-even" value={toCurrency(annualProfitAfterBreakEven, metrics.currency)} /><ScenarioMetric label="Security deposit collected" value={toCurrency(securityDepositCollected, metrics.currency)} note="Cash collected, not profit." /></div><div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"><p className="font-medium text-[#0A2540]">Scenario status</p><p className="mt-1">{String(rentRoomResult.statusLabel ?? "Review the saved scenario assumptions.")}</p><p className="mt-1 text-xs text-slate-500">Last updated: {new Date(rentRoomScenario.updated_at).toLocaleString()}</p></div></> : <p className="text-sm text-slate-600">No rent-a-room scenario found. Use the Rent-a-Room tool to create one.</p>}</section> : null}
 
       {activeReport === "savings" ? <section className="grid gap-3 md:grid-cols-2"><AmountCard title="Savings & Cash Flow Report" value={`Total savings: ${toCurrency(metrics.savingsBalance, metrics.currency)}`} note={`Monthly surplus: ${toCurrency(metrics.surplus, metrics.currency)}`} status={snapshotStatus.runway} /><AmountCard title="Emergency runway" value={metrics.runwayMonths === null ? "Missing data" : `${metrics.runwayMonths.toFixed(1)} months`} status={snapshotStatus.runway} /><AmountCard title="Cash savings" value={toCurrency(metrics.cashSavings, metrics.currency)} status={metrics.cashSavings > 0 ? "Strong" : "Incomplete"} /><AmountCard title="Down payment savings" value={toCurrency(metrics.downPaymentSavings, metrics.currency)} status={metrics.downPaymentSavings > 0 ? "Strong" : "Incomplete"} /></section> : null}
 
