@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, Suspense, useEffect, useMemo, useState } from "react";
+import { type FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { PasswordField } from "@/components/auth/password-field";
 import { TextField } from "@/components/auth/text-field";
@@ -40,6 +40,8 @@ function LoginPageInner() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const checkedExistingSessionRef = useRef(false);
+  const [checkingExistingSession, setCheckingExistingSession] = useState(true);
 
   const searchString = searchParams.toString();
   const callbackUrl = useMemo(() => new URLSearchParams(searchString).get("callbackUrl"), [searchString]);
@@ -51,6 +53,11 @@ function LoginPageInner() {
   useEffect(() => {
     let cancelled = false;
     async function validateExistingSession() {
+      if (checkedExistingSessionRef.current) {
+        setCheckingExistingSession(false);
+        return;
+      }
+      checkedExistingSessionRef.current = true;
       try {
         const user = await getUser();
         if (cancelled || !user) return;
@@ -68,6 +75,8 @@ function LoginPageInner() {
         setError("We could not verify your session. Please try again.");
       } catch {
         if (!cancelled) setError("We could not verify your session. Please try again.");
+      } finally {
+        if (!cancelled) setCheckingExistingSession(false);
       }
     }
     validateExistingSession();
@@ -84,7 +93,7 @@ function LoginPageInner() {
     }
     if (result.authError) {
       await logout().catch(() => undefined);
-      setError("Your session expired. Please sign in again.");
+      setError("Your session could not be verified. Please sign in again.");
       return false;
     }
     setError("We could not verify your account status. Please try again.");
@@ -159,10 +168,10 @@ function LoginPageInner() {
         ) : null}
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || checkingExistingSession}
           className="w-full rounded-lg bg-[#0A2540] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0e3160] disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {loading ? "Signing in…" : "Sign in"}
+          {checkingExistingSession ? "Checking session…" : loading ? "Signing in…" : "Sign in"}
         </button>
       </form>
     </AuthLayout>
