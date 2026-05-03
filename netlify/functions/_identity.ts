@@ -74,7 +74,33 @@ function getClientContextUser(event: HandlerEvent): VerifiedJwtPayload | null {
   return contextUser && typeof contextUser === "object" ? contextUser : null;
 }
 
-function logIdentityDiagnostics(event: HandlerEvent, jwtVerifyErrorName: string | null = null): void {
+function isValidBaseUrl(value: string | undefined): value is string {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function getIdentityBaseUrl(event: HandlerEvent): string {
+  const forwardedProto = event.headers["x-forwarded-proto"] ?? event.headers["X-Forwarded-Proto"];
+  const host = event.headers.host ?? event.headers.Host;
+  if (typeof host === "string" && host.trim()) {
+    const proto = typeof forwardedProto === "string" && forwardedProto.trim() ? forwardedProto.split(",")[0] : "https";
+    return `${proto}://${host}`;
+  }
+  if (isValidBaseUrl(process.env.APP_URL)) return process.env.APP_URL;
+  if (isValidBaseUrl(process.env.URL)) return process.env.URL;
+  if (isValidBaseUrl(process.env.DEPLOY_URL)) return process.env.DEPLOY_URL;
+  return "https://clarityfinance.cayworks.com";
+}
+
+function logIdentityDiagnostics(
+  event: HandlerEvent,
+  options: { jwtVerifyErrorName?: string | null; identityEndpointStatus?: number | null } = {}
+): void {
   const clientContext = (event as EventWithClientContext).clientContext;
   console.info(
     "[identity-diagnostics]",
@@ -83,8 +109,9 @@ function logIdentityDiagnostics(event: HandlerEvent, jwtVerifyErrorName: string 
       clientContextUserExists: Boolean(clientContext?.user),
       authorizationHeaderExists: hasAuthorizationHeader(event),
       nfJwtCookieExists: hasNfJwtCookie(event),
+      identityEndpointStatus: options.identityEndpointStatus ?? null,
       ...getJwtSecretAvailability(),
-      jwtVerifyErrorName
+      jwtVerifyErrorName: options.jwtVerifyErrorName ?? null
     })
   );
 }
@@ -117,22 +144,43 @@ function toIdentityUser(payload: VerifiedJwtPayload): IdentityUser | null {
   return { id, email, name, role };
 }
 
+async function fetchIdentityUser(event: HandlerEvent, token: string): Promise<{ user: IdentityUser | null; status: number | null }> {
+  try {
+    const response = await fetch(`${getIdentityBaseUrl(event)}/.netlify/identity/user`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!response.ok) return { user: null, status: response.status };
+    const payload = (await response.json()) as VerifiedJwtPayload;
+    return { user: toIdentityUser(payload), status: response.status };
+  } catch (error) {
+    console.info(
+      "[identity-endpoint-error]",
+      JSON.stringify({ errorName: error instanceof Error ? error.name : "UnknownError" })
+    );
+    return { user: null, status: null };
+  }
+}
+
 export async function getIdentityUser(event: HandlerEvent): Promise<IdentityUser | null> {
   const contextUser = getClientContextUser(event);
-  const identityUser = contextUser ? toIdentityUser(contextUser) : null;
-  if (identityUser) {
+  const contextIdentityUser = contextUser ? toIdentityUser(contextUser) : null;
+  if (contextIdentityUser) {
     logIdentityDiagnostics(event);
-    return identityUser;
-  }
-
-  const secret = getJwtSecret();
-  if (!secret) {
-    logIdentityDiagnostics(event);
-    return null;
+    return contextIdentityUser;
   }
 
   const token = extractToken(event);
-  if (!token) {
+  if (token) {
+    const identityResult = await fetchIdentityUser(event, token);
+    if (identityResult.user) {
+      logIdentityDiagnostics(event, { identityEndpointStatus: identityResult.status });
+      return identityResult.user;
+    }
+    logIdentityDiagnostics(event, { identityEndpointStatus: identityResult.status });
+  }
+
+  const secret = getJwtSecret();
+  if (!secret || !token) {
     logIdentityDiagnostics(event);
     return null;
   }
@@ -142,7 +190,7 @@ export async function getIdentityUser(event: HandlerEvent): Promise<IdentityUser
     logIdentityDiagnostics(event);
     return toIdentityUser(payload as VerifiedJwtPayload);
   } catch (error) {
-    logIdentityDiagnostics(event, error instanceof Error ? error.name : "UnknownError");
+    logIdentityDiagnostics(event, { jwtVerifyErrorName: error instanceof Error ? error.name : "UnknownError" });
     return null;
   }
 }
