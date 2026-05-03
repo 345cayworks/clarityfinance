@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { useEffect, useMemo, useState } from "react";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
@@ -33,7 +34,7 @@ type ReportDefinition = {
   primaryMetric: string;
   secondaryMetric: string;
   status: string;
-  href: string;
+  href: Route;
 };
 
 function numberValue(value: unknown) {
