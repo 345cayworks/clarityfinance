@@ -83,12 +83,13 @@ export async function getIdentityUser(event: HandlerEvent): Promise<IdentityUser
   const identityUser = contextUser ? toIdentityUser(contextUser) : null;
   if (identityUser) return identityUser;
 
+  const secret = getJwtSecret();
+  if (!secret) return null;
+
   const token = extractToken(event);
   if (!token) return null;
 
   try {
-    const secret = getJwtSecret();
-    if (!secret) return null;
     const { payload } = await jwtVerify(token, new TextEncoder().encode(secret));
     return toIdentityUser(payload as VerifiedJwtPayload);
   } catch {
