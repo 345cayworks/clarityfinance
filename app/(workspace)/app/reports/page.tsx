@@ -95,17 +95,17 @@ function downloadCsv(filename: string, rows: string[][]) {
 
 function ReportActions({ reportName, csvRows, summaryText, copied, onCopy }: { reportName: string; csvRows: string[][]; summaryText: string; copied: boolean; onCopy: () => void }) {
   return (
-    <div className="print:hidden flex flex-wrap gap-2">
-      <button type="button" onClick={() => window.print()} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400">
+    <div className="print:hidden grid w-full gap-2 sm:w-auto sm:grid-cols-3">
+      <button type="button" onClick={() => window.print()} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400">
         Print / Save as PDF
       </button>
-      <button type="button" onClick={() => downloadCsv(`${reportName.toLowerCase().replace(/\s+/g, "-")}.csv`, csvRows)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400">
+      <button type="button" onClick={() => downloadCsv(`${reportName.toLowerCase().replace(/\s+/g, "-")}.csv`, csvRows)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400">
         Export CSV
       </button>
-      <button type="button" onClick={async () => { await navigator.clipboard.writeText(summaryText); onCopy(); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400">
+      <button type="button" onClick={async () => { await navigator.clipboard.writeText(summaryText); onCopy(); }} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400">
         Copy Summary
       </button>
-      {copied ? <span className="self-center text-xs font-medium text-emerald-700">Copied.</span> : null}
+      {copied ? <span className="self-center text-xs font-medium text-emerald-700 sm:col-span-3">Copied.</span> : null}
     </div>
   );
 }
@@ -283,17 +283,17 @@ export default function ReportsPage() {
           <h1 className="mt-1 text-2xl font-semibold text-[#0A2540]">Reports</h1>
           <p className="mt-2 text-sm text-slate-600">Select a report type to review your financial position from different angles.</p>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 print:hidden">
+        <div className="grid gap-2 print:hidden sm:grid-cols-2 lg:grid-cols-4">
           {reportOptions.map((option) => {
             const active = activeReport === option.id;
-            return <button key={option.id} type="button" onClick={() => setActiveReport(option.id)} className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-colors flex-none ${active ? "bg-[#0A2540] text-white" : "border border-slate-300 text-slate-600 hover:border-slate-400"}`}>{option.label}</button>;
+            return <button key={option.id} type="button" onClick={() => setActiveReport(option.id)} className={`min-h-12 w-full rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors ${active ? "bg-[#0A2540] text-white shadow-sm" : "border border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"}`}>{option.label}</button>;
           })}
         </div>
         <div className="border-t border-slate-200 print:hidden" />
-        <div className="print:hidden flex flex-wrap gap-2 text-sm">
-          <Link href="/app/tools/rent-a-room" className="rounded-lg border border-slate-300 px-3 py-2 font-medium text-slate-700 hover:border-slate-400">Rent-a-Room Report →</Link>
-          <Link href="/app/loan-readiness" className="rounded-lg border border-slate-300 px-3 py-2 font-medium text-slate-700 hover:border-slate-400">Loan readiness →</Link>
-          <Link href="/app/prequalification/proven-bank" className="rounded-lg border border-slate-300 px-3 py-2 font-medium text-slate-700 hover:border-slate-400">Bank prequalification →</Link>
+        <div className="print:hidden grid gap-2 text-sm sm:grid-cols-3">
+          <Link href="/app/tools/rent-a-room" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center font-medium text-slate-700 hover:border-slate-400">Rent-a-Room Report →</Link>
+          <Link href="/app/loan-readiness" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center font-medium text-slate-700 hover:border-slate-400">Loan readiness →</Link>
+          <Link href="/app/prequalification/proven-bank" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center font-medium text-slate-700 hover:border-slate-400">Bank prequalification →</Link>
         </div>
       </section>
 
