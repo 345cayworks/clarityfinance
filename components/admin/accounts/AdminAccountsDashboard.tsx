@@ -14,6 +14,9 @@ import { AdminAdvisorRequestsPanel } from "@/components/admin/accounts/AdminAdvi
 import { AdminApprovalsPanel } from "@/components/admin/accounts/AdminApprovalsPanel";
 import { AdminDeactivatedUsersPanel } from "@/components/admin/accounts/AdminDeactivatedUsersPanel";
 import { AdminInviteUserPanel } from "@/components/admin/accounts/AdminInviteUserPanel";
+import { AdminAuditPanel } from "@/components/admin/accounts/AdminAuditPanel";
+import { AdminHealthPanel } from "@/components/admin/accounts/AdminHealthPanel";
+import { AdminIntelligencePanel } from "@/components/admin/accounts/AdminIntelligencePanel";
 
 export function AdminAccountsDashboard() {
   const { user, accountStatus } = useWorkspaceUser();
@@ -51,7 +54,7 @@ export function AdminAccountsDashboard() {
       <div className="card">
         <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Admin operations</p>
         <h1 className="mt-1 text-2xl font-semibold text-[#0A2540]">Admin Dashboard</h1>
-        <p className="mt-2 text-sm text-slate-600">Manage users, approvals, advisor requests, invitations, and account support workflows.</p>
+        <p className="mt-2 text-sm text-slate-600">Manage users, approvals, advisor requests, invitations, account support workflows, audit trail, health, and intelligence.</p>
       </div>
       <div className="card">
         <AdminTabs tab={tab} onChange={setTab} />
@@ -62,6 +65,9 @@ export function AdminAccountsDashboard() {
         {tab === "approvals" && <AdminApprovalsPanel users={users} currentUser={user} onRefresh={loadAdminAccountsData} />}
         {tab === "deactivated" && <AdminDeactivatedUsersPanel users={users} />}
         {tab === "invite" && <AdminInviteUserPanel inviteMessage={inviteMessage} setInviteMessage={setInviteMessage} />}
+        {tab === "audit" && <AdminAuditPanel currentUser={user} />}
+        {tab === "health" && <AdminHealthPanel currentUser={user} />}
+        {tab === "intelligence" && <AdminIntelligencePanel currentUser={user} />}
       </div>
       <p className="text-xs text-slate-400">Filters reserved for Phase 2+: role={roleFilter}, user={userFilter}, advisor={advisorFilter}</p>
     </div>
