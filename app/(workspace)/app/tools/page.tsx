@@ -5,6 +5,7 @@ const toolLinks = [
   { label: "Mortgage", href: "/app/tools/mortgage", description: "Model monthly payment, affordability, and long-term housing costs." },
   { label: "Cash-Out Refinance", href: "/app/tools/refinance", description: "Estimate proceeds, payment impact, and refinance tradeoffs." },
   { label: "Rent-a-Room", href: "/app/tools/rent-a-room", description: "Project setup costs, rent income, and break-even timeline." },
+  { label: "Retirement Readiness", href: "/app/tools/retirement", description: "Project retirement savings, income gaps, readiness score, and contribution targets." },
   { label: "Debt Plan", href: "/app/tools/debt-plan", description: "Compare payoff strategies and monthly debt reduction plans." }
 ] satisfies Array<{ label: string; href: Route; description: string }>;
 
