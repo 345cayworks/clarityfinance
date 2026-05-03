@@ -48,6 +48,42 @@ const metricsSnapshot = [
   { label: "Reports", value: "8", tone: "text-blue-600" }
 ];
 
+const howItWorks = [
+  {
+    step: "01",
+    title: "Build your profile",
+    description: "Enter the financial facts that matter: income sources, expenses, debts, savings, housing, goals, and documents."
+  },
+  {
+    step: "02",
+    title: "Review your position",
+    description: "Use the dashboard and reports to see what your numbers say about cash flow, debt pressure, savings, and readiness."
+  },
+  {
+    step: "03",
+    title: "Prepare with confidence",
+    description: "Model practical scenarios, complete your document checklist, and request advisor support when you are ready."
+  }
+];
+
+const reports = [
+  "Financial Snapshot",
+  "Expense Report",
+  "Bank Loan Readiness",
+  "Loan Document Checklist",
+  "Rent a Room Scenario",
+  "Savings & Cash Flow",
+  "Debt & Liability",
+  "Housing & Equity"
+];
+
+const audiences = [
+  "People preparing for a loan or mortgage conversation",
+  "Families trying to understand monthly cash flow before making a big decision",
+  "Users who need reports and documents organized before advisor review",
+  "Anyone exploring scenarios like debt reduction, savings goals, or rent-a-room income"
+];
+
 export default function HomePage() {
   return (
     <div className="space-y-20 pt-10 md:pt-16">
@@ -111,6 +147,29 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+        <div className="grid gap-6 md:grid-cols-[1.15fr,0.85fr] md:items-center">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Why it matters</p>
+            <h2 className="mt-2 text-3xl font-semibold text-[#0A2540]">Most people do not have a money problem. They have a clarity problem.</h2>
+            <p className="mt-3 text-slate-600">
+              When income, expenses, debts, documents, and goals are scattered, it is hard to know whether you are ready to apply,
+              what to fix first, or what an advisor will need to see. Clarity Finance brings those pieces together so the next step
+              becomes easier to understand.
+            </p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-700">
+            <p className="font-semibold text-[#0A2540]">Clarity helps you answer:</p>
+            <ul className="mt-3 space-y-2">
+              <li>• What is my real monthly position?</li>
+              <li>• Which documents are still missing?</li>
+              <li>• What is hurting my readiness?</li>
+              <li>• Which scenario could improve my position?</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
       <section>
         <div className="text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">A clearer path from confusion to readiness</p>
@@ -130,6 +189,52 @@ export default function HomePage() {
               </span>
               <h3 className="mt-4 text-lg font-semibold text-[#0A2540]">{feature.title}</h3>
               <p className="mt-2 text-sm text-slate-600">{feature.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">How it works</p>
+          <h2 className="mt-2 text-3xl font-semibold text-[#0A2540]">From scattered details to a clearer plan</h2>
+        </div>
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {howItWorks.map((item) => (
+            <div key={item.step} className="card">
+              <p className="text-sm font-semibold text-blue-700">{item.step}</p>
+              <h3 className="mt-2 text-lg font-semibold text-[#0A2540]">{item.title}</h3>
+              <p className="mt-2 text-sm text-slate-600">{item.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="grid gap-6 md:grid-cols-[0.9fr,1.1fr] md:items-start">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Reports that create movement</p>
+          <h2 className="mt-2 text-3xl font-semibold text-[#0A2540]">Give yourself and your advisor something useful to review.</h2>
+          <p className="mt-3 text-slate-600">
+            Instead of walking into a conversation with scattered numbers, users can generate structured reports that make the
+            financial picture easier to review, compare, and improve.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {reports.map((report) => (
+            <div key={report} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-[#0A2540] shadow-sm">
+              {report}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-3xl bg-slate-50 p-6 md:p-8">
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Who it is for</p>
+        <h2 className="mt-2 text-3xl font-semibold text-[#0A2540]">Built for people getting ready, not just people tracking spending.</h2>
+        <div className="mt-6 grid gap-3 md:grid-cols-2">
+          {audiences.map((audience) => (
+            <div key={audience} className="rounded-xl bg-white p-4 text-sm text-slate-700 shadow-sm">
+              {audience}
             </div>
           ))}
         </div>
