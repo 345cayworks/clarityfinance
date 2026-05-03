@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import type { Route } from "next";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { describeAuthError, getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
 import PersonalCard from "@/components/onboarding/PersonalCard";
@@ -13,8 +13,8 @@ import DebtCard from "@/components/onboarding/DebtCard";
 import SavingsCard from "@/components/onboarding/SavingsCard";
 import GoalsCard from "@/components/onboarding/GoalsCard";
 
-
 type FormDataShape = Record<string, unknown>;
+type FormState = Record<string, string | boolean>;
 
 type OnboardingField = {
   name: string;
@@ -30,9 +30,7 @@ type OnboardingField = {
 type OnboardingSection = {
   key: string;
   title: string;
-  label?: string;
   description?: string;
-  showWhen?: (formData: FormDataShape) => boolean;
   fields: OnboardingField[];
 };
 
@@ -43,37 +41,405 @@ const isFieldVisible = (field: OnboardingField, formData: FormDataShape) => {
 };
 
 const sections: OnboardingSection[] = [
-  { key: "personal", title: "Personal Information", description: "Basic identity details", fields: [{ name: "customerName", label: "Customer name" }, { name: "dateOfBirth", label: "Date of birth" }, { name: "dependents", label: "Dependents", type: "number" }, { name: "nationality", label: "Nationality" }, { name: "householdStatus", label: "Household/Marital status" }, { name: "citizenshipStatus", label: "Citizenship status" }, { name: "workPermitRequired", label: "Do you require a work permit?", type: "yesno" }, { name: "workPermitExpiryDate", label: "Work permit expiry date", showWhen: { field: "workPermitRequired", equals: true } }, { name: "creditScoreKnown", label: "Do you know your credit score or profile?", type: "yesno" }, { name: "creditScoreOrProfile", label: "Credit score/profile", placeholder: "e.g. 720, Good, Fair", showWhen: { field: "creditScoreKnown", equals: true } }, { name: "bankruptcyHistory", label: "Have you ever filed for bankruptcy?", type: "yesno" }, { name: "missedPaymentsHistory", label: "Have you had missed or late payments?", type: "yesno" }] },
-  { key: "contact", title: "Contact Information", description: "How to reach you", fields: [{ name: "phone", label: "Phone" }, { name: "alternatePhone", label: "Alternate phone" }, { name: "physicalAddress", label: "Physical address" }, { name: "mailingAddress", label: "Mailing address" }, { name: "email", label: "Email" }, { name: "countryOrMarket", label: "Country/Market" }, { name: "preferredCurrency", label: "Preferred currency" }] },
-  { key: "income", title: "Employment & Income", description: "Work and earnings", fields: [{ name: "employmentType", label: "Employment type" }, { name: "employer", label: "Employer" }, { name: "jobTitle", label: "Job title" }, { name: "monthlyGrossIncome", label: "Monthly gross income", type: "number" }, { name: "monthlyNetIncome", label: "Monthly net income", type: "number" }, { name: "employerAddress", label: "Employer address" }, { name: "employmentLength", label: "Employment length" }, { name: "incomeFrequency", label: "Income frequency" }, { name: "incomeStability", label: "Income stability" }, { name: "otherIncomeAmount", label: "Other income amount", type: "number" }, { name: "otherIncomeDescription", label: "Other income description" }, { name: "incomeType", label: "Income type" }, { name: "incomeLabel", label: "Income label" }, { name: "incomeMonthlyAmount", label: "Income monthly amount", type: "number" }] },
-  { key: "expenses", title: "Expenses", description: "Monthly spending", fields: [{ name: "expenseHousing", label: "Housing", type: "number" }, { name: "expenseUtilities", label: "Utilities", type: "number" }, { name: "expenseTransport", label: "Transport", type: "number" }, { name: "expenseGroceries", label: "Groceries", type: "number" }, { name: "expenseInsurance", label: "Insurance", type: "number" }, { name: "expenseChildcare", label: "Childcare", type: "number" }, { name: "expenseDiscretionary", label: "Discretionary", type: "number" }, { name: "expenseOther", label: "Other non-debt living expenses", type: "number" }] },
-  { key: "housing", title: "Housing & Property", description: "Housing profile", fields: [{ name: "housingStatus", label: "Housing status" }, { name: "rentAmount", label: "Rent amount", type: "number" }, { name: "mortgageBalance", label: "Mortgage balance", type: "number" }, { name: "propertyType", label: "Property type" }, { name: "propertyLocation", label: "Property location" }, { name: "mortgagePayment", label: "Mortgage payment", type: "number" }, { name: "mortgageRate", label: "Mortgage rate", type: "number" }, { name: "estimatedHomeValue", label: "Estimated home value", type: "number" }, { name: "propertyIdentified", label: "Property identified", type: "checkbox" }, { name: "purchaseAgreementAvailable", label: "Purchase agreement available", type: "checkbox" }, { name: "estimatedRoomRentalIncome", label: "Estimated room rental income", type: "number" }, { name: "spareRoomAvailable", label: "Spare room available", type: "checkbox" }] },
-  { key: "debt", title: "Debts & Liabilities", description: "Debt snapshot", fields: [{ name: "debtName", label: "Debt name" }, { name: "debtType", label: "Debt type" }, { name: "debtBalance", label: "Debt balance", type: "number" }, { name: "debtMonthlyPayment", label: "Debt monthly payment", type: "number" }, { name: "debtInterestRate", label: "Debt interest rate", type: "number" }] },
-  { key: "savings", title: "Savings & Assets", description: "Savings profile", fields: [{ name: "cashSavings", label: "Cash savings", type: "number" }, { name: "investments", label: "Investments", type: "number" }, { name: "retirementSavings", label: "Retirement savings", type: "number" }, { name: "downPaymentSavings", label: "Down payment savings", type: "number" }, { name: "otherAssets", label: "Other assets", type: "number" }, { name: "hasDownPaymentProof", label: "Has down payment proof", type: "checkbox" }, { name: "sourceOfDownPayment", label: "Source of down payment" }] },
-  { key: "goals", title: "Goals & Loan Details", description: "Targets, loan details, and document checklist", fields: [{ name: "targetGoal", label: "Target goal" }, { name: "loanPurpose", label: "Loan purpose" }, { name: "requestedLoanAmount", label: "Requested loan amount", type: "number" }, { name: "desiredLoanTermYears", label: "Desired loan term years", type: "number" }, { name: "targetHomePrice", label: "Target home price", type: "number" }, { name: "purchasePrice", label: "Purchase price", type: "number" }, { name: "borrowerContribution", label: "Borrower contribution", type: "number" }, { name: "securityOffered", label: "Security offered" }, { name: "securityValue", label: "Security value", type: "number" }, { name: "goalTimeframe", label: "Goal timeframe" }, { name: "targetSavingsGoal", label: "Target savings goal", type: "number" }, { name: "targetDebtReduction", label: "Target debt reduction", type: "number" }, { name: "targetMonthlyCashFlow", label: "Target monthly cash flow", type: "number" }, { name: "hasID", label: "Has ID", type: "checkbox" }, { name: "hasProofOfAddress", label: "Proof of address available", type: "yesno", group: "documents" }, { name: "hasPayslips", label: "Payslips available", type: "yesno", group: "documents" }, { name: "hasEmploymentLetter", label: "Employment letter available", type: "yesno", group: "documents" }, { name: "hasBankStatements", label: "Bank statements available (3–6 months)", type: "yesno", group: "documents" }, { name: "hasDebtStatements", label: "Debt statements available", type: "yesno", group: "documents" }, { name: "hasCreditReport", label: "Credit report available", type: "yesno", group: "documents" }, { name: "hasPurchaseAgreement", label: "Purchase agreement available", type: "yesno", group: "documents" }, { name: "hasValuation", label: "Property valuation available", type: "yesno", group: "documents" }, { name: "hasBusinessFinancials", label: "Business financials available (if self-employed)", type: "yesno", group: "documents" }, { name: "hasTaxReturns", label: "Tax returns available", type: "yesno", group: "documents" }] }
+  {
+    key: "personal",
+    title: "Personal Information",
+    description: "Basic identity details",
+    fields: [
+      { name: "customerName", label: "Customer name" },
+      { name: "dateOfBirth", label: "Date of birth" },
+      { name: "dependents", label: "Dependents", type: "number" },
+      { name: "nationality", label: "Nationality" },
+      { name: "householdStatus", label: "Household/Marital status" },
+      { name: "citizenshipStatus", label: "Citizenship status" },
+      { name: "workPermitRequired", label: "Do you require a work permit?", type: "yesno" },
+      { name: "workPermitExpiryDate", label: "Work permit expiry date", showWhen: { field: "workPermitRequired", equals: true } },
+      { name: "creditScoreKnown", label: "Do you know your credit score or profile?", type: "yesno" },
+      { name: "creditScoreOrProfile", label: "Credit score/profile", placeholder: "e.g. 720, Good, Fair", showWhen: { field: "creditScoreKnown", equals: true } },
+      { name: "bankruptcyHistory", label: "Have you ever filed for bankruptcy?", type: "yesno" },
+      { name: "missedPaymentsHistory", label: "Have you had missed or late payments?", type: "yesno" }
+    ]
+  },
+  {
+    key: "contact",
+    title: "Contact Information",
+    description: "How to reach you",
+    fields: [
+      { name: "phone", label: "Phone" },
+      { name: "alternatePhone", label: "Alternate phone" },
+      { name: "physicalAddress", label: "Physical address" },
+      { name: "mailingAddress", label: "Mailing address" },
+      { name: "email", label: "Email" },
+      { name: "countryOrMarket", label: "Country/Market" },
+      { name: "preferredCurrency", label: "Preferred currency" }
+    ]
+  },
+  {
+    key: "income",
+    title: "Employment & Income",
+    description: "Capture up to three monthly income sources. Reports use the total monthly income.",
+    fields: [
+      { name: "employmentType", label: "Employment type" },
+      { name: "employer", label: "Employer" },
+      { name: "jobTitle", label: "Job title" },
+      { name: "employerAddress", label: "Employer address" },
+      { name: "employmentLength", label: "Employment length" }
+    ]
+  },
+  {
+    key: "expenses",
+    title: "Expenses",
+    description: "Monthly spending",
+    fields: [
+      { name: "expenseHousing", label: "Housing", type: "number" },
+      { name: "expenseUtilities", label: "Utilities", type: "number" },
+      { name: "expenseTransport", label: "Transport", type: "number" },
+      { name: "expenseGroceries", label: "Groceries", type: "number" },
+      { name: "expenseInsurance", label: "Insurance", type: "number" },
+      { name: "expenseChildcare", label: "Childcare", type: "number" },
+      { name: "expenseDiscretionary", label: "Discretionary", type: "number" },
+      { name: "expenseOther", label: "Other non-debt living expenses", type: "number" }
+    ]
+  },
+  {
+    key: "housing",
+    title: "Housing & Property",
+    description: "Housing profile",
+    fields: [
+      { name: "housingStatus", label: "Housing status" },
+      { name: "rentAmount", label: "Rent amount", type: "number" },
+      { name: "mortgageBalance", label: "Mortgage balance", type: "number" },
+      { name: "propertyType", label: "Property type" },
+      { name: "propertyLocation", label: "Property location" },
+      { name: "mortgagePayment", label: "Mortgage payment", type: "number" },
+      { name: "mortgageRate", label: "Mortgage rate", type: "number" },
+      { name: "estimatedHomeValue", label: "Estimated home value", type: "number" },
+      { name: "propertyIdentified", label: "Property identified", type: "checkbox" },
+      { name: "purchaseAgreementAvailable", label: "Purchase agreement available", type: "checkbox" },
+      { name: "estimatedRoomRentalIncome", label: "Estimated room rental income", type: "number" },
+      { name: "spareRoomAvailable", label: "Spare room available", type: "checkbox" }
+    ]
+  },
+  {
+    key: "debt",
+    title: "Debts & Liabilities",
+    description: "Debt snapshot",
+    fields: [
+      { name: "debtName", label: "Debt name" },
+      { name: "debtType", label: "Debt type" },
+      { name: "debtBalance", label: "Debt balance", type: "number" },
+      { name: "debtMonthlyPayment", label: "Debt monthly payment", type: "number" },
+      { name: "debtInterestRate", label: "Debt interest rate", type: "number" }
+    ]
+  },
+  {
+    key: "savings",
+    title: "Savings & Assets",
+    description: "Savings profile",
+    fields: [
+      { name: "cashSavings", label: "Cash savings", type: "number" },
+      { name: "emergencyFund", label: "Emergency fund", type: "number" },
+      { name: "investments", label: "Investments", type: "number" },
+      { name: "retirementSavings", label: "Retirement savings", type: "number" },
+      { name: "downPaymentSavings", label: "Down payment savings", type: "number" },
+      { name: "otherAssets", label: "Other assets", type: "number" },
+      { name: "hasDownPaymentProof", label: "Has down payment proof", type: "checkbox" },
+      { name: "sourceOfDownPayment", label: "Source of down payment" }
+    ]
+  },
+  {
+    key: "goals",
+    title: "Goals & Loan Details",
+    description: "Targets, loan details, and document checklist",
+    fields: [
+      { name: "targetGoal", label: "Target goal" },
+      { name: "loanPurpose", label: "Loan purpose" },
+      { name: "requestedLoanAmount", label: "Requested loan amount", type: "number" },
+      { name: "desiredLoanTermYears", label: "Desired loan term years", type: "number" },
+      { name: "targetHomePrice", label: "Target home price", type: "number" },
+      { name: "purchasePrice", label: "Purchase price", type: "number" },
+      { name: "borrowerContribution", label: "Borrower contribution", type: "number" },
+      { name: "securityOffered", label: "Security offered" },
+      { name: "securityValue", label: "Security value", type: "number" },
+      { name: "goalTimeframe", label: "Goal timeframe" },
+      { name: "targetSavingsGoal", label: "Target savings goal", type: "number" },
+      { name: "targetDebtReduction", label: "Target debt reduction", type: "number" },
+      { name: "targetMonthlyCashFlow", label: "Target monthly cash flow", type: "number" },
+      { name: "hasID", label: "Has ID", type: "checkbox" },
+      { name: "hasProofOfAddress", label: "Proof of address available", type: "yesno", group: "documents" },
+      { name: "hasPayslips", label: "Payslips available", type: "yesno", group: "documents" },
+      { name: "hasEmploymentLetter", label: "Employment letter available", type: "yesno", group: "documents" },
+      { name: "hasBankStatements", label: "Bank statements available (3–6 months)", type: "yesno", group: "documents" },
+      { name: "hasDebtStatements", label: "Debt statements available", type: "yesno", group: "documents" },
+      { name: "hasCreditReport", label: "Credit report available", type: "yesno", group: "documents" },
+      { name: "hasPurchaseAgreement", label: "Purchase agreement available", type: "yesno", group: "documents" },
+      { name: "hasValuation", label: "Property valuation available", type: "yesno", group: "documents" },
+      { name: "hasBusinessFinancials", label: "Business financials available (if self-employed)", type: "yesno", group: "documents" },
+      { name: "hasTaxReturns", label: "Tax returns available", type: "yesno", group: "documents" }
+    ]
+  }
 ];
 
-const cards: Record<string, any> = { personal: PersonalCard, contact: ContactCard, income: IncomeCard, expenses: ExpensesCard, housing: HousingCard, debt: DebtCard, savings: SavingsCard, goals: GoalsCard };
+const cards: Record<string, React.ComponentType<any>> = {
+  personal: PersonalCard,
+  contact: ContactCard,
+  income: IncomeCard,
+  expenses: ExpensesCard,
+  housing: HousingCard,
+  debt: DebtCard,
+  savings: SavingsCard,
+  goals: GoalsCard
+};
+
+const stringValue = (value: unknown) => String(value ?? "");
+const boolValue = (value: unknown) => Boolean(value);
+
+function incomeSourceFields(incomeSources: Array<Record<string, unknown>> = {}) {
+  const rows = Array.isArray(incomeSources) ? incomeSources.slice(0, 3) : [];
+  const fields: FormState = {};
+  [0, 1, 2].forEach((index) => {
+    const source = rows[index] ?? {};
+    const slot = index + 1;
+    fields[`incomeSource${slot}Type`] = stringValue(source.type);
+    fields[`incomeSource${slot}Label`] = stringValue(source.label);
+    fields[`incomeSource${slot}MonthlyAmount`] = stringValue(source.monthly_amount);
+    fields[`incomeSource${slot}Frequency`] = stringValue(source.frequency || "monthly");
+    fields[`incomeSource${slot}Stability`] = stringValue(source.stability || "stable");
+  });
+  return fields;
+}
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState("personal");
-  const [formData, setFormData] = useState<Record<string, string | boolean>>({});
+  const [formData, setFormData] = useState<FormState>({});
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [sectionErrors, setSectionErrors] = useState<Record<string, string>>({});
 
-  useEffect(() => { (async()=>{ const user=await getUser(); if(!user) return; const token=await getIdentityToken(user); if(!token) return; const r=await fetch('/.netlify/functions/profile-get',{headers:{Authorization:`Bearer ${token}`}}); if(!r.ok) return; const d=await r.json(); const p=d.profile||{}; setFormData({ customerName:String(p.customer_name??""), dateOfBirth:String(p.date_of_birth??""), dependents:String(p.dependents??""), phone:String(p.phone??""), alternatePhone:String(p.alternate_phone??""), physicalAddress:String(p.physical_address??""), mailingAddress:String(p.mailing_address??""), employmentType:String(p.employment_type??""), employer:String(p.employer??""), jobTitle:String(p.job_title??""), monthlyGrossIncome:String(p.monthly_gross_income??""), monthlyNetIncome:String(p.monthly_net_income??""), expenseHousing:String(d.expenseProfile?.housing??""), expenseUtilities:String(d.expenseProfile?.utilities??""), expenseTransport:String(d.expenseProfile?.transport??""), housingStatus:String(d.housingProfile?.housing_status??""), rentAmount:String(d.housingProfile?.rent_amount??""), mortgageBalance:String(d.housingProfile?.mortgage_balance??""), propertyType:String(p.property_type??""), propertyLocation:String(p.property_location??""), debtName:String(d.debts?.[0]?.name??""), debtType:String(d.debts?.[0]?.type??""), debtBalance:String(d.debts?.[0]?.balance??""), debtMonthlyPayment:String(d.debts?.[0]?.monthly_payment??""), cashSavings:String(d.savingsProfile?.cash_savings??""), investments:String(d.savingsProfile?.investments??""), retirementSavings:String(d.savingsProfile?.retirement_savings??""), targetGoal:String(d.goals?.target_goal??""), loanPurpose:String(p.loan_purpose??""), requestedLoanAmount:String(p.requested_loan_amount??""), desiredLoanTermYears:String(p.desired_loan_term_years??""), nationality:String(p.nationality??""), householdStatus:String(p.household_status??""), citizenshipStatus:String(p.citizenship_status??""), workPermitRequired:Boolean(p.work_permit_required), workPermitExpiryDate:String(p.work_permit_expiry_date??""), creditScoreKnown:Boolean(p.credit_score_known), creditScoreOrProfile:String(p.credit_score_or_profile??""), bankruptcyHistory:Boolean(p.bankruptcy_history), missedPaymentsHistory:Boolean(p.missed_payments_history), email:String(user.email ?? ""), countryOrMarket:String(p.country_or_market??""), preferredCurrency:String(p.preferred_currency??""), employerAddress:String(p.employer_address??""), employmentLength:String(p.employment_length??""), incomeFrequency:String(d.incomeSources?.[0]?.frequency??""), incomeStability:String(d.incomeSources?.[0]?.stability??""), otherIncomeAmount:String(p.other_income_amount??""), otherIncomeDescription:String(p.other_income_description??""), incomeType:String(d.incomeSources?.[0]?.type??""), incomeLabel:String(d.incomeSources?.[0]?.label??""), incomeMonthlyAmount:String(d.incomeSources?.[0]?.monthly_amount??""), expenseGroceries:String(d.expenseProfile?.groceries??""), expenseInsurance:String(d.expenseProfile?.insurance??""), expenseChildcare:String(d.expenseProfile?.childcare??""), expenseDiscretionary:String(d.expenseProfile?.discretionary??""), expenseOther:String(d.expenseProfile?.other??""), mortgagePayment:String(d.housingProfile?.mortgage_payment??""), mortgageRate:String(d.housingProfile?.mortgage_rate??""), estimatedHomeValue:String(d.housingProfile?.estimated_home_value??""), propertyIdentified:Boolean(p.property_identified), purchaseAgreementAvailable:Boolean(p.purchase_agreement_available), estimatedRoomRentalIncome:String(d.housingProfile?.estimated_room_rental_income??""), spareRoomAvailable:Boolean(d.housingProfile?.spare_room_available), debtInterestRate:String(d.debts?.[0]?.interest_rate??""), downPaymentSavings:String(d.savingsProfile?.down_payment_savings??""), otherAssets:String(p.other_assets??""), hasDownPaymentProof:Boolean(p.has_down_payment_proof), sourceOfDownPayment:String(p.source_of_down_payment??""), targetHomePrice:String(d.goals?.target_home_price??""), purchasePrice:String(p.purchase_price??""), borrowerContribution:String(p.borrower_contribution??""), securityOffered:String(p.security_offered??""), securityValue:String(p.security_value??""), goalTimeframe:String(d.goals?.goal_timeframe??""), targetSavingsGoal:String(d.goals?.target_savings_goal??""), targetDebtReduction:String(d.goals?.target_debt_reduction??""), targetMonthlyCashFlow:String(d.goals?.target_monthly_cash_flow??""), hasID:Boolean(p.has_id), hasProofOfAddress:Boolean(p.has_proof_of_address), hasPayslips:Boolean(p.has_payslips), hasEmploymentLetter:Boolean(p.has_employment_letter), hasBankStatements:Boolean(p.has_bank_statements), hasDebtStatements:Boolean(p.has_debt_statements), hasCreditReport:Boolean(p.has_credit_report), hasPurchaseAgreement:Boolean(p.has_purchase_agreement), hasValuation:Boolean(p.has_valuation), hasBusinessFinancials:Boolean(p.has_business_financials), hasTaxReturns:Boolean(p.has_tax_returns) }); })(); },[]);
+  useEffect(() => {
+    let cancelled = false;
 
-  const activeIndex = sections.findIndex((s)=>s.key===activeSection);
-  const completion = useMemo(()=>{ const provided=(field:OnboardingField)=>{ if (!isFieldVisible(field, formData)) return true; const value=formData[field.name as keyof typeof formData]; return typeof value==="boolean" ? true : String(value ?? "").trim()!==""; }; const completed=sections.filter((section)=> section.fields.every((field)=>provided(field))).length; return { completed, pct: Math.round((completed/sections.length)*100)}; },[formData]);
-  const status = (section: OnboardingSection) => { const visible=section.fields.filter((field)=>isFieldVisible(field, formData)); const filled=visible.filter((field)=>typeof formData[field.name]==="boolean" || String(formData[field.name]??"").trim()!=="").length; if (filled===0) return "Not started"; if (filled===visible.length) return "Complete"; return "In progress"; };
+    async function loadProfile() {
+      const user = await getUser();
+      if (!user) return;
+      const token = await getIdentityToken(user);
+      if (!token) return;
+      const response = await fetch("/.netlify/functions/profile-get", { headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok || cancelled) return;
 
-  const validateSection = (key:string) => { const s=sections.find((x)=>x.key===key)!; const req=s.fields.slice(0,2); const missing=req.filter((f)=>String(formData[f.name]??"").trim()===""); setSectionErrors((p)=>({...p,[key]: missing.length?`Please complete: ${missing.map((m)=>m.label).join(", ")}`:""})); return missing.length===0; };
+      const data = await response.json();
+      const profile = data.profile ?? {};
+      const incomeSources = Array.isArray(data.incomeSources) ? data.incomeSources : [];
+      const firstIncome = incomeSources[0] ?? {};
 
-  const save = async (onlyCurrent=true) => { setSaving(true); setError(""); setMessage(""); if (onlyCurrent && !validateSection(activeSection)) { setSaving(false); return; } try { const user=await getUser(); if(!user){router.replace('/login?callbackUrl=%2Fapp%2Fonboarding' as Route); return;} const token=await getIdentityToken(user); if(!token){setError('Session verification failed.'); return;} const payload={...formData}; const r=await fetch('/.netlify/functions/profile-save',{method:'POST',headers:{'content-type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(payload)}); const result=await r.json().catch(()=>({})); if(!r.ok){setError(result.error||'Save failed'); return;} setMessage('Saved successfully.'); } catch(err){setError(describeAuthError(err));} finally {setSaving(false);} };
+      setFormData({
+        customerName: stringValue(profile.customer_name),
+        dateOfBirth: stringValue(profile.date_of_birth),
+        dependents: stringValue(profile.dependents),
+        nationality: stringValue(profile.nationality),
+        householdStatus: stringValue(profile.household_status),
+        citizenshipStatus: stringValue(profile.citizenship_status),
+        workPermitRequired: boolValue(profile.work_permit_required),
+        workPermitExpiryDate: stringValue(profile.work_permit_expiry_date),
+        creditScoreKnown: boolValue(profile.credit_score_known),
+        creditScoreOrProfile: stringValue(profile.credit_score_or_profile),
+        bankruptcyHistory: boolValue(profile.bankruptcy_history),
+        missedPaymentsHistory: boolValue(profile.missed_payments_history),
+        phone: stringValue(profile.phone),
+        alternatePhone: stringValue(profile.alternate_phone),
+        physicalAddress: stringValue(profile.physical_address),
+        mailingAddress: stringValue(profile.mailing_address),
+        email: stringValue(user.email),
+        countryOrMarket: stringValue(profile.country_or_market),
+        preferredCurrency: stringValue(profile.preferred_currency),
+        employmentType: stringValue(profile.employment_type),
+        employer: stringValue(profile.employer),
+        jobTitle: stringValue(profile.job_title),
+        employerAddress: stringValue(profile.employer_address),
+        employmentLength: stringValue(profile.employment_length),
+        monthlyGrossIncome: stringValue(profile.monthly_gross_income),
+        monthlyNetIncome: stringValue(profile.monthly_net_income),
+        incomeType: stringValue(firstIncome.type),
+        incomeLabel: stringValue(firstIncome.label),
+        incomeMonthlyAmount: stringValue(firstIncome.monthly_amount),
+        incomeFrequency: stringValue(firstIncome.frequency),
+        incomeStability: stringValue(firstIncome.stability),
+        otherIncomeAmount: stringValue(profile.other_income_amount),
+        otherIncomeDescription: stringValue(profile.other_income_description),
+        ...incomeSourceFields(incomeSources),
+        expenseHousing: stringValue(data.expenseProfile?.housing),
+        expenseUtilities: stringValue(data.expenseProfile?.utilities),
+        expenseTransport: stringValue(data.expenseProfile?.transport),
+        expenseGroceries: stringValue(data.expenseProfile?.groceries),
+        expenseInsurance: stringValue(data.expenseProfile?.insurance),
+        expenseChildcare: stringValue(data.expenseProfile?.childcare),
+        expenseDiscretionary: stringValue(data.expenseProfile?.discretionary),
+        expenseOther: stringValue(data.expenseProfile?.other),
+        housingStatus: stringValue(data.housingProfile?.housing_status),
+        rentAmount: stringValue(data.housingProfile?.rent_amount),
+        mortgageBalance: stringValue(data.housingProfile?.mortgage_balance),
+        mortgagePayment: stringValue(data.housingProfile?.mortgage_payment),
+        mortgageRate: stringValue(data.housingProfile?.mortgage_rate),
+        estimatedHomeValue: stringValue(data.housingProfile?.estimated_home_value),
+        estimatedRoomRentalIncome: stringValue(data.housingProfile?.estimated_room_rental_income),
+        spareRoomAvailable: boolValue(data.housingProfile?.spare_room_available),
+        propertyType: stringValue(profile.property_type),
+        propertyLocation: stringValue(profile.property_location),
+        propertyIdentified: boolValue(profile.property_identified),
+        purchaseAgreementAvailable: boolValue(profile.purchase_agreement_available),
+        debtName: stringValue(data.debts?.[0]?.name),
+        debtType: stringValue(data.debts?.[0]?.type),
+        debtBalance: stringValue(data.debts?.[0]?.balance),
+        debtMonthlyPayment: stringValue(data.debts?.[0]?.monthly_payment),
+        debtInterestRate: stringValue(data.debts?.[0]?.interest_rate),
+        cashSavings: stringValue(data.savingsProfile?.cash_savings),
+        emergencyFund: stringValue(data.savingsProfile?.emergency_fund),
+        investments: stringValue(data.savingsProfile?.investments),
+        retirementSavings: stringValue(data.savingsProfile?.retirement_savings),
+        downPaymentSavings: stringValue(data.savingsProfile?.down_payment_savings),
+        otherAssets: stringValue(profile.other_assets),
+        hasDownPaymentProof: boolValue(profile.has_down_payment_proof),
+        sourceOfDownPayment: stringValue(profile.source_of_down_payment),
+        targetGoal: stringValue(data.goals?.target_goal),
+        loanPurpose: stringValue(profile.loan_purpose),
+        requestedLoanAmount: stringValue(profile.requested_loan_amount),
+        desiredLoanTermYears: stringValue(profile.desired_loan_term_years),
+        targetHomePrice: stringValue(data.goals?.target_home_price),
+        purchasePrice: stringValue(profile.purchase_price),
+        borrowerContribution: stringValue(profile.borrower_contribution),
+        securityOffered: stringValue(profile.security_offered),
+        securityValue: stringValue(profile.security_value),
+        goalTimeframe: stringValue(data.goals?.goal_timeframe),
+        targetSavingsGoal: stringValue(data.goals?.target_savings_goal),
+        targetDebtReduction: stringValue(data.goals?.target_debt_reduction),
+        targetMonthlyCashFlow: stringValue(data.goals?.target_monthly_cash_flow),
+        hasID: boolValue(profile.has_id),
+        hasProofOfAddress: boolValue(profile.has_proof_of_address),
+        hasPayslips: boolValue(profile.has_payslips),
+        hasEmploymentLetter: boolValue(profile.has_employment_letter),
+        hasBankStatements: boolValue(profile.has_bank_statements),
+        hasDebtStatements: boolValue(profile.has_debt_statements),
+        hasCreditReport: boolValue(profile.has_credit_report),
+        hasPurchaseAgreement: boolValue(profile.has_purchase_agreement),
+        hasValuation: boolValue(profile.has_valuation),
+        hasBusinessFinancials: boolValue(profile.has_business_financials),
+        hasTaxReturns: boolValue(profile.has_tax_returns)
+      });
+    }
+
+    void loadProfile();
+    return () => { cancelled = true; };
+  }, []);
+
+  const activeIndex = sections.findIndex((section) => section.key === activeSection);
+  const activeSectionData = sections[activeIndex];
+
+  const completion = useMemo(() => {
+    const provided = (field: OnboardingField) => {
+      if (!isFieldVisible(field, formData)) return true;
+      const value = formData[field.name];
+      return typeof value === "boolean" ? true : String(value ?? "").trim() !== "";
+    };
+    const completed = sections.filter((section) => section.fields.every((field) => provided(field))).length;
+    return { completed, pct: Math.round((completed / sections.length) * 100) };
+  }, [formData]);
+
+  const status = (section: OnboardingSection) => {
+    const visible = section.fields.filter((field) => isFieldVisible(field, formData));
+    const filled = visible.filter((field) => typeof formData[field.name] === "boolean" || String(formData[field.name] ?? "").trim() !== "").length;
+    if (filled === 0) return "Not started";
+    if (filled === visible.length) return "Complete";
+    return "In progress";
+  };
+
+  const validateSection = (key: string) => {
+    if (key === "income") {
+      const hasIncome = [1, 2, 3].some((slot) => Number(formData[`incomeSource${slot}MonthlyAmount`] ?? 0) > 0);
+      setSectionErrors((previous) => ({ ...previous, income: hasIncome ? "" : "Please enter at least one monthly income source." }));
+      return hasIncome;
+    }
+    const section = sections.find((item) => item.key === key)!;
+    const required = section.fields.slice(0, 2);
+    const missing = required.filter((field) => String(formData[field.name] ?? "").trim() === "");
+    setSectionErrors((previous) => ({ ...previous, [key]: missing.length ? `Please complete: ${missing.map((item) => item.label).join(", ")}` : "" }));
+    return missing.length === 0;
+  };
+
+  const save = async (onlyCurrent = true) => {
+    setSaving(true);
+    setError("");
+    setMessage("");
+    if (onlyCurrent && !validateSection(activeSection)) {
+      setSaving(false);
+      return;
+    }
+
+    try {
+      const user = await getUser();
+      if (!user) {
+        router.replace("/login?callbackUrl=%2Fapp%2Fonboarding" as Route);
+        return;
+      }
+      const token = await getIdentityToken(user);
+      if (!token) {
+        setError("Session verification failed.");
+        return;
+      }
+      const response = await fetch("/.netlify/functions/profile-save", {
+        method: "POST",
+        headers: { "content-type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ...formData })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(result.error || "Save failed");
+        return;
+      }
+      setMessage("Saved successfully.");
+    } catch (err) {
+      setError(describeAuthError(err));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const ActiveCard = cards[activeSection];
-  return <div className="space-y-4"><div className="rounded-xl border bg-white p-4 shadow-sm"><p className="text-sm font-medium">Profile Completion: {completion.pct}%</p><div className="mt-2 h-2 rounded bg-slate-200"><div className="h-2 rounded bg-blue-600" style={{width:`${completion.pct}%`}} /></div><div className="mt-3"><button className="rounded bg-[#0A2540] px-3 py-2 text-white" onClick={()=>save(false)} disabled={saving}>{saving?'Saving...':'Save All'}</button></div></div><div className="grid gap-4 md:grid-cols-[280px,1fr]"><aside className="rounded-xl border bg-white p-3 shadow-sm"><h2 className="mb-2 font-semibold">Build Your Profile</h2><div className="flex gap-2 overflow-x-auto md:block md:space-y-2">{sections.map((s)=><button key={s.key} onClick={()=>setActiveSection(s.key)} className={`w-full rounded border px-3 py-2 text-left text-sm ${activeSection===s.key?'bg-blue-50 border-blue-300':'bg-white'}`}><div className="font-medium">{s.title}</div><div className="text-xs text-slate-500">{status(s)}</div></button>)}</div></aside><section><ActiveCard title={sections[activeIndex].title} description={sections[activeIndex].description} fields={sections[activeIndex].fields} formData={formData} setFormData={setFormData} error={sectionErrors[activeSection]} /><div className="mt-3 flex flex-wrap gap-2"><button className="rounded border px-3 py-2" disabled={activeIndex===0} onClick={()=>setActiveSection(sections[Math.max(0,activeIndex-1)].key)}>Previous Section</button><button className="rounded border px-3 py-2" disabled={activeIndex===sections.length-1} onClick={()=>setActiveSection(sections[Math.min(sections.length-1,activeIndex+1)].key)}>Next Section</button><button className="rounded bg-[#0A2540] px-3 py-2 text-white" onClick={()=>save(true)} disabled={saving}>{saving?'Saving...':'Save Section'}</button></div></section></div>{message?<p className="text-green-700 text-sm">{message}</p>:null}{error?<p className="text-red-700 text-sm">{error}</p>:null}</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border bg-white p-4 shadow-sm">
+        <p className="text-sm font-medium">Profile Completion: {completion.pct}%</p>
+        <div className="mt-2 h-2 rounded bg-slate-200"><div className="h-2 rounded bg-blue-600" style={{ width: `${completion.pct}%` }} /></div>
+        <div className="mt-3"><button className="rounded bg-[#0A2540] px-3 py-2 text-white" onClick={() => save(false)} disabled={saving}>{saving ? "Saving..." : "Save All"}</button></div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-[280px,1fr]">
+        <aside className="rounded-xl border bg-white p-3 shadow-sm">
+          <h2 className="mb-2 font-semibold">Build Your Profile</h2>
+          <div className="flex gap-2 overflow-x-auto md:block md:space-y-2">
+            {sections.map((section) => (
+              <button key={section.key} onClick={() => setActiveSection(section.key)} className={`w-full rounded border px-3 py-2 text-left text-sm ${activeSection === section.key ? "bg-blue-50 border-blue-300" : "bg-white"}`}>
+                <div className="font-medium">{section.title}</div>
+                <div className="text-xs text-slate-500">{status(section)}</div>
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <section>
+          <ActiveCard title={activeSectionData.title} description={activeSectionData.description} fields={activeSectionData.fields} formData={formData} setFormData={setFormData} error={sectionErrors[activeSection]} />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button className="rounded border px-3 py-2" disabled={activeIndex === 0} onClick={() => setActiveSection(sections[Math.max(0, activeIndex - 1)].key)}>Previous Section</button>
+            <button className="rounded border px-3 py-2" disabled={activeIndex === sections.length - 1} onClick={() => setActiveSection(sections[Math.min(sections.length - 1, activeIndex + 1)].key)}>Next Section</button>
+            <button className="rounded bg-[#0A2540] px-3 py-2 text-white" onClick={() => save(true)} disabled={saving}>{saving ? "Saving..." : "Save Section"}</button>
+          </div>
+        </section>
+      </div>
+
+      {message ? <p className="text-green-700 text-sm">{message}</p> : null}
+      {error ? <p className="text-red-700 text-sm">{error}</p> : null}
+    </div>
+  );
 }
