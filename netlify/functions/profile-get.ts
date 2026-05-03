@@ -27,7 +27,7 @@ export const handler: Handler = async (event) => {
   const userId = existingUserByEmail[0]?.id ?? identityUser.id;
   const results = await Promise.all([
     sql`SELECT * FROM profiles WHERE user_id = ${userId} LIMIT 1`,
-    sql`SELECT * FROM income_sources WHERE user_id = ${userId} ORDER BY created_at DESC`,
+    sql`SELECT * FROM income_sources WHERE user_id = ${userId} ORDER BY created_at ASC`,
     sql`SELECT * FROM expense_profiles WHERE user_id = ${userId} LIMIT 1`,
     sql`SELECT * FROM debts WHERE user_id = ${userId} ORDER BY created_at DESC`,
     sql`SELECT * FROM housing_profiles WHERE user_id = ${userId} LIMIT 1`,

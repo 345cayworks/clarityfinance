@@ -6,12 +6,12 @@ export const numberValue = (value: unknown): number => {
 };
 
 export const getMonthlyIncome = (profile: GenericRow | null, incomeSources: GenericRow[] = []) => {
+  const sumSources = incomeSources.reduce((s, row) => s + numberValue(row.monthly_amount), 0);
+  if (sumSources > 0) return { value: sumSources, source: "incomeSources.monthly_amount" };
   const net = numberValue(profile?.monthly_net_income);
   if (net > 0) return { value: net, source: "profile.monthly_net_income" };
   const gross = numberValue(profile?.monthly_gross_income);
   if (gross > 0) return { value: gross, source: "profile.monthly_gross_income" };
-  const sumSources = incomeSources.reduce((s, row) => s + numberValue(row.monthly_amount), 0);
-  if (sumSources > 0) return { value: sumSources, source: "incomeSources.monthly_amount" };
   return { value: 0, source: "fallback.0" };
 };
 
