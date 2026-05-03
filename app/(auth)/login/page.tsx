@@ -7,13 +7,24 @@ import { type FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { PasswordField } from "@/components/auth/password-field";
 import { TextField } from "@/components/auth/text-field";
-import { describeAuthError, getUser, loginWithEmail } from "@/lib/auth/netlify-identity";
+import { describeAuthError, getIdentityToken, getUser, loginWithEmail, logout } from "@/lib/auth/netlify-identity";
 
 const DEFAULT_CALLBACK_URL: Route = "/app/dashboard";
 
 function getSafeCallbackUrl(callbackUrl: string | null): Route {
   if (!callbackUrl || !callbackUrl.startsWith("/app/")) return DEFAULT_CALLBACK_URL;
   return callbackUrl as Route;
+}
+
+async function verifyAccountStatus(user: Awaited<ReturnType<typeof getUser>>) {
+  const token = await getIdentityToken(user);
+  if (!token) return { ok: false, authError: true };
+  const response = await fetch("/.netlify/functions/account-status", {
+    credentials: "same-origin",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (response.ok) return { ok: true, authError: false };
+  return { ok: false, authError: response.status === 401 || response.status === 403 };
 }
 
 export default function LoginPage() {
@@ -30,22 +41,55 @@ function LoginPageInner() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const searchString = searchParams.toString();
+  const callbackUrl = useMemo(() => new URLSearchParams(searchString).get("callbackUrl"), [searchString]);
   const redirectOnSuccess = useMemo(
-    () => getSafeCallbackUrl(searchParams.get("callbackUrl")),
-    [searchParams]
+    () => getSafeCallbackUrl(callbackUrl),
+    [callbackUrl]
   );
 
   useEffect(() => {
     let cancelled = false;
-    getUser()
-      .then((user) => {
-        if (!cancelled && user) router.replace(redirectOnSuccess);
-      })
-      .catch(() => undefined);
+    async function validateExistingSession() {
+      try {
+        const user = await getUser();
+        if (cancelled || !user) return;
+        const result = await verifyAccountStatus(user);
+        if (cancelled) return;
+        if (result.ok) {
+          router.replace(redirectOnSuccess);
+          return;
+        }
+        if (result.authError) {
+          await logout().catch(() => undefined);
+          if (!cancelled) setError("Your session expired. Please sign in again.");
+          return;
+        }
+        setError("We could not verify your session. Please try again.");
+      } catch {
+        if (!cancelled) setError("We could not verify your session. Please try again.");
+      }
+    }
+    validateExistingSession();
     return () => {
       cancelled = true;
     };
   }, [redirectOnSuccess, router]);
+
+  async function redirectAfterVerifiedLogin(user: Awaited<ReturnType<typeof getUser>>) {
+    const result = await verifyAccountStatus(user);
+    if (result.ok) {
+      router.replace(redirectOnSuccess);
+      return true;
+    }
+    if (result.authError) {
+      await logout().catch(() => undefined);
+      setError("Your session expired. Please sign in again.");
+      return false;
+    }
+    setError("We could not verify your account status. Please try again.");
+    return false;
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -55,8 +99,9 @@ function LoginPageInner() {
     const email = String(formData.get("email") ?? "");
     const password = String(formData.get("password") ?? "");
     try {
-      await loginWithEmail(email, password);
-      router.replace(redirectOnSuccess);
+      const user = await loginWithEmail(email, password);
+      const verified = await redirectAfterVerifiedLogin(user);
+      if (!verified) setLoading(false);
     } catch (err) {
       setError(describeAuthError(err));
       setLoading(false);
