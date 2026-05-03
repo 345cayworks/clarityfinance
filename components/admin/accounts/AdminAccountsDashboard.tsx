@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
 import { isAdminRole } from "@/lib/types/roles";
 import type { AdminAdvisorRequestRow, AdminUserRow } from "@/lib/types/admin";
@@ -26,7 +26,7 @@ export function AdminAccountsDashboard() {
   const [advisorFilter, setAdvisorFilter] = useState<AdvisorRequestFilter>("all");
   const [userFilter, setUserFilter] = useState<UserActivityFilter>("all");
 
-  const loadAdminAccountsData = async () => {
+  const loadAdminAccountsData = useCallback(async () => {
     try {
       const data = await fetchAdminAccountsData(user);
       setUsers(data.users);
@@ -34,11 +34,11 @@ export function AdminAccountsDashboard() {
     } catch (error) {
       setToast(error instanceof Error ? error.message : "Failed to load admin data.");
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     void loadAdminAccountsData();
-  }, [user]);
+  }, [loadAdminAccountsData]);
 
   const metrics = useMemo(() => buildAdminMetrics(users, advisorRequests), [users, advisorRequests]);
 

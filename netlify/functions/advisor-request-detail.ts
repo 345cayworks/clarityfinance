@@ -10,20 +10,9 @@ const REQUEST_FIELDS = [
   "updated_at", "loan_readiness_application_id", "loan_readiness_report_id", "artifact_type"
 ] as const;
 
-const ENSURE_ADVISOR_COLUMNS_SQL = sql`
-  ALTER TABLE advisor_requests
-  ADD COLUMN IF NOT EXISTS advisor_notes text,
-  ADD COLUMN IF NOT EXISTS advisor_private_notes text,
-  ADD COLUMN IF NOT EXISTS last_contacted_at timestamptz,
-  ADD COLUMN IF NOT EXISTS closed_at timestamptz,
-  ADD COLUMN IF NOT EXISTS status_updated_at timestamptz,
-  ADD COLUMN IF NOT EXISTS advisor_last_updated_at timestamptz
-`;
-
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" });
   try {
-    await ENSURE_ADVISOR_COLUMNS_SQL;
     const requestId = event.queryStringParameters?.requestId;
     if (!requestId) return json(400, { error: "requestId required" });
 

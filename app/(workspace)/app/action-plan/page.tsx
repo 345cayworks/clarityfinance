@@ -134,7 +134,7 @@ export default function ActionPlanPage() {
     }
 
     return plan.slice(0, 8);
-  }, [data]);
+  }, [currency, data]);
 
   if (loading) return <div className="card text-sm text-slate-600">Loading action plan…</div>;
   const isCashOutGoal = String(data?.goals?.target_goal ?? "") === "Cash-out refinance";

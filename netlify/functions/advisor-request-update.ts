@@ -5,15 +5,6 @@ import { requireAssignedAdvisorOrAdmin } from "./_access";
 import { json, parseJsonBody } from "./_utils";
 
 const allowed = new Set(["new", "reviewing", "contacted", "action_plan_sent", "closed"]);
-const ENSURE_ADVISOR_COLUMNS_SQL = sql`
-  ALTER TABLE advisor_requests
-  ADD COLUMN IF NOT EXISTS advisor_notes text,
-  ADD COLUMN IF NOT EXISTS advisor_private_notes text,
-  ADD COLUMN IF NOT EXISTS last_contacted_at timestamptz,
-  ADD COLUMN IF NOT EXISTS closed_at timestamptz,
-  ADD COLUMN IF NOT EXISTS status_updated_at timestamptz,
-  ADD COLUMN IF NOT EXISTS advisor_last_updated_at timestamptz
-`;
 
 type AdvisorRequestRow = {
   id: string;
@@ -29,7 +20,6 @@ export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
 
   try {
-    await ENSURE_ADVISOR_COLUMNS_SQL;
     const body = parseJsonBody<{ requestId?: string; status?: string; advisorNotes?: string }>(event) ?? {};
     if (!body.requestId || !body.status || !allowed.has(body.status)) return json(400, { error: "Invalid payload" });
 

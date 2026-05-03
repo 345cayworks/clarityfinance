@@ -10,30 +10,11 @@ type ReportRow = {
   created_at: string | null;
 };
 
-async function ensureReportsTable() {
-  await sql`
-    CREATE TABLE IF NOT EXISTS reports (
-      id text PRIMARY KEY,
-      user_id text NOT NULL,
-      title text NOT NULL,
-      report_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-      created_at timestamptz DEFAULT now()
-    )
-  `;
-
-  await sql`
-    CREATE INDEX IF NOT EXISTS idx_reports_user_created
-    ON reports(user_id, created_at DESC)
-  `;
-}
-
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" });
 
   const access = await requireActiveUser(event);
   if (!access.ok) return json(access.statusCode, access.body);
-
-  await ensureReportsTable();
 
   const rows = await sql`
     SELECT id, title, report_json, created_at

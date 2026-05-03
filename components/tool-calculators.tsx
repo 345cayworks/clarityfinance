@@ -581,8 +581,9 @@ export function DebtPlanTool() {
         ];
 
   const calc = debtPayoffEstimates(debts);
+  const payoffTimeline = calc.estimatedMonths === null ? "payments do not amortize this debt" : `${calc.estimatedMonths} months`;
 
-  return <ToolCard title="Debt Plan Tool" result={`Total debt: $${calc.totalDebt.toFixed(0)} · Estimated payoff: ${calc.estimatedMonths} months`}>
+  return <ToolCard title="Debt Plan Tool" result={`Total debt: $${calc.totalDebt.toFixed(0)} · Estimated payoff: ${payoffTimeline}`}>
     <p className="text-sm text-slate-600">{calc.snowballNote}</p>
     <p className="text-sm text-slate-600">{calc.avalancheNote}</p>
   </ToolCard>;

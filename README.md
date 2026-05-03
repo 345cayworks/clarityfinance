@@ -13,6 +13,7 @@ Clarity Finance is a Next.js personal finance planner focused on profile-driven 
 Configure these in Netlify and your local `.env`:
 
 - `DATABASE_URL` - Neon Postgres connection string (required).
+- `NETLIFY_IDENTITY_JWT_SECRET` - Netlify Identity JWT secret used by serverless functions to verify bearer tokens (required).
 - `RESEND_API_KEY` - optional for future non-auth emails.
 
 ## Netlify Identity setup (manual)

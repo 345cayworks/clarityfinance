@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
@@ -21,7 +21,7 @@ export default function AdvisorRequestDetailPage() {
   const [advisorNotes, setAdvisorNotes] = useState("");
   const [status, setStatus] = useState<(typeof statusOptions)[number]>("new");
 
-  const run = async () => {
+  const run = useCallback(async () => {
     const token = await getIdentityToken(user);
     if (!token || !params?.requestId) return;
     const r = await fetch(`/.netlify/functions/advisor-request-detail?requestId=${params.requestId}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -31,9 +31,9 @@ export default function AdvisorRequestDetailPage() {
     setAdvisorNotes(String(d.request?.advisor_notes ?? ""));
     const nextStatus = String(d.request?.status ?? "new");
     setStatus(statusOptions.includes(nextStatus as (typeof statusOptions)[number]) ? nextStatus as (typeof statusOptions)[number] : "new");
-  };
+  }, [params?.requestId, user]);
 
-  useEffect(() => { void run(); }, [user, params?.requestId]);
+  useEffect(() => { void run(); }, [run]);
 
   const save = async () => {
     const token = await getIdentityToken(user);

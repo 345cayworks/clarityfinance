@@ -110,9 +110,14 @@ export const debtPayoffEstimates = (debts: DebtInput[]) => {
     ? normalized.reduce((sum, debt) => sum + debt.balance * (debt.interestRate / 100), 0) / totalDebt
     : 0;
   const monthlyRate = weightedApr / 12;
+  const monthlyInterest = totalDebt * monthlyRate;
   const estimatedMonths = totalPayment <= 0
     ? 0
-    : Math.max(1, Math.ceil(Math.log(totalPayment / Math.max(1, totalPayment - totalDebt * monthlyRate)) / Math.log(1 + monthlyRate) || totalDebt / totalPayment));
+    : monthlyRate > 0 && totalPayment <= monthlyInterest
+      ? null
+      : monthlyRate === 0
+        ? Math.max(1, Math.ceil(totalDebt / totalPayment))
+        : Math.max(1, Math.ceil(Math.log(totalPayment / (totalPayment - monthlyInterest)) / Math.log(1 + monthlyRate)));
   return {
     totalDebt,
     estimatedMonths,

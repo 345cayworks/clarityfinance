@@ -1,11 +1,18 @@
 import type { HandlerEvent } from "@netlify/functions";
-import { decodeJwt } from "jose";
+import { jwtVerify } from "jose";
 
 export type IdentityUser = {
   id: string;
   email: string;
   name: string | null;
   role: string;
+};
+
+type VerifiedJwtPayload = {
+  sub?: unknown;
+  email?: unknown;
+  user_metadata?: unknown;
+  app_metadata?: unknown;
 };
 
 function readCookie(cookieHeader: string | undefined, name: string): string | null {
@@ -27,30 +34,40 @@ function extractToken(event: HandlerEvent): string | null {
   return readCookie(typeof cookie === "string" ? cookie : undefined, "nf_jwt");
 }
 
-export function getIdentityUser(event: HandlerEvent): IdentityUser | null {
+function getJwtSecret() {
+  return process.env.NETLIFY_IDENTITY_JWT_SECRET ?? process.env.NETLIFY_JWT_SECRET ?? null;
+}
+
+function toIdentityUser(payload: VerifiedJwtPayload): IdentityUser | null {
+  const metadata = payload.user_metadata as Record<string, unknown> | undefined;
+  const appMetadata = payload.app_metadata as Record<string, unknown> | undefined;
+
+  const id = typeof payload.sub === "string" ? payload.sub : "";
+  const email = typeof payload.email === "string" ? payload.email : "";
+  const name =
+    typeof metadata?.full_name === "string"
+      ? metadata.full_name
+      : typeof metadata?.name === "string"
+        ? metadata.name
+        : email || null;
+
+  const roles = appMetadata?.roles;
+  const role = Array.isArray(roles) && typeof roles[0] === "string" ? roles[0] : "user";
+
+  if (!id || !email) return null;
+
+  return { id, email, name, role };
+}
+
+export async function getIdentityUser(event: HandlerEvent): Promise<IdentityUser | null> {
   const token = extractToken(event);
   if (!token) return null;
 
   try {
-    const payload = decodeJwt(token);
-    const metadata = payload.user_metadata as Record<string, unknown> | undefined;
-    const appMetadata = payload.app_metadata as Record<string, unknown> | undefined;
-
-    const id = typeof payload.sub === "string" ? payload.sub : "";
-    const email = typeof payload.email === "string" ? payload.email : "";
-    const name =
-      typeof metadata?.full_name === "string"
-        ? metadata.full_name
-        : typeof metadata?.name === "string"
-          ? metadata.name
-          : email || null;
-
-    const roles = appMetadata?.roles;
-    const role = Array.isArray(roles) && typeof roles[0] === "string" ? roles[0] : "user";
-
-    if (!id || !email) return null;
-
-    return { id, email, name, role };
+    const secret = getJwtSecret();
+    if (!secret) return null;
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret));
+    return toIdentityUser(payload as VerifiedJwtPayload);
   } catch {
     return null;
   }

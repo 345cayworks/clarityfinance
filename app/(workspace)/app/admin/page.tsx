@@ -44,7 +44,7 @@ export default function AdminPage() {
     return <div className="card text-sm text-slate-500">Checking permissions…</div>;
   }
 
-  if (role !== "admin") {
+  if (!["admin", "superadmin"].includes(role)) {
     return (
       <div className="card">
         <h1 className="text-2xl font-semibold text-[#0A2540]">Restricted area</h1>

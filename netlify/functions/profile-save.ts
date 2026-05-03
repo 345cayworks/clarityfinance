@@ -41,7 +41,7 @@ const isMissingRoleColumnError = (error: unknown) => {
 
 type UserIdRow = { id: string };
 
-const upsertUser = async (userId: string, identityUser: ReturnType<typeof getIdentityUser>) => {
+const upsertUser = async (userId: string, identityUser: Awaited<ReturnType<typeof getIdentityUser>>) => {
   if (!identityUser) return userId;
 
   const existingUserByEmail = await sql`SELECT id FROM users WHERE email = ${identityUser.email} LIMIT 1` as UserIdRow[];
@@ -104,7 +104,7 @@ function getIncomeSourcesFromBody(body: AnyRecord) {
 export const handler: Handler = async (event) => {
   try {
     if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
-    const identityUser = getIdentityUser(event);
+    const identityUser = await getIdentityUser(event);
     if (!identityUser) return json(401, { error: "Unauthorized: missing or invalid Identity token." });
 
     const body = (parseJsonBody<AnyRecord>(event) ?? {}) as AnyRecord;
@@ -276,12 +276,17 @@ export const handler: Handler = async (event) => {
       `;
     }
 
-    if (String(body.debtName ?? "").trim()) {
+    const submittedDebtFields = ["debtName", "debtType", "debtBalance", "debtInterestRate", "debtMonthlyPayment"].some((key) =>
+      Object.prototype.hasOwnProperty.call(body, key)
+    );
+    if (submittedDebtFields) {
       await sql`DELETE FROM debts WHERE user_id = ${userId}`;
-      await sql`
-      INSERT INTO debts (id, user_id, name, type, balance, interest_rate, monthly_payment)
-      VALUES (${randomId("deb")}, ${userId}, ${String(body.debtName ?? "")}, ${String(body.debtType ?? "other")}, ${toNumber(body.debtBalance)}, ${toNumber(body.debtInterestRate)}, ${toNumber(body.debtMonthlyPayment)})
-    `;
+      if (String(body.debtName ?? "").trim()) {
+        await sql`
+        INSERT INTO debts (id, user_id, name, type, balance, interest_rate, monthly_payment)
+        VALUES (${randomId("deb")}, ${userId}, ${String(body.debtName ?? "")}, ${String(body.debtType ?? "other")}, ${toNumber(body.debtBalance)}, ${toNumber(body.debtInterestRate)}, ${toNumber(body.debtMonthlyPayment)})
+      `;
+      }
     }
 
     return json(200, { success: true, redirectTo: approval.approved ? "/app/dashboard" : "/app/pending-approval", totalMonthlyIncome });

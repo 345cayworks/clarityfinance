@@ -15,7 +15,7 @@ type ActionPlanRow = Record<string, unknown>;
 type UserIdRow = { id: string };
 
 export const handler: Handler = async (event) => {
-  const identityUser = getIdentityUser(event);
+  const identityUser = await getIdentityUser(event);
   if (!identityUser) return json(401, { error: "Unauthorized" });
 
   const approval = await getUserApprovalStatus(identityUser);

@@ -10,18 +10,6 @@ type ReportRow = {
   created_at: string | null;
 };
 
-async function ensureReportsTable() {
-  await sql`
-    CREATE TABLE IF NOT EXISTS reports (
-      id text PRIMARY KEY,
-      user_id text NOT NULL,
-      title text NOT NULL,
-      report_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-      created_at timestamptz DEFAULT now()
-    )
-  `;
-}
-
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" });
 
@@ -30,8 +18,6 @@ export const handler: Handler = async (event) => {
 
   const reportId = event.queryStringParameters?.id;
   if (!reportId) return json(400, { error: "Missing report id" });
-
-  await ensureReportsTable();
 
   const rows = await sql`
     SELECT id, title, report_json, created_at

@@ -21,35 +21,6 @@ type AdvisorRequestRow = {
   advisor_notes: string | null;
 };
 
-async function ensureAdvisorRequestColumns() {
-  await sql`
-    ALTER TABLE advisor_requests
-    ADD COLUMN IF NOT EXISTS phone text,
-    ADD COLUMN IF NOT EXISTS status text DEFAULT 'new',
-    ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now(),
-    ADD COLUMN IF NOT EXISTS assigned_advisor_id text,
-    ADD COLUMN IF NOT EXISTS assigned_advisor_email text,
-    ADD COLUMN IF NOT EXISTS assigned_at timestamptz,
-    ADD COLUMN IF NOT EXISTS assigned_by text,
-    ADD COLUMN IF NOT EXISTS advisor_notes text,
-    ADD COLUMN IF NOT EXISTS advisor_private_notes text,
-    ADD COLUMN IF NOT EXISTS advisor_last_updated_at timestamptz,
-    ADD COLUMN IF NOT EXISTS last_contacted_at timestamptz,
-    ADD COLUMN IF NOT EXISTS closed_at timestamptz,
-    ADD COLUMN IF NOT EXISTS status_updated_at timestamptz
-  `;
-
-  await sql`
-    CREATE INDEX IF NOT EXISTS idx_advisor_requests_assigned_advisor_id
-    ON advisor_requests(assigned_advisor_id)
-  `;
-
-  await sql`
-    CREATE INDEX IF NOT EXISTS idx_advisor_requests_assigned_advisor_email
-    ON advisor_requests(assigned_advisor_email)
-  `;
-}
-
 const getAssignmentColumnAvailability = async () => {
   const rows = await sql`
     SELECT column_name
@@ -72,8 +43,6 @@ export const handler: Handler = async (event) => {
   try {
     const access = await requireAdvisor(event);
     if (!access.ok) return json(access.statusCode, access.body);
-
-    await ensureAdvisorRequestColumns();
 
     const assignedOnly = (event.queryStringParameters?.assignedOnly ?? "false") === "true";
 

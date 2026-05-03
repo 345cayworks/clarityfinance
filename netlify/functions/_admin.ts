@@ -10,7 +10,7 @@ export function isPrimaryAdminEmail(email?: string | null) {
 }
 
 export async function requireAdmin(event: HandlerEvent): Promise<{ ok: true; identityUser: IdentityUser } | { ok: false; statusCode: number; body: { error: string } }> {
-  const identityUser = getIdentityUser(event);
+  const identityUser = await getIdentityUser(event);
   if (!identityUser?.email) {
     return { ok: false, statusCode: 401, body: { error: "Unauthorized" } };
   }

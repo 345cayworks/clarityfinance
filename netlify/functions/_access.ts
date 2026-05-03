@@ -15,7 +15,7 @@ export type AccessUser = {
 };
 
 export async function getCurrentUser(event: HandlerEvent): Promise<AccessUser | null> {
-  const identityUser = getIdentityUser(event);
+  const identityUser = await getIdentityUser(event);
   if (!identityUser) return null;
   return hydrateAccessUser(identityUser);
 }

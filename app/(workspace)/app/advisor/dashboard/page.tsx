@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
 
@@ -25,7 +25,7 @@ export default function AdvisorDashboardPage(){
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setIsLoading(true);
     setError("");
     const t=await getIdentityToken(user);
@@ -36,9 +36,9 @@ export default function AdvisorDashboardPage(){
     setRows(d.requests||[]);
     setDrafts(Object.fromEntries((d.requests||[]).map((x:Row)=>[x.id, x.advisor_notes || ""])));
     setIsLoading(false);
-  };
+  }, [user]);
 
-  useEffect(()=>{void load();},[user]);
+  useEffect(()=>{void load();},[load]);
   const filtered = useMemo(()=>rows.filter((r)=> {
     const tabMatch = tab==="all" ? true : tab==="open" ? !["closed", "action_plan_sent"].includes(r.status) : r.status===tab;
     if (!tabMatch) return false;
