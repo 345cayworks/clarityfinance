@@ -35,7 +35,7 @@ function extractToken(event: HandlerEvent): string | null {
 }
 
 function getJwtSecret() {
-  return process.env.NETLIFY_IDENTITY_JWT_SECRET ?? process.env.NETLIFY_JWT_SECRET ?? null;
+  return process.env.NETLIFY_IDENTITY_JWT_SECRET ?? process.env.NETLIFY_JWT_SECRET ?? process.env.JWT_SECRET ?? null;
 }
 
 function toIdentityUser(payload: VerifiedJwtPayload): IdentityUser | null {
