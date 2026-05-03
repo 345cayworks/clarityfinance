@@ -60,6 +60,13 @@ async function ensureRentRoomScenarioTable() {
     ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()
   `;
   await sql`
+    DELETE FROM rent_room_scenarios a
+    USING rent_room_scenarios b
+    WHERE a.user_id = b.user_id
+      AND a.id <> b.id
+      AND COALESCE(a.updated_at, a.created_at, now()) < COALESCE(b.updated_at, b.created_at, now())
+  `;
+  await sql`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_rent_room_scenarios_user_id_unique
     ON rent_room_scenarios(user_id)
   `;
