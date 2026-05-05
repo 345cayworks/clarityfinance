@@ -58,6 +58,19 @@ export async function requirePremiumUser(event: HandlerEvent) {
   return active;
 }
 
+export function isPremiumOrStaff(role: string | null | undefined) {
+  return ["premium_user", "advisor", "admin", "superadmin"].includes(role ?? "");
+}
+
+export async function requirePremiumOrStaff(event: HandlerEvent) {
+  const active = await requireActiveUser(event);
+  if (!active.ok) return active;
+  if (!isPremiumOrStaff(active.user.role)) {
+    return { ok: false as const, statusCode: 403, body: { error: "Premium, Advisor, or Admin access required." } };
+  }
+  return active;
+}
+
 export async function requireAdvisor(event: HandlerEvent) {
   const active = await requireActiveUser(event);
   if (!active.ok) return active;

@@ -84,9 +84,23 @@ Role-specific overlays for active users:
 - `requireAuth`
 - `requireActiveUser`
 - `requirePremiumUser` (checks `premium_user`, `admin`, `superadmin`)
+- `requirePremiumOrStaff` (checks `premium_user`, `advisor`, `admin`, `superadmin`)
 - `requireAdvisor`
 - `requireAdmin`
 - `requireAssignedAdvisorOrAdmin`
 
 
 > Note: `premium` was evaluated as a possible legacy alias, but it is not valid in the live `UserRole` enum.
+
+---
+
+## Premium tool access
+
+Premium planning tools stay visible on `/app/tools` for all authenticated active users, but standard `user` accounts see locked cards and upgrade prompts. Direct route access also renders a locked premium screen instead of the working calculator. Server-side functions for premium tools must use `requirePremiumOrStaff`.
+
+| Feature | user | premium_user | advisor | admin | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Dividend Reinvestment Calculator | Visible but locked | Full access | Full access | Full access | Manual-input planning calculator. |
+| Investment Analyzer | Visible but locked | Full access | Full access | Full access | Netlify analysis function requires Premium, Advisor, or Admin access. |
+| Analyze / Advanced Analysis | Visible but locked if present | Full access | Full access | Full access | No separate Advanced Analysis route currently exists. Apply the same premium-tool pattern if added. |
+| Tools page | Can view locked cards | Can open premium cards | Can open premium cards | Can open premium cards | Locked cards show a Premium badge and upgrade CTA. |

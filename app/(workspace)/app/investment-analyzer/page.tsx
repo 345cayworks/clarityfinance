@@ -2,16 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
+import { PremiumLockedCard } from "@/components/premium-locked-card";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
 import type { InvestmentAnalysisResponse } from "@/lib/market-data/investment-analyzer";
+import { canUsePremiumTools } from "@/lib/types/roles";
 
 type FormState = {
   tickerInput: string;
   historicalDate: string;
   spendAmount: string;
 };
-
-const premiumRoles = new Set(["premium_user", "advisor", "admin", "superadmin"]);
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -73,7 +73,7 @@ export default function InvestmentAnalyzerPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const canUseAnalyzer = premiumRoles.has(accountStatus?.role ?? "");
+  const canUseAnalyzer = canUsePremiumTools(accountStatus?.role);
   const tickers = useMemo(() => parseTickers(form.tickerInput), [form.tickerInput]);
   const today = new Date().toISOString().slice(0, 10);
 
@@ -132,15 +132,7 @@ export default function InvestmentAnalyzerPage() {
   if (!canUseAnalyzer) {
     return (
       <div className="space-y-4">
-        <section className="card space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Tools</p>
-          <h1 className="text-2xl font-semibold text-[#0A2540]">Investment What-If Analyzer</h1>
-          <p className="text-sm text-slate-600">See what a past investment in a basket of stocks or ETFs could be worth today.</p>
-        </section>
-        <section className="card border border-amber-200 bg-amber-50">
-          <h2 className="text-lg font-semibold text-[#0A2540]">Premium feature</h2>
-          <p className="mt-2 text-sm text-amber-800">Investment Analyzer is available to premium users, advisors, and admins.</p>
-        </section>
+        <PremiumLockedCard featureName="Investment Analyzer" />
       </div>
     );
   }

@@ -1,7 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { analyzeInvestmentBasket, normalizeTickerInput, validateInvestmentAnalysisRequest } from "../../lib/market-data/investment-analyzer";
 import { getMarketDataProvider } from "../../lib/market-data/provider";
-import { requireActiveUser } from "./_access";
+import { requirePremiumOrStaff } from "./_access";
 import { json, parseJsonBody } from "./_utils";
 
 type AnalyzeBody = {
@@ -9,8 +9,6 @@ type AnalyzeBody = {
   historicalDate?: unknown;
   spendAmount?: unknown;
 };
-
-const allowedRoles = new Set(["premium_user", "advisor", "admin", "superadmin"]);
 
 function parseTickers(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -20,11 +18,8 @@ function parseTickers(value: unknown): string[] {
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
 
-  const access = await requireActiveUser(event);
+  const access = await requirePremiumOrStaff(event);
   if (!access.ok) return json(access.statusCode, access.body);
-  if (!allowedRoles.has(access.user.role)) {
-    return json(403, { error: "Investment Analyzer is available to premium users." });
-  }
 
   const body = parseJsonBody<AnalyzeBody>(event);
   if (!body) return json(400, { error: "Invalid request body." });
@@ -46,4 +41,3 @@ export const handler: Handler = async (event) => {
     });
   }
 };
-

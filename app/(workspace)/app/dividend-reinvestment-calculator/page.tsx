@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
+import { PremiumLockedCard } from "@/components/premium-locked-card";
 import {
   calculateDividendBasket,
   calculateDividendPosition,
@@ -14,6 +15,7 @@ import {
   type DividendPositionResult,
   type ProjectionInterval
 } from "@/lib/finance/dividend-reinvestment-calculator";
+import { canUsePremiumTools } from "@/lib/types/roles";
 
 type ChartView = "portfolioValue" | "cumulativeDividends" | "annualDividendIncome" | "sharesOwned" | "all";
 
@@ -37,8 +39,6 @@ const intervalOptions: Array<{ value: ProjectionInterval; label: string }> = [
   { value: "monthly", label: "Monthly" },
   { value: "yearly", label: "Yearly" }
 ];
-
-const allowedRoles = new Set(["premium_user", "advisor", "admin", "superadmin"]);
 
 const emptyPosition = (): DividendPositionInput => ({
   id: crypto.randomUUID(),
@@ -94,7 +94,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 
 export default function DividendReinvestmentCalculatorPage() {
   const { accountStatus } = useWorkspaceUser();
-  const canUseCalculator = allowedRoles.has(accountStatus?.role ?? "");
+  const canUseCalculator = canUsePremiumTools(accountStatus?.role);
   const [formPosition, setFormPosition] = useState<DividendPositionInput>(emptyPosition);
   const [positions, setPositions] = useState<DividendPositionInput[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -156,13 +156,7 @@ export default function DividendReinvestmentCalculatorPage() {
   if (!canUseCalculator) {
     return (
       <div className="space-y-4">
-        <section className="card">
-          <h1 className="text-2xl font-semibold text-[#0A2540]">Dividend Reinvestment Calculator</h1>
-          <p className="mt-2 text-sm text-slate-600">Estimate dividend income, periodic payouts, and long-term compounding if dividends are reinvested.</p>
-          <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            This planning calculator is available to premium users, advisors, and admins.
-          </p>
-        </section>
+        <PremiumLockedCard featureName="Dividend Reinvestment Calculator" />
       </div>
     );
   }
