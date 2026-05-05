@@ -44,3 +44,28 @@ button:focus-visible,
 a:focus-visible {
   outline: none;
 }
+
+@media print {
+  aside,
+  header,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  main,
+  .dividend-print-page {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .card,
+  .dividend-print-page article {
+    break-inside: avoid;
+    box-shadow: none !important;
+    border-color: #cbd5e1 !important;
+  }
+}
