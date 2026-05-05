@@ -6,8 +6,9 @@ const toolLinks = [
   { label: "Cash-Out Refinance", href: "/app/tools/refinance", description: "Estimate proceeds, payment impact, and refinance tradeoffs." },
   { label: "Rent-a-Room", href: "/app/tools/rent-a-room", description: "Project setup costs, rent income, and break-even timeline." },
   { label: "Retirement Readiness", href: "/app/tools/retirement", description: "Project retirement savings, income gaps, readiness score, and contribution targets." },
+  { label: "Investment Analyzer", href: "/app/investment-analyzer", description: "Compare a historical whole-share investment basket with today's value." },
   { label: "Debt Plan", href: "/app/tools/debt-plan", description: "Compare payoff strategies and monthly debt reduction plans." }
-] satisfies Array<{ label: string; href: Route; description: string }>;
+];
 
 export default function ToolsPage() {
   return (
@@ -21,7 +22,7 @@ export default function ToolsPage() {
         {toolLinks.map((tool) => (
           <Link
             key={tool.href}
-            href={tool.href}
+            href={tool.href as Route}
             className="card border border-slate-200 transition-colors hover:border-slate-300"
           >
             <h2 className="text-lg font-semibold text-[#0A2540]">{tool.label}</h2>

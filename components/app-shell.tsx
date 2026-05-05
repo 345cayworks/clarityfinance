@@ -67,6 +67,15 @@ const navSections: NavSection[] = [
         )
       },
       {
+        label: "Investment Analyzer",
+        href: "/app/investment-analyzer" as Route,
+        icon: (
+          <Icon>
+            <path d="M4 18l5-5 4 4 7-9M5 20h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </Icon>
+        )
+      },
+      {
         label: "Loan Readiness",
         href: "/app/loan-readiness",
         icon: (
@@ -131,7 +140,8 @@ function NavList({ pathname, onNavigate, isAdmin, isAdvisor, isPremium, isPendin
           <div className="flex flex-col gap-0.5 text-sm">
             {[...section.items.filter((item) => {
               if (isPending) return ["/app/pending-approval","/app/profile","/app/onboarding"].includes(item.href);
-              if ((item.href === "/app/loan-readiness" || item.href === "/app/loan-application" || item.href === "/app/prequalification/proven-bank") && !isPremium) return false;
+              const href = item.href as string;
+              if ((href === "/app/investment-analyzer" || href === "/app/loan-readiness" || href === "/app/loan-application" || href === "/app/prequalification/proven-bank") && !isPremium) return false;
               return true;
             }), ...(isAdmin ? [{ label: "Admin Dashboard", href: "/app/admin/accounts" as Route, icon: (<Icon><path d="M12 3l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V7l8-4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></Icon>) }] : []), ...(isAdvisor ? [{ label: "Advisor Dashboard", href: "/app/advisor/dashboard" as Route, icon: (<Icon><path d="M7 4h10v16H7zM9 8h6M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></Icon>) }] : [])].map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
