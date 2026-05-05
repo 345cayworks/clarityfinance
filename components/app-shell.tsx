@@ -67,8 +67,8 @@ const navSections: NavSection[] = [
         )
       },
       {
-        label: "Investment Analyzer",
-        href: "/app/investment-analyzer" as Route,
+        label: "Dividend Calculator",
+        href: "/app/dividend-reinvestment-calculator" as Route,
         icon: (
           <Icon>
             <path d="M4 18l5-5 4 4 7-9M5 20h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -132,6 +132,7 @@ function getInitials(nameOrEmail: string) {
 }
 
 function NavList({ pathname, onNavigate, isAdmin, isAdvisor, isPremium, isPending }: { pathname: string; onNavigate?: () => void; isAdmin: boolean; isAdvisor: boolean; isPremium: boolean; isPending: boolean }) {
+  const canUseDividendCalculator = isPremium || isAdvisor;
   return (
     <nav className="flex flex-col gap-5">
       {navSections.map((section) => (
@@ -141,7 +142,8 @@ function NavList({ pathname, onNavigate, isAdmin, isAdvisor, isPremium, isPendin
             {[...section.items.filter((item) => {
               if (isPending) return ["/app/pending-approval","/app/profile","/app/onboarding"].includes(item.href);
               const href = item.href as string;
-              if ((href === "/app/investment-analyzer" || href === "/app/loan-readiness" || href === "/app/loan-application" || href === "/app/prequalification/proven-bank") && !isPremium) return false;
+              if ((href === "/app/loan-readiness" || href === "/app/loan-application" || href === "/app/prequalification/proven-bank") && !isPremium) return false;
+              if (href === "/app/dividend-reinvestment-calculator" && !canUseDividendCalculator) return false;
               return true;
             }), ...(isAdmin ? [{ label: "Admin Dashboard", href: "/app/admin/accounts" as Route, icon: (<Icon><path d="M12 3l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V7l8-4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></Icon>) }] : []), ...(isAdvisor ? [{ label: "Advisor Dashboard", href: "/app/advisor/dashboard" as Route, icon: (<Icon><path d="M7 4h10v16H7zM9 8h6M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></Icon>) }] : [])].map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);

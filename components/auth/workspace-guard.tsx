@@ -15,10 +15,13 @@ function canAccess(pathname: string, status: AccountStatus) {
   const isAdmin = ["admin", "superadmin"].includes(role);
   const isAdvisor = ["advisor", "admin", "superadmin"].includes(role);
   const isPremium = ["premium_user", "admin", "superadmin"].includes(role);
+  const canUseDividendCalculator = ["premium_user", "advisor", "admin", "superadmin"].includes(role);
   if (!status.approved || !status.active) return pathname === "/app/pending-approval" || pathname === "/app/profile" || pathname === "/app/onboarding";
   if (pathname.startsWith('/app/admin')) return isAdmin;
   if (pathname.startsWith('/app/advisor/dashboard')) return isAdvisor;
+  if (pathname.startsWith('/app/investment-analyzer')) return false;
   if (pathname.startsWith('/app/loan-readiness') || pathname.startsWith('/app/loan-application') || pathname.startsWith('/app/prequalification/')) return isPremium;
+  if (pathname.startsWith('/app/dividend-reinvestment-calculator')) return canUseDividendCalculator;
   return true;
 }
 
