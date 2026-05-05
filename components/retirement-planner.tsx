@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { calculateRetirementIncomeDuration } from "@/lib/calculations/finance";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -71,6 +73,11 @@ export default function RetirementPlanner() {
   const [expectedAnnualReturn, setExpectedAnnualReturn] = useState(6);
   const [inflationRate, setInflationRate] = useState(3);
   const [withdrawalRate, setWithdrawalRate] = useState(4);
+  const [retirementBalanceToTest, setRetirementBalanceToTest] = useState(0);
+  const [plannedMonthlyRetirementIncome, setPlannedMonthlyRetirementIncome] = useState(0);
+  const [durationInflationRate, setDurationInflationRate] = useState(3);
+  const [retirementGrowthRate, setRetirementGrowthRate] = useState(4);
+  const [showFullDurationProjection, setShowFullDurationProjection] = useState(false);
 
   const result = useMemo(() => {
     const yearsToRetirement = Math.max(0, retirementAge - currentAge);
@@ -125,6 +132,37 @@ export default function RetirementPlanner() {
     inflationRate,
     withdrawalRate
   ]);
+
+  const incomeDurationInputs = useMemo(() => {
+    const startingBalance = retirementBalanceToTest > 0 ? retirementBalanceToTest : result.projectedSavings;
+    const monthlyWithdrawal = plannedMonthlyRetirementIncome > 0 ? plannedMonthlyRetirementIncome : result.monthlyGapAfterOtherIncome;
+    return { startingBalance, monthlyWithdrawal };
+  }, [plannedMonthlyRetirementIncome, result.monthlyGapAfterOtherIncome, result.projectedSavings, retirementBalanceToTest]);
+
+  const incomeDuration = useMemo(
+    () =>
+      calculateRetirementIncomeDuration({
+        startingBalance: incomeDurationInputs.startingBalance,
+        monthlyWithdrawal: incomeDurationInputs.monthlyWithdrawal,
+        inflationRatePercent: durationInflationRate,
+        annualGrowthRatePercent: retirementGrowthRate
+      }),
+    [durationInflationRate, incomeDurationInputs.monthlyWithdrawal, incomeDurationInputs.startingBalance, retirementGrowthRate]
+  );
+
+  const noGrowthDuration = useMemo(
+    () =>
+      calculateRetirementIncomeDuration({
+        startingBalance: incomeDurationInputs.startingBalance,
+        monthlyWithdrawal: incomeDurationInputs.monthlyWithdrawal,
+        inflationRatePercent: durationInflationRate,
+        annualGrowthRatePercent: 0
+      }),
+    [durationInflationRate, incomeDurationInputs.monthlyWithdrawal, incomeDurationInputs.startingBalance]
+  );
+
+  const durationRows = showFullDurationProjection ? incomeDuration.projectionRows : incomeDuration.projectionRows.slice(0, 10);
+  const canShowDuration = incomeDurationInputs.startingBalance > 0 && incomeDurationInputs.monthlyWithdrawal > 0 && durationInflationRate >= 0 && retirementGrowthRate >= 0;
 
   return (
     <div className="space-y-4">
@@ -197,6 +235,121 @@ export default function RetirementPlanner() {
         </div>
       </section>
 
+      <section className="card space-y-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Retirement Income Duration</p>
+          <h2 className="mt-1 text-lg font-semibold text-[#0A2540]">How Long Could This Last?</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Estimate how long your retirement balance may last when withdrawals increase each year for inflation.
+          </p>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <Field
+            label="Retirement balance to test"
+            value={Math.round(incomeDurationInputs.startingBalance)}
+            setValue={setRetirementBalanceToTest}
+          />
+          <Field
+            label="Planned monthly retirement income"
+            value={Math.round(incomeDurationInputs.monthlyWithdrawal)}
+            setValue={setPlannedMonthlyRetirementIncome}
+          />
+          <Field label="Annual inflation adjustment" value={durationInflationRate} setValue={setDurationInflationRate} step="0.1" />
+          <Field label="Expected annual growth during retirement" value={retirementGrowthRate} setValue={setRetirementGrowthRate} step="0.1" />
+        </div>
+
+        {!canShowDuration ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            Enter a retirement balance and planned monthly retirement income greater than zero to estimate duration.
+          </div>
+        ) : (
+          <>
+            {incomeDuration.warnings.length > 0 ? (
+              <div className="space-y-2">
+                {incomeDuration.warnings.map((warning) => (
+                  <p key={warning} className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{warning}</p>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+              <DurationCard
+                title="How Long Could This Last?"
+                value={incomeDuration.growthAdjustedDurationLabel}
+                note="Based on your retirement balance, planned monthly withdrawal, inflation adjustment, and expected growth rate."
+              />
+              <DurationCard
+                title="No-Growth Estimate"
+                value={noGrowthDuration.growthAdjustedDurationLabel}
+                note="Conservative estimate assuming the balance earns no additional growth."
+              />
+              <DurationCard title="First-Year Withdrawal" value={money(incomeDuration.firstYearWithdrawal)} />
+              <DurationCard title="Inflation-Adjusted Final-Year Withdrawal" value={money(incomeDuration.finalYearWithdrawal)} />
+              <DurationCard title="Total Estimated Withdrawn" value={money(incomeDuration.totalWithdrawn)} />
+            </div>
+
+            <div className="h-72 rounded-xl border border-slate-200 bg-white p-3">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={incomeDuration.projectionRows} margin={{ top: 10, right: 18, left: 8, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                  <XAxis dataKey="year" tickFormatter={(value) => `Year ${value}`} />
+                  <YAxis tickFormatter={(value) => money(Number(value)).replace(".00", "")} />
+                  <Tooltip formatter={(value) => money(Number(value))} labelFormatter={(value) => `Year ${value}`} />
+                  <Line type="monotone" dataKey="endingBalance" name="Retirement balance" stroke="#2563EB" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="withdrawalAmount" name="Annual withdrawal amount" stroke="#F59E0B" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold text-[#0A2540]">Inflation-Adjusted Drawdown Projection</h3>
+                {incomeDuration.projectionRows.length > 10 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowFullDurationProjection((current) => !current)}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:border-slate-400"
+                  >
+                    {showFullDurationProjection ? "Show first 10 years" : "Show full projection"}
+                  </button>
+                ) : null}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-[760px] w-full text-left text-sm">
+                  <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="py-2 pr-3">Year</th>
+                      <th className="py-2 pr-3">Starting Balance</th>
+                      <th className="py-2 pr-3">Growth Earned</th>
+                      <th className="py-2 pr-3">Withdrawal</th>
+                      <th className="py-2 pr-3">Ending Balance</th>
+                      <th className="py-2 pr-3">Cumulative Withdrawn</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {durationRows.map((row) => (
+                      <tr key={row.year}>
+                        <td className="py-2 pr-3 font-medium text-[#0A2540]">{row.year}</td>
+                        <td className="py-2 pr-3">{money(row.startingBalance)}</td>
+                        <td className="py-2 pr-3">{money(row.growthAmount)}</td>
+                        <td className="py-2 pr-3">{money(row.withdrawalAmount)}</td>
+                        <td className="py-2 pr-3">{money(row.endingBalance)}</td>
+                        <td className="py-2 pr-3">{money(row.cumulativeWithdrawn)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              Income duration is estimated by reducing the retirement balance each year by the planned withdrawal amount. The withdrawal amount is increased annually for inflation. If an investment growth rate is entered, the remaining balance is assumed to grow once per year before the annual withdrawal is deducted. Taxes, fees, market volatility, emergency withdrawals, pension income, rental income, and changes in spending are not included.
+            </div>
+          </>
+        )}
+      </section>
+
       <section className="grid gap-4 md:grid-cols-3">
         <ActionCard
           title="Scenario to test"
@@ -208,7 +361,7 @@ export default function RetirementPlanner() {
         />
         <ActionCard
           title="Future report output"
-          body="Next phase: save this scenario and generate a Retirement Readiness Report alongside your other reports."
+          body="TODO: include retirement income duration in saved retirement reports once retirement report persistence is connected."
         />
       </section>
     </div>
@@ -235,6 +388,16 @@ function Metric({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm">
       <span className="text-slate-600">{label}</span>
       <span className="font-semibold text-[#0A2540]">{value}</span>
+    </div>
+  );
+}
+
+function DurationCard({ title, value, note }: { title: string; value: string; note?: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+      <p className="mt-2 text-xl font-semibold text-[#0A2540]">{value}</p>
+      {note ? <p className="mt-1 text-xs text-slate-500">{note}</p> : null}
     </div>
   );
 }
