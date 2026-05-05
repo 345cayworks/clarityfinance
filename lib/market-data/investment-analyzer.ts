@@ -22,12 +22,15 @@ export type InvestmentPosition = {
   totalCurrentValue: number;
   gainLoss: number;
   returnPercent: number;
+  status: "analyzed" | "failed";
   warnings: string[];
   error: string | null;
 };
 
 export type InvestmentSummary = {
   originalSpendAmount: number;
+  requestedAllocationTotal: number;
+  successfullyAnalyzedAllocationTotal: number;
   totalAmountInvested: number;
   totalLeftoverCash: number;
   currentShareValue: number;
@@ -135,6 +138,7 @@ export async function analyzeInvestmentBasket(
           totalCurrentValue,
           gainLoss,
           returnPercent,
+          status: "analyzed",
           warnings: positionWarnings,
           error: null
         };
@@ -149,14 +153,15 @@ export async function analyzeInvestmentBasket(
           historicalClosePrice: null,
           sharesPurchased: 0,
           amountInvested: 0,
-          leftoverCash: roundMoney(allocationAmount),
+          leftoverCash: 0,
           currentPrice: null,
           currentPriceDate: null,
           currentShareValue: 0,
           estimatedDividends: 0,
-          totalCurrentValue: roundMoney(allocationAmount),
+          totalCurrentValue: 0,
           gainLoss: 0,
           returnPercent: 0,
+          status: "failed",
           warnings: [],
           error: message
         };
@@ -164,17 +169,22 @@ export async function analyzeInvestmentBasket(
     })
   );
 
-  const totalAmountInvested = roundMoney(positions.reduce((sum, position) => sum + position.amountInvested, 0));
-  const totalLeftoverCash = roundMoney(positions.reduce((sum, position) => sum + position.leftoverCash, 0));
-  const currentShareValue = roundMoney(positions.reduce((sum, position) => sum + position.currentShareValue, 0));
-  const estimatedDividendsReceived = roundMoney(positions.reduce((sum, position) => sum + position.estimatedDividends, 0));
-  const totalCurrentPortfolioValue = roundMoney(positions.reduce((sum, position) => sum + position.totalCurrentValue, 0));
-  const totalGainLoss = roundMoney(totalCurrentPortfolioValue - request.spendAmount);
-  const totalReturnPercent = request.spendAmount > 0 ? roundPercent((totalGainLoss / request.spendAmount) * 100) : 0;
+  const analyzedPositions = positions.filter((position) => position.status === "analyzed");
+  const requestedAllocationTotal = roundMoney(request.spendAmount);
+  const successfullyAnalyzedAllocationTotal = roundMoney(analyzedPositions.reduce((sum, position) => sum + position.allocationAmount, 0));
+  const totalAmountInvested = roundMoney(analyzedPositions.reduce((sum, position) => sum + position.amountInvested, 0));
+  const totalLeftoverCash = roundMoney(analyzedPositions.reduce((sum, position) => sum + position.leftoverCash, 0));
+  const currentShareValue = roundMoney(analyzedPositions.reduce((sum, position) => sum + position.currentShareValue, 0));
+  const estimatedDividendsReceived = roundMoney(analyzedPositions.reduce((sum, position) => sum + position.estimatedDividends, 0));
+  const totalCurrentPortfolioValue = roundMoney(analyzedPositions.reduce((sum, position) => sum + position.totalCurrentValue, 0));
+  const totalGainLoss = roundMoney(totalCurrentPortfolioValue - successfullyAnalyzedAllocationTotal);
+  const totalReturnPercent = successfullyAnalyzedAllocationTotal > 0 ? roundPercent((totalGainLoss / successfullyAnalyzedAllocationTotal) * 100) : 0;
 
   return {
     summary: {
       originalSpendAmount: roundMoney(request.spendAmount),
+      requestedAllocationTotal,
+      successfullyAnalyzedAllocationTotal,
       totalAmountInvested,
       totalLeftoverCash,
       currentShareValue,
@@ -188,4 +198,3 @@ export async function analyzeInvestmentBasket(
     warnings
   };
 }
-

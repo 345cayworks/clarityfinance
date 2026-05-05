@@ -33,6 +33,14 @@ function formatPercent(value: number) {
   return `${percentFormatter.format(value)}%`;
 }
 
+function formatPositionCurrency(value: number | null, failed: boolean) {
+  return failed ? "N/A" : formatCurrency(value);
+}
+
+function formatPositionPercent(value: number, failed: boolean) {
+  return failed ? "N/A" : formatPercent(value);
+}
+
 function formatDate(value: string | null) {
   if (!value) return "N/A";
   return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
@@ -218,6 +226,8 @@ export default function InvestmentAnalyzerPage() {
         <>
           <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <SummaryCard label="Original Spend" value={formatCurrency(result.summary.originalSpendAmount)} />
+            <SummaryCard label="Requested Allocation" value={formatCurrency(result.summary.requestedAllocationTotal)} />
+            <SummaryCard label="Analyzed Allocation" value={formatCurrency(result.summary.successfullyAnalyzedAllocationTotal)} />
             <SummaryCard label="Amount Invested" value={formatCurrency(result.summary.totalAmountInvested)} />
             <SummaryCard label="Leftover Cash" value={formatCurrency(result.summary.totalLeftoverCash)} />
             <SummaryCard label="Current Share Value" value={formatCurrency(result.summary.currentShareValue)} />
@@ -258,11 +268,12 @@ export default function InvestmentAnalyzerPage() {
                     <th className="px-3 py-2">Total Value</th>
                     <th className="px-3 py-2">Gain/Loss</th>
                     <th className="px-3 py-2">Return</th>
+                    <th className="px-3 py-2">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {result.positions.map((position) => (
-                    <tr key={position.ticker} className={position.error ? "bg-red-50/70" : "bg-white"}>
+                    <tr key={position.ticker} className={position.status === "failed" ? "bg-red-50/70" : "bg-white"}>
                       <td className="px-3 py-3 font-semibold text-[#0A2540]">
                         {position.ticker}
                         {position.error ? <p className="mt-1 text-xs font-medium text-red-700">{position.error}</p> : null}
@@ -271,14 +282,19 @@ export default function InvestmentAnalyzerPage() {
                       <td className="px-3 py-3">{formatDate(position.referenceDateUsed)}</td>
                       <td className="px-3 py-3">{formatCurrency(position.historicalClosePrice)}</td>
                       <td className="px-3 py-3">{position.sharesPurchased}</td>
-                      <td className="px-3 py-3">{formatCurrency(position.amountInvested)}</td>
-                      <td className="px-3 py-3">{formatCurrency(position.leftoverCash)}</td>
+                      <td className="px-3 py-3">{formatPositionCurrency(position.amountInvested, position.status === "failed")}</td>
+                      <td className="px-3 py-3">{formatPositionCurrency(position.leftoverCash, position.status === "failed")}</td>
                       <td className="px-3 py-3">{formatCurrency(position.currentPrice)}</td>
-                      <td className="px-3 py-3">{formatCurrency(position.currentShareValue)}</td>
-                      <td className="px-3 py-3">{formatCurrency(position.estimatedDividends)}</td>
-                      <td className="px-3 py-3">{formatCurrency(position.totalCurrentValue)}</td>
-                      <td className={`px-3 py-3 font-medium ${position.gainLoss >= 0 ? "text-emerald-700" : "text-red-700"}`}>{formatCurrency(position.gainLoss)}</td>
-                      <td className={`px-3 py-3 font-medium ${position.returnPercent >= 0 ? "text-emerald-700" : "text-red-700"}`}>{formatPercent(position.returnPercent)}</td>
+                      <td className="px-3 py-3">{formatPositionCurrency(position.currentShareValue, position.status === "failed")}</td>
+                      <td className="px-3 py-3">{formatPositionCurrency(position.estimatedDividends, position.status === "failed")}</td>
+                      <td className="px-3 py-3">{formatPositionCurrency(position.totalCurrentValue, position.status === "failed")}</td>
+                      <td className={`px-3 py-3 font-medium ${position.gainLoss >= 0 ? "text-emerald-700" : "text-red-700"}`}>{formatPositionCurrency(position.gainLoss, position.status === "failed")}</td>
+                      <td className={`px-3 py-3 font-medium ${position.returnPercent >= 0 ? "text-emerald-700" : "text-red-700"}`}>{formatPositionPercent(position.returnPercent, position.status === "failed")}</td>
+                      <td className="px-3 py-3">
+                        <span className={`rounded-full px-2 py-1 text-xs font-semibold ${position.status === "analyzed" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                          {position.status === "analyzed" ? "Analyzed" : "Failed"}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -295,4 +311,3 @@ export default function InvestmentAnalyzerPage() {
     </div>
   );
 }
-
