@@ -28,6 +28,21 @@ export default function SettingsPage() {
             Open onboarding
           </Link>
         </div>
+        <div className="card md:col-span-2">
+          <h2 className="text-lg font-semibold text-[#0A2540]">Data Export & Deletion</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Contact support to request data export or deletion while automated tooling is being completed.
+            Some records may need to be retained for audit, legal, fraud-prevention, or transaction integrity reasons.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button disabled className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-500">
+              Export data coming soon
+            </button>
+            <button disabled className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-500">
+              Request deletion coming soon
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

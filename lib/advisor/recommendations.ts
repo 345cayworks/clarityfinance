@@ -7,7 +7,7 @@ export function getAdvisorRecommendation(input: Record<string, unknown>): {
   const reasons: string[] = [];
   const n = (k:string)=> Number(input[k] ?? 0);
   const s = (k:string)=> String(input[k] ?? "").toLowerCase();
-  if (n("approvalScore") < 75 && n("approvalScore") > 0) reasons.push("Approval score below 75");
+  if (n("approvalScore") < 75 && n("approvalScore") > 0) reasons.push("Readiness score below 75");
   if (n("dti") > 0.4) reasons.push("DTI above 40%");
   if (n("housingRatio") > 0.35) reasons.push("Housing ratio above 35%");
   if (n("monthlySurplus") < 0) reasons.push("Monthly surplus is negative");

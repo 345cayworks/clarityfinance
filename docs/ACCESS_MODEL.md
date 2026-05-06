@@ -104,3 +104,7 @@ Premium planning tools stay visible on `/app/tools` for all authenticated active
 | Investment Analyzer | Visible but locked | Full access | Full access | Full access | Netlify analysis function requires Premium, Advisor, or Admin access. |
 | Analyze / Advanced Analysis | Visible but locked if present | Full access | Full access | Full access | No separate Advanced Analysis route currently exists. Apply the same premium-tool pattern if added. |
 | Tools page | Can view locked cards | Can open premium cards | Can open premium cards | Can open premium cards | Locked cards show a Premium badge and upgrade CTA. |
+
+## Data sharing consent
+
+Advisor and bank sharing are separate from role, approval, activation, and premium access. A user must explicitly consent before Clarity Finance creates an advisor/bank sharing request that includes financial profile, readiness, report, or supporting information. Consent is captured by `advisor-request-save` and does not change the user's role or account lifecycle status.

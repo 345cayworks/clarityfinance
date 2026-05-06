@@ -142,7 +142,7 @@ export function MortgageTool() {
     >
       <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Estimate only</p>
       <p className="text-xs text-slate-500">
-        Actual approval depends on lender criteria, income, debt, credit profile, property valuation, and documentation.
+              Final approval depends on lender underwriting criteria, income, debt, credit profile, property valuation, and documentation.
       </p>
 
       <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-4 mb-1 pt-2 border-t border-slate-100">Loan details</h3>
@@ -260,7 +260,7 @@ export function RefinanceTool() {
       <p>Loan-to-value: {(calc.ltv * 100).toFixed(1)}%</p>
       <p>Net cash after closing costs: ${calc.netCashAfterClosingCosts.toFixed(0)}</p>
     </div>
-    {calc.ltv > 0.8 ? <p className="text-sm text-amber-700">High LTV: lender approval may be harder and costs may rise.</p> : null}
+            {calc.ltv > 0.8 ? <p className="text-sm text-amber-700">High LTV: lender review may be more difficult and costs may rise.</p> : null}
     {calc.paymentDifference > currentMonthlyPayment * 0.2 ? <p className="text-sm text-amber-700">Payment impact is significant.</p> : null}
     {calc.netCashAfterClosingCosts <= 0 ? <p className="text-sm text-amber-700">Cash-out amount may not justify costs.</p> : null}
     <p className="text-xs text-slate-500">

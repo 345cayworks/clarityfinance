@@ -112,7 +112,7 @@ const navSections: NavSection[] = [
         )
       },
       {
-        label: "Bank Prequalification",
+        label: "Bank Readiness Review",
         href: "/app/prequalification/proven-bank",
         icon: (
           <Icon>

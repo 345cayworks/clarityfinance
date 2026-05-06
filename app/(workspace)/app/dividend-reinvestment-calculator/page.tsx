@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
+import { DecisionBoundaryNotice } from "@/components/compliance/DecisionBoundaryNotice";
 import { PremiumLockedCard } from "@/components/premium-locked-card";
 import {
   calculateDividendBasket,
@@ -168,6 +169,7 @@ export default function DividendReinvestmentCalculatorPage() {
         <h1 className="mt-1 text-2xl font-semibold text-[#0A2540]">Dividend Reinvestment Calculator</h1>
         <p className="mt-2 text-sm text-slate-600">Estimate dividend income, periodic payouts, and long-term compounding if dividends are reinvested.</p>
       </section>
+      <DecisionBoundaryNotice context="investment" />
 
       <section className="card space-y-4">
         <div>
@@ -397,6 +399,7 @@ export default function DividendReinvestmentCalculatorPage() {
           </ul>
         </div>
         <p className="text-xs text-slate-500">TODO: Connect Save actions after a clean dividend_saved_cards persistence path exists.</p>
+        <p className="text-xs text-slate-500">Generated: {new Date().toLocaleString()} · Report type: Dividend reinvestment projection · Version: Clarity Report v1.0 · Based on user-entered holdings and assumptions.</p>
       </section>
     </div>
   );

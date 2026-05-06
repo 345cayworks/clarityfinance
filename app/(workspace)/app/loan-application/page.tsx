@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { DecisionBoundaryNotice } from "@/components/compliance/DecisionBoundaryNotice";
 import { getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
 import { calculateApprovalReadinessScore } from "@/lib/finance/approval-score";
 import { CNBApplication, mapProfileToCNBApplication } from "@/lib/finance/cnb-mapper";
@@ -92,8 +93,9 @@ export default function LoanApplicationPage() {
         <p className="text-xs uppercase tracking-[0.16em]">Loan Application Preparation Form</p>
         <h1 className="mt-2 text-2xl font-semibold">Prepared for bank review. Applicant must verify all details before submission.</h1>
         <p className="mt-2 text-sm">Readiness: <span className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${bandStyle(approvalScore.band)}`}>{approvalScore.band}</span> ({formatNumber(approvalScore.score)}/100)</p>
-        <p className="mt-1 text-xs">This score is an estimate only and does not represent a bank decision.</p>
+        <p className="mt-1 text-xs">This score is an estimate only and does not represent a bank decision. Final approval is subject to lender underwriting.</p>
       </div>
+      <DecisionBoundaryNotice context="loan" />
 
       <div className="print:hidden rounded-2xl border border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-2 sm:flex-row">

@@ -1,6 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
 import { requireActiveUser } from "./_access";
+import { writeAuditLog } from "./_audit";
 import { json, parseJsonBody, randomId } from "./_utils";
 
 type ProfileRow = Record<string, unknown>;
@@ -15,6 +16,8 @@ type RentRoomRow = Record<string, unknown>;
 type ReportCreateBody = {
   reportType?: string;
 };
+const REPORT_VERSION = "Clarity Report v1.0";
+const REPORT_DISCLAIMER = "Based on user-entered information and planning assumptions. Not a loan approval, not a credit decision, and not financial or investment advice. Final lender approval is subject to lender underwriting.";
 
 const reportTitles: Record<string, string> = {
   financial_snapshot: "Financial Snapshot",
@@ -26,6 +29,15 @@ const reportTitles: Record<string, string> = {
   debt_liability: "Debt & Liability Report",
   housing_equity: "Housing & Equity Report"
 };
+
+async function ensureReportMetadataColumns() {
+  await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS report_version text`;
+  await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS generated_at timestamp`;
+  await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS assumptions_json jsonb DEFAULT '{}'::jsonb`;
+  await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS disclaimer_text text`;
+  await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS source_context text`;
+  await sql`ALTER TABLE reports ADD COLUMN IF NOT EXISTS based_on_user_entered_data boolean DEFAULT true`;
+}
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
@@ -49,9 +61,17 @@ export const handler: Handler = async (event) => {
 
   const reportId = randomId("rpt");
   const generatedAt = new Date().toISOString();
+  const assumptions = {
+    source: "user_entered_data",
+    basedOnUserEnteredData: true,
+    profileSnapshot: true,
+    missingFieldsShownAsMissingData: true,
+    lenderVerificationRequired: true
+  };
 
+  await ensureReportMetadataColumns();
   await sql`
-    INSERT INTO reports (id, user_id, title, report_json)
+    INSERT INTO reports (id, user_id, title, report_json, report_version, generated_at, assumptions_json, disclaimer_text, source_context, based_on_user_entered_data)
     VALUES (
       ${reportId},
       ${access.user.id},
@@ -59,6 +79,7 @@ export const handler: Handler = async (event) => {
       ${JSON.stringify({
         reportType,
         title,
+        reportVersion: REPORT_VERSION,
         profile: profile[0] ?? null,
         incomeSources,
         expenseProfile: expenseProfile[0] ?? null,
@@ -67,10 +88,32 @@ export const handler: Handler = async (event) => {
         savingsProfile: savingsProfile[0] ?? null,
         goals: goals[0] ?? null,
         rentRoomScenario: rentRoomScenario[0] ?? null,
-        generatedAt
-      })}::jsonb
+        generatedAt,
+        basedOnUserEnteredData: true,
+        assumptions,
+        disclaimerText: REPORT_DISCLAIMER,
+        sourceContext: "reports"
+      })}::jsonb,
+      ${REPORT_VERSION},
+      ${generatedAt}::timestamp,
+      ${JSON.stringify(assumptions)}::jsonb,
+      ${REPORT_DISCLAIMER},
+      ${"reports"},
+      ${true}
     )
   `;
+  await writeAuditLog({
+    actorUserId: access.user.id,
+    actorEmail: access.user.email,
+    actorRole: access.user.role,
+    action: "report_created",
+    targetUserId: access.user.id,
+    targetEmail: access.user.email,
+    entityType: "report",
+    entityId: reportId,
+    sourceFunction: "report-create",
+    metadata: { reportType, reportVersion: REPORT_VERSION, sourceContext: "reports" }
+  });
 
   return json(200, { success: true, reportId, reportType, title });
 };

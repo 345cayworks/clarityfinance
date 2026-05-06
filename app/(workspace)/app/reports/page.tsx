@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
+import { DecisionBoundaryNotice } from "@/components/compliance/DecisionBoundaryNotice";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
 import {
   housingEquity,
@@ -37,6 +38,7 @@ type RentRoomScenario = {
 
 type ReportId = "snapshot" | "expense" | "loan" | "loan-docs" | "rent-room" | "savings" | "debt" | "housing";
 type Status = "Strong" | "Needs attention" | "Incomplete" | "Review carefully" | "Missing data";
+const REPORT_VERSION = "Clarity Report v1.0";
 
 const reportOptions: Array<{ id: ReportId; label: string }> = [
   { id: "snapshot", label: "Financial Snapshot" },
@@ -282,6 +284,8 @@ export default function ReportsPage() {
   ].filter(Boolean);
 
   const bankConversationSummary = `Based on the information provided, the applicant has monthly income of ${toCurrency(metrics.income, metrics.currency)}, monthly expenses of ${toCurrency(metrics.nonHousingExpenses, metrics.currency)}, monthly debt payments of ${toCurrency(metrics.debtPayments, metrics.currency)}, estimated surplus of ${toCurrency(metrics.adjustedSurplus, metrics.currency)}, savings runway of ${metrics.runwayMonths === null ? "Missing data" : `${metrics.runwayMonths.toFixed(1)} months`}, and estimated property equity of ${metrics.homeValue > 0 ? toCurrency(metrics.equity, metrics.currency) : "Missing data"}. Items to confirm with the bank include: ${missingInfo.join(", ") || "none identified"}.`;
+  const generatedAt = new Date().toLocaleString();
+  const activeReportLabel = reportOptions.find((option) => option.id === activeReport)?.label ?? "Financial Snapshot";
 
   if (loading) return <div className="card text-sm text-slate-600">Loading reports…</div>;
   if (loadError) {
@@ -325,9 +329,19 @@ export default function ReportsPage() {
         <div className="print:hidden grid gap-2 text-sm sm:grid-cols-3">
           <Link href="/app/tools/rent-a-room" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center font-medium text-slate-700 hover:border-slate-400">Rent-a-Room Report →</Link>
           <Link href="/app/loan-readiness" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center font-medium text-slate-700 hover:border-slate-400">Loan readiness →</Link>
-          <Link href="/app/prequalification/proven-bank" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center font-medium text-slate-700 hover:border-slate-400">Bank prequalification →</Link>
+          <Link href="/app/prequalification/proven-bank" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center font-medium text-slate-700 hover:border-slate-400">Bank readiness review →</Link>
         </div>
       </section>
+      <section className="card space-y-2 print:bg-white print:shadow-none">
+        <div className="grid gap-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
+          <div><span className="font-semibold text-[#0A2540]">Generated:</span> {generatedAt}</div>
+          <div><span className="font-semibold text-[#0A2540]">Report type:</span> {activeReportLabel}</div>
+          <div><span className="font-semibold text-[#0A2540]">Version:</span> {REPORT_VERSION}</div>
+          <div><span className="font-semibold text-[#0A2540]">Source:</span> User-entered data</div>
+        </div>
+        <p className="text-xs text-slate-500">Assumptions: values are calculated from saved profile, scenario, and document checklist inputs available at generation time. Missing fields are shown as missing data.</p>
+      </section>
+      <DecisionBoundaryNotice context="report" />
 
       {activeReport === "snapshot" ? (
         <section className="grid gap-3 md:grid-cols-2 print:bg-white">

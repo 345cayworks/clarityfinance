@@ -1,0 +1,17 @@
+# Clarity Finance Documentation
+
+- [Access Model](ACCESS_MODEL.md)
+- [Function Map](FUNCTION_MAP.md)
+- [Data Model](DATA_MODEL.md)
+- [Route Map](ROUTE_MAP.md)
+- [Security and Privacy Overview](SECURITY_PRIVACY_OVERVIEW.md)
+- [Privacy Policy Draft](PRIVACY_POLICY_DRAFT.md)
+- [Terms of Use Draft](TERMS_OF_USE_DRAFT.md)
+- [Data Deletion and Export Plan](DATA_DELETION_EXPORT_PLAN.md)
+- [Audit Logging Plan](AUDIT_LOGGING_PLAN.md)
+- [Bank Partner Workflow](BANK_PARTNER_WORKFLOW.md)
+- [Bank Vendor Due Diligence Checklist](BANK_VENDOR_DUE_DILIGENCE_CHECKLIST.md)
+- [Access Validation Checklist](ACCESS_VALIDATION_CHECKLIST.md)
+- [Pre-Pitch Readiness](PRE_PITCH_READINESS.md)
+- [Sample Readiness Report Content](SAMPLE_READINESS_REPORT_CONTENT.md)
+- [Final Pre-Pitch Verification](FINAL_PRE_PITCH_VERIFICATION.md)

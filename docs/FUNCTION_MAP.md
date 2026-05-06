@@ -13,9 +13,9 @@
 | `loan-readiness-save` | `netlify/functions/loan-readiness-save.ts` | Save/upsert premium loan readiness application | POST | premium_user+ | loan_readiness_applications | loan-readiness hub | LOAN_READINESS | keep |
 | `loan-readiness-get` | `netlify/functions/loan-readiness-get.ts` | Fetch latest user loan readiness application | GET | premium_user+ | loan_readiness_applications | loan-readiness hub | LOAN_READINESS | keep |
 | `loan-readiness-report-create` | `netlify/functions/loan-readiness-report-create.ts` | Create saved report snapshot from latest readiness application | POST | premium_user+ | loan_readiness_applications, reports | loan-readiness hub | LOAN_READINESS | keep |
-| `report-create` | `netlify/functions/report-create.ts` | Generate persisted report artifacts | POST | active_user+ | reports | reports page | CORE | document |
+| `report-create` | `netlify/functions/report-create.ts` | Generate persisted report artifacts with report version, generated timestamp, assumptions, source context, and disclaimer metadata | POST | active_user+ | reports | reports page | CORE | keep |
 | `action-plan-generate` | `netlify/functions/action-plan-generate.ts` | Create actionable plan from profile | POST | active_user+ | action plans/report data | action-plan page | CORE | keep |
-| `advisor-request-save` | `netlify/functions/advisor-request-save.ts` | Create advisor assistance request | POST | active_user (computed from approved+active status) | advisor requests | advisor/request | ADVISOR | keep |
+| `advisor-request-save` | `netlify/functions/advisor-request-save.ts` | Create advisor assistance request after explicit data-sharing consent; stores consent metadata in `data_sharing_consents` and `recommendation_json` | POST | active_user (computed from approved+active status) | advisor requests, data sharing consents | advisor/request | ADVISOR | keep |
 | `advisor-requests-my` | `netlify/functions/advisor-requests-my.ts` | List request status for requesting user | GET | active_user (computed from approved+active status) | advisor requests | advisor/status | ADVISOR | keep |
 | `advisor-request-detail` | `netlify/functions/advisor-request-detail.ts` | Fetch single advisor request with assignment metadata | GET | assigned advisor by id/email or admin/superadmin | advisor requests + assignment fields | advisor/request detail | ADVISOR | keep |
 | `advisor-requests-list` | `netlify/functions/advisor-requests-list.ts` | List advisor requests (broad) | GET | advisor/admin | advisor requests | internal | ADVISOR | protect |
@@ -46,7 +46,9 @@
 
 ## Advisor artifact payload contract
 - `advisor-request-save` accepts and stores `sourceContext`, `prequalificationShareUrl`, and `recommendation`/`recommendationJson` payloads for downstream advisor detail rendering.
+- `advisor-request-save` requires `consentToReview: true` before any advisor/bank sharing request can be created.
 - `advisor-request-detail` returns assignment metadata, artifact metadata (`loan_readiness_application_id`, `loan_readiness_report_id`, `artifact_type`), and safe nullable artifact fields.
+- Advisors can view assigned cases only. Admins/superadmins can view, assign, and update advisor workflows. Admin override updates currently use `admin-advisor-request-update`; advisor-scoped updates use `advisor-request-update`.
 
 
 ## Admin analytics dependencies

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { DecisionBoundaryNotice } from "@/components/compliance/DecisionBoundaryNotice";
 import { getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
 import { calculateApprovalReadinessScore } from "@/lib/finance/approval-score";
 import { getHousingExpense, getNonHousingNonDebtExpenses } from "@/lib/calculations/finance";
@@ -255,6 +256,7 @@ export default function ProvenBankPrequalificationPage() {
   const [form, setForm] = useState<PrequalForm>(initialForm);
   const [advisorStatus, setAdvisorStatus] = useState("");
   const [requestingAdvisor, setRequestingAdvisor] = useState(false);
+  const [shareConsent, setShareConsent] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -461,7 +463,7 @@ export default function ProvenBankPrequalificationPage() {
   );
 
   const completion = Math.round(((REQUIRED_FIELDS.length - missingRequired.length) / REQUIRED_FIELDS.length) * 100);
-  const summary = `Proven Bank prequalification status: ${approvalScore.band} (${approvalScore.score}/100). Monthly income ${currency(calculations.monthlyIncome)}, living expenses ${currency(calculations.monthlyLivingExpenses)}, housing payment ${currency(calculations.currentHousingPayment)}, debt payments ${currency(calculations.monthlyDebtPayments)}, total obligations ${currency(calculations.totalMonthlyObligations)}, surplus ${currency(calculations.monthlySurplus)}. DTI (debt payments only) ${percent(calculations.debtToIncome)}, housing ratio (rent/mortgage only) ${percent(calculations.housingRatio)}, total monthly pressure ${percent(calculations.totalObligationsRatio)}, down payment ${percent(calculations.downPaymentPercent)}, LTV ${percent(calculations.loanToValue)}.`;
+  const summary = `Proven Bank readiness review status: ${approvalScore.band} (${approvalScore.score}/100). Monthly income ${currency(calculations.monthlyIncome)}, living expenses ${currency(calculations.monthlyLivingExpenses)}, housing payment ${currency(calculations.currentHousingPayment)}, debt payments ${currency(calculations.monthlyDebtPayments)}, total obligations ${currency(calculations.totalMonthlyObligations)}, surplus ${currency(calculations.monthlySurplus)}. DTI (debt payments only) ${percent(calculations.debtToIncome)}, housing ratio (rent/mortgage only) ${percent(calculations.housingRatio)}, total monthly pressure ${percent(calculations.totalObligationsRatio)}, down payment ${percent(calculations.downPaymentPercent)}, LTV ${percent(calculations.loanToValue)}.`;
 
   const bandStyle = (band: string) => {
     if (band === "Likely Ready")
@@ -487,12 +489,25 @@ export default function ProvenBankPrequalificationPage() {
         credentials: "same-origin",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          topic: "Proven Bank Prequalification Review",
+          topic: "Proven Bank Readiness Review",
           urgency: approvalScore.score < 60 ? "high" : "medium",
           sourceContext: "prequalification",
           prequalificationShareUrl,
           message: summary,
-          consentToReview: true,
+          consentToReview: shareConsent,
+          consentMetadata: {
+            recipientType: "financial_institution",
+            recipientName: "Proven Bank",
+            sourceContext: "prequalification",
+            artifactId: prequalificationShareUrl,
+            consentVersion: "data-sharing-consent-v1",
+            sharedScope: {
+              readinessSummary: true,
+              financialSnapshot: true,
+              supportingInformation: true,
+              documentChecklist: true
+            }
+          },
           recommendation: {
             readinessScore: approvalScore.score,
             readinessBand: approvalScore.band,
@@ -513,15 +528,16 @@ export default function ProvenBankPrequalificationPage() {
     }
   };
 
-  if (loading) return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading prequalification profile...</div>;
+  if (loading) return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading bank readiness profile...</div>;
 
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-[#0A2540] bg-[#0A2540] p-6 text-white">
         <p className="text-xs uppercase tracking-[0.16em] text-blue-100">Proven Bank</p>
-        <h1 className="mt-2 text-2xl font-semibold">Mortgage Prequalification Questionnaire</h1>
+        <h1 className="mt-2 text-2xl font-semibold">Mortgage Readiness Review Questionnaire</h1>
         <div className="mt-4 max-w-xl"><div className="mb-1 flex items-center justify-between text-xs text-blue-100"><span>Completion</span><span>{completion}%</span></div><div className="h-2 overflow-hidden rounded-full bg-blue-900/60"><div className="h-full bg-emerald-400" style={{ width: `${completion}%` }} /></div></div>
       </div>
+      <DecisionBoundaryNotice context="loan" />
 
       <Section title="A. Applicant Information">
         <Field label="Full name" value={form.fullName} onChange={setString("fullName")} required locked={locked("fullName")} />
@@ -624,7 +640,7 @@ export default function ProvenBankPrequalificationPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold tracking-wide text-[#0A2540]">Prequalification Summary</h2>
+          <h2 className="text-sm font-semibold tracking-wide text-[#0A2540]">Bank Readiness Review Summary</h2>
           <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">{summary}</p>
           <div className="mt-3 grid gap-2 text-sm text-slate-700">
             <div className="rounded-lg border border-slate-200 px-3 py-2">Status: <span className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${bandStyle(approvalScore.band)}`}>{approvalScore.band}</span> ({approvalScore.score}/100)</div>
@@ -642,7 +658,7 @@ export default function ProvenBankPrequalificationPage() {
             <div className="rounded-lg border border-slate-200 px-3 py-2">Loan-to-value: <span className="font-semibold">{percent(calculations.loanToValue)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Savings runway: <span className="font-semibold">{calculations.savingsRunwayMonths.toFixed(1)} months</span></div>
           </div>
-          <p className="mt-3 text-xs text-slate-500">This score is an estimate only and does not represent a bank decision.</p>
+          <p className="mt-3 text-xs text-slate-500">This score is an estimate only and does not represent a bank decision. Final approval is subject to lender underwriting.</p>
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -665,8 +681,12 @@ export default function ProvenBankPrequalificationPage() {
           </div>
           <div className="mt-3 flex flex-col gap-2">
             <button type="button" onClick={() => window.print()} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Print / Save as PDF</button>
-            <button type="button" onClick={async () => navigator.clipboard.writeText(summary)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Copy Prequalification Summary</button>
-            <button type="button" onClick={requestAdvisorReview} disabled={requestingAdvisor} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-60">Request Advisor Review</button>
+            <button type="button" onClick={async () => navigator.clipboard.writeText(summary)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">Copy Readiness Summary</button>
+            <label className="flex gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              <input type="checkbox" checked={shareConsent} onChange={(event) => setShareConsent(event.target.checked)} className="mt-1" />
+              <span>I authorize Clarity Finance to share the selected readiness summary, financial snapshot, and supporting information with Proven Bank for review. I understand this is not a loan approval or investment recommendation.</span>
+            </label>
+            <button type="button" onClick={requestAdvisorReview} disabled={requestingAdvisor || !shareConsent} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-60">Request Advisor Review</button>
             {advisorStatus ? <p className="text-sm text-slate-600">{advisorStatus}</p> : null}
           </div>
         </section>

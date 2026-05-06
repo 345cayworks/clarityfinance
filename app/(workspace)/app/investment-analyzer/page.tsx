@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
+import { DecisionBoundaryNotice } from "@/components/compliance/DecisionBoundaryNotice";
 import { PremiumLockedCard } from "@/components/premium-locked-card";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
 import type { InvestmentAnalysisResponse } from "@/lib/market-data/investment-analyzer";
@@ -144,6 +145,7 @@ export default function InvestmentAnalyzerPage() {
         <h1 className="text-2xl font-semibold text-[#0A2540]">Investment What-If Analyzer</h1>
         <p className="text-sm text-slate-600">See what a past investment in a basket of stocks or ETFs could be worth today.</p>
       </section>
+      <DecisionBoundaryNotice context="investment" />
 
       <form onSubmit={runAnalysis} className="card space-y-4">
         <div className="grid gap-4 md:grid-cols-3">
@@ -297,6 +299,7 @@ export default function InvestmentAnalyzerPage() {
           <section className="card border border-slate-200 bg-slate-50">
             <h2 className="text-lg font-semibold text-[#0A2540]">Save Analysis</h2>
             <p className="mt-2 text-sm text-slate-600">Saving investment analyses is planned for a future iteration after the investment report storage pattern is finalized.</p>
+            <p className="mt-2 text-xs text-slate-500">Generated: {new Date().toLocaleString()} · Report type: Investment analysis · Version: Clarity Report v1.0 · Based on user-entered ticker, date, and amount inputs.</p>
           </section>
         </>
       ) : null}

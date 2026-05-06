@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
+import { DecisionBoundaryNotice } from "@/components/compliance/DecisionBoundaryNotice";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
 import {
   debtToIncomeRatio,
@@ -237,6 +238,9 @@ export default function ReportDetailPage() {
   ];
 
   const summaryText = `${report.title}: income ${toCurrency(summary.income, summary.currency)}, obligations ${toCurrency(summary.totalMonthlyObligations, summary.currency)}, cash flow ${toCurrency(summary.surplus, summary.currency)}, DTI ${Math.round(summary.dti * 100)}%, savings runway ${summary.runway === null ? "Missing data" : `${summary.runway.toFixed(1)} months`}, total debt ${toCurrency(summary.debtTotal, summary.currency)}.`;
+  const reportVersion = String(report.reportJson.reportVersion ?? "Clarity Report v1.0");
+  const basedOnUserEnteredData = report.reportJson.basedOnUserEnteredData !== false;
+  const disclaimerText = String(report.reportJson.disclaimerText ?? "Based on user-entered information. Not verified by a lender unless separately reviewed. Not a loan approval or investment advice.");
 
   const status = {
     income: summary.income > 0 ? "Strong" : "Incomplete",
@@ -279,6 +283,17 @@ export default function ReportDetailPage() {
           />
         </div>
       </section>
+      <section className="card space-y-2 print:bg-white print:shadow-none">
+        <div className="grid gap-2 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
+          <div><span className="font-semibold text-[#0A2540]">Generated:</span> {formatDate(report.generatedAt)}</div>
+          <div><span className="font-semibold text-[#0A2540]">Report type:</span> {report.reportType}</div>
+          <div><span className="font-semibold text-[#0A2540]">Version:</span> {reportVersion}</div>
+          <div><span className="font-semibold text-[#0A2540]">Source:</span> {basedOnUserEnteredData ? "User-entered data" : "Mixed sources"}</div>
+        </div>
+        <p className="text-xs text-slate-500">Assumptions: values reflect saved profile, scenario, and report data available when this artifact was generated. Missing fields remain unverified.</p>
+        <p className="text-xs text-slate-500">{disclaimerText}</p>
+      </section>
+      <DecisionBoundaryNotice context="report" />
 
       <section className="grid gap-3 md:grid-cols-2 print:bg-white">
         <div className="card md:col-span-2 print:bg-white print:shadow-none">

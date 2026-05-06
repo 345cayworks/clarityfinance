@@ -58,11 +58,16 @@ Derived behavior:
 
 ### 5) Advisor requests and assignment
 - Created by users, reviewed by assigned advisors, triaged/assigned by admins.
+- Advisor/bank sharing requires explicit consent. Consent metadata is stored in `data_sharing_consents` when available and embedded in advisor request `recommendation_json` for compatibility.
 
 ### 6) Loan readiness
 - Premium-gated routes include `/app/loan-readiness`, `/app/loan-application`, and `/app/prequalification/proven-bank`.
 - `loan_readiness_applications` stores readiness score/band, ratios, monthly summary, document checklist, missing docs, and saved application JSON.
 - Advisor escalation is connected through `advisor-request-save` with source context `loan_readiness`.
+
+### 7) Reports
+- `reports` stores report artifacts and metadata.
+- Current metadata fields include `report_version`, `generated_at`, `assumptions_json`, `disclaimer_text`, and `source_context` where the migration has been applied.
 
 ## Canonical next-phase model recommendation
 1. **User**
@@ -86,6 +91,20 @@ Expected advisor request fields (nullable):
 - `prequalification_share_url`: optional protected/internal URL to an artifact; if absent the UI shows a missing-artifact guidance state.
 - `recommendation_json`: structured object used for advisor summaries (readiness score/band, urgency/package, key notes, monthly surplus, DTI, housing ratio, total monthly pressure, missing documents).
 - Optional linking fields if present in schema: `loan_readiness_application_id`, `loan_readiness_report_id`, `artifact_type`.
+- Consent metadata includes recipient type/name, source context, artifact id when available, consent text/version, timestamp, and shared scope.
+
+## Data sharing consent table
+Expected consent fields:
+- `id`
+- `user_id`
+- `recipient_type`
+- `recipient_name`
+- `source_context`
+- `artifact_id`
+- `consent_text`
+- `consent_version`
+- `shared_scope_json`
+- `created_at`
 
 
 ## Admin analytics aggregate model

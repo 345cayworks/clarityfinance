@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { DecisionBoundaryNotice } from "@/components/compliance/DecisionBoundaryNotice";
 import { getIdentityToken, getUser } from "@/lib/auth/netlify-identity";
 import { calculateApprovalReadinessScore } from "@/lib/finance/approval-score";
 import { formatMoney, formatPercent } from "@/lib/finance/format";
@@ -35,6 +36,7 @@ export default function LoanReadinessPage() {
   const [payload, setPayload] = useState<SavedOnboardingData | null>(null);
   const [message, setMessage] = useState<string>("");
   const [busy, setBusy] = useState<"none" | "save" | "advisor">("none");
+  const [shareConsent, setShareConsent] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -169,7 +171,20 @@ export default function LoanReadinessPage() {
           urgency: "medium",
           sourceContext: "loan_readiness",
           message: bankSummary,
-          consentToReview: true,
+          consentToReview: shareConsent,
+          consentMetadata: {
+            recipientType: "advisor",
+            recipientName: "Assigned advisor",
+            sourceContext: "loan_readiness",
+            artifactId: reportData.id ?? null,
+            consentVersion: "data-sharing-consent-v1",
+            sharedScope: {
+              readinessSummary: true,
+              financialSnapshot: true,
+              supportingInformation: true,
+              reportUrl: Boolean(prequalificationShareUrl)
+            }
+          },
           prequalificationShareUrl,
           recommendation: {
             score: approvalScore.score,
@@ -204,6 +219,7 @@ export default function LoanReadinessPage() {
         <h1 className="mt-1 text-2xl font-semibold text-slate-900">Loan Readiness Hub</h1>
         <p className="mt-3 text-sm text-slate-600">Readiness score: <span className="font-semibold text-slate-900">{approvalScore.score}/100</span> · Band: <span className="font-semibold text-slate-900">{approvalScore.band}</span></p>
       </section>
+      <DecisionBoundaryNotice context="loan" />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4">
         <h2 className="mb-3 text-base font-semibold text-slate-900">Financial Summary</h2>
@@ -269,12 +285,16 @@ export default function LoanReadinessPage() {
         <div className="flex flex-wrap gap-2 text-sm">
           <Link href="/app/onboarding" className="rounded border px-3 py-2 hover:bg-slate-50">Update Profile</Link>
           <Link href="/app/loan-application" className="rounded border px-3 py-2 hover:bg-slate-50">Open Bank Application Preparation Form</Link>
-          <Link href="/app/prequalification/proven-bank" className="rounded border px-3 py-2 hover:bg-slate-50">Open Proven Bank Prequalification</Link>
+          <Link href="/app/prequalification/proven-bank" className="rounded border px-3 py-2 hover:bg-slate-50">Open Proven Bank Readiness Review</Link>
           <button onClick={async () => navigator.clipboard.writeText(bankSummary)} className="rounded border px-3 py-2 hover:bg-slate-50">Copy Bank Summary</button>
           <button onClick={() => window.print()} className="rounded border px-3 py-2 hover:bg-slate-50">Print / Save Summary</button>
           <button onClick={onSaveReadiness} disabled={busy !== "none"} className="rounded border px-3 py-2 hover:bg-slate-50 disabled:opacity-60">Save Readiness Snapshot</button>
-          <button onClick={onRequestAdvisor} disabled={busy !== "none"} className="rounded bg-slate-900 px-3 py-2 text-white disabled:opacity-60">Request Advisor Review</button>
+          <button onClick={onRequestAdvisor} disabled={busy !== "none" || !shareConsent} className="rounded bg-slate-900 px-3 py-2 text-white disabled:opacity-60">Request Advisor Review</button>
         </div>
+        <label className="mt-3 flex gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          <input type="checkbox" checked={shareConsent} onChange={(event) => setShareConsent(event.target.checked)} className="mt-1" />
+          <span>I authorize Clarity Finance to share the selected readiness summary, financial snapshot, and supporting information with the assigned advisor or selected financial institution for review. I understand this is not a loan approval or investment recommendation.</span>
+        </label>
         {message ? <p className="mt-2 text-sm text-slate-600">{message}</p> : null}
       </section>
     </div>
