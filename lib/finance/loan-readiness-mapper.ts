@@ -38,7 +38,8 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
   const savings = data.savingsProfile ?? {};
   const goals = data.goals ?? {};
 
-  // Canonical source order: income
+  // Loan-readiness-specific income priority:
+  // profile.monthly_net_income, profile.monthly_gross_income, income_sources.monthly_amount, fallback 0.
   const recurringIncomeTotal = getMonthlyIncome(profile, incomeSources).value;
   const monthlyNetIncome = toNumber(profile.monthly_net_income);
   const monthlyGrossIncome = toNumber(profile.monthly_gross_income);
@@ -135,6 +136,7 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
       housingPayment: housingExpense,
       monthlyDebtPayments: debtPayments,
       totalMonthlyObligations,
+      totalMonthlyPressureAmount: totalMonthlyObligations,
       monthlySurplus,
       totalDebt,
       savingsCash: cashSavings,

@@ -13,15 +13,21 @@ This sample is fictitious and should be used only for demos and documentation.
 ## Cash Flow Snapshot
 
 - Monthly income: `$6,500`.
-- Monthly household expenses: `$3,200`.
+- Living expenses, excluding housing and debt: `$2,100`.
+- Housing payment: `$1,800`.
 - Monthly debt payments: `$850`.
-- Estimated monthly surplus: `$2,450`.
+- Total monthly obligations: `$4,750`.
+- Estimated monthly surplus: `$1,750`.
+- Savings runway: `3.2 months`.
 
 ## Debt Pressure
 
 - Debt-to-income ratio: `13.1%`.
-- Total monthly pressure: `62.3%`.
+- Housing ratio: `27.7%`.
+- Total monthly pressure: `73.1%`.
 - Notes: Review recurring expenses and verify all debt statements before lender submission.
+
+Savings runway estimates how long liquid savings could cover housing and living expenses. Debt payments are not included in this runway estimate.
 
 ## Readiness Blockers
 

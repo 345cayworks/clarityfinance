@@ -93,7 +93,9 @@ export function calculateApprovalReadinessScore(profile: LoanReadinessProfile) {
     recommendations.push("Collect all core documents (ID, proof of address, income, bank and debt evidence).");
   }
 
-  const band = score >= 75 ? "Likely Ready" : score >= 50 ? "Needs Review" : "Not Ready Yet";
+  const rawScore = score;
+  const cappedScore = Math.min(100, rawScore);
+  const band = cappedScore >= 75 ? "Likely Ready" : cappedScore >= 50 ? "Needs Review" : "Not Ready Yet";
 
-  return { score, band, strengths, risks, missingItems, recommendations };
+  return { score: cappedScore, rawScore, maxScore: 100, band, strengths, risks, missingItems, recommendations };
 }

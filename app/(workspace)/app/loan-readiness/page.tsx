@@ -32,6 +32,8 @@ const DOCUMENT_CHECKLIST = [
   { key: "hasBusinessFinancials", label: "Business financials if self-employed" }
 ] as const;
 
+const formatRatio = (value: number | null | undefined) => value === null || value === undefined ? "Missing income" : formatPercent(value * 100);
+
 export default function LoanReadinessPage() {
   const [payload, setPayload] = useState<SavedOnboardingData | null>(null);
   const [message, setMessage] = useState<string>("");
@@ -72,7 +74,6 @@ export default function LoanReadinessPage() {
   const householdExpenseCategories = useMemo(() => {
     const expenseProfile = payload?.expenseProfile ?? {};
     return [
-      { key: "housing", label: "Housing", amount: Number(expenseProfile.housing ?? 0) || 0 },
       { key: "utilities", label: "Utilities", amount: Number(expenseProfile.utilities ?? 0) || 0 },
       { key: "transport", label: "Transport", amount: Number(expenseProfile.transport ?? 0) || 0 },
       { key: "groceries", label: "Groceries", amount: Number(expenseProfile.groceries ?? 0) || 0 },
@@ -83,20 +84,20 @@ export default function LoanReadinessPage() {
     ];
   }, [payload?.expenseProfile]);
 
-  const householdExpensesTotal = useMemo(
-    () => householdExpenseCategories.reduce((sum, item) => sum + item.amount, 0),
-    [householdExpenseCategories]
-  );
+  const nonHousingLivingExpensesTotal = readinessProfile?.financials.nonHousingLivingExpenses ?? 0;
+  const totalMonthlyObligations = readinessProfile?.financials.totalMonthlyObligations ?? 0;
 
   const bankSummary = useMemo(() => {
     if (!readinessProfile || !approvalScore) return "";
-    return `Loan readiness ${approvalScore.band} (${approvalScore.score}/100). Income ${formatMoney(
+    return `Loan readiness ${approvalScore.band} (${approvalScore.score}/100). Monthly income used: ${formatMoney(
       readinessProfile.financials.monthlyIncomeUsed
-    )}, expenses ${formatMoney(readinessProfile.financials.monthlyExpenses)}, debt payments ${formatMoney(
-      readinessProfile.financials.monthlyDebtPayments
-    )}, surplus ${formatMoney(readinessProfile.financials.monthlySurplus)}, DTI ${formatPercent(
-      (readinessProfile.ratios.debtToIncome ?? 0) * 100
-    )}, housing ratio ${formatPercent((readinessProfile.ratios.housingRatio ?? 0) * 100)}.`;
+    )}. Living expenses excluding housing/debt: ${formatMoney(readinessProfile.financials.nonHousingLivingExpenses)}. Housing payment: ${formatMoney(
+      readinessProfile.financials.housingPayment
+    )}. Debt payments: ${formatMoney(readinessProfile.financials.monthlyDebtPayments)}. Total monthly obligations: ${formatMoney(
+      readinessProfile.financials.totalMonthlyObligations
+    )}. Monthly surplus: ${formatMoney(readinessProfile.financials.monthlySurplus)}. Debt-to-income: ${formatRatio(
+      readinessProfile.ratios.debtToIncome
+    )}. Housing ratio: ${formatRatio(readinessProfile.ratios.housingRatio)}. Total monthly pressure: ${formatRatio(readinessProfile.ratios.totalObligationsRatio)}.`;
   }, [approvalScore, readinessProfile]);
 
   const withToken = async () => {
@@ -127,16 +128,42 @@ export default function LoanReadinessPage() {
           loanTermYears: 30,
           estimatedInterestRate: 7,
           readinessScore: approvalScore.score,
+          rawReadinessScore: approvalScore.rawScore,
+          maxReadinessScore: approvalScore.maxScore,
           readinessBand: approvalScore.band,
           debtToIncome: readinessProfile.ratios.debtToIncome,
           housingRatio: readinessProfile.ratios.housingRatio,
+          totalObligationsRatio: readinessProfile.ratios.totalObligationsRatio,
           monthlyIncome: readinessProfile.financials.monthlyIncomeUsed,
+          monthlyIncomeSource: readinessProfile.financials.monthlyIncomeSource,
+          nonHousingLivingExpenses: readinessProfile.financials.nonHousingLivingExpenses,
+          housingPayment: readinessProfile.financials.housingPayment,
           monthlyExpenses: readinessProfile.financials.monthlyExpenses,
           monthlyDebtPayments: readinessProfile.financials.monthlyDebtPayments,
+          totalMonthlyObligations: readinessProfile.financials.totalMonthlyObligations,
           monthlySurplus: readinessProfile.financials.monthlySurplus,
+          savingsRunwayMonths: readinessProfile.financials.savingsRunwayMonths,
+          downPaymentPercent: readinessProfile.loan.downPaymentPercent,
           missingDocuments,
           checklist,
-          application: { readinessProfile, approvalScore },
+          application: {
+            readinessProfile,
+            approvalScore,
+            canonicalFields: {
+              monthlyIncomeUsed: readinessProfile.financials.monthlyIncomeUsed,
+              monthlyIncomeSource: readinessProfile.financials.monthlyIncomeSource,
+              nonHousingLivingExpenses: readinessProfile.financials.nonHousingLivingExpenses,
+              housingPayment: readinessProfile.financials.housingPayment,
+              monthlyDebtPayments: readinessProfile.financials.monthlyDebtPayments,
+              totalMonthlyObligations: readinessProfile.financials.totalMonthlyObligations,
+              monthlySurplus: readinessProfile.financials.monthlySurplus,
+              debtToIncome: readinessProfile.ratios.debtToIncome,
+              housingRatio: readinessProfile.ratios.housingRatio,
+              totalObligationsRatio: readinessProfile.ratios.totalObligationsRatio,
+              savingsRunwayMonths: readinessProfile.financials.savingsRunwayMonths,
+              downPaymentPercent: readinessProfile.loan.downPaymentPercent
+            }
+          },
           status: "draft"
         })
       });
@@ -190,14 +217,19 @@ export default function LoanReadinessPage() {
             score: approvalScore.score,
             band: approvalScore.band,
             monthlyIncome: readinessProfile.financials.monthlyIncomeUsed,
+            monthlyIncomeSource: readinessProfile.financials.monthlyIncomeSource,
+            nonHousingLivingExpenses: readinessProfile.financials.nonHousingLivingExpenses,
+            housingPayment: readinessProfile.financials.housingPayment,
             monthlyExpenses: readinessProfile.financials.monthlyExpenses,
-            householdExpensesTotal,
             householdExpensesBreakdown: householdExpenseCategories,
             monthlyDebtPayments: readinessProfile.financials.monthlyDebtPayments,
+            totalMonthlyObligations: readinessProfile.financials.totalMonthlyObligations,
             monthlySurplus: readinessProfile.financials.monthlySurplus,
             debtToIncome: readinessProfile.ratios.debtToIncome,
             housingRatio: readinessProfile.ratios.housingRatio,
             totalMonthlyPressure: readinessProfile.ratios.totalObligationsRatio,
+            savingsRunwayMonths: readinessProfile.financials.savingsRunwayMonths,
+            downPaymentPercent: readinessProfile.loan.downPaymentPercent,
             missingDocuments
           }
         })
@@ -224,31 +256,46 @@ export default function LoanReadinessPage() {
       <section className="rounded-2xl border border-slate-200 bg-white p-4">
         <h2 className="mb-3 text-base font-semibold text-slate-900">Financial Summary</h2>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 text-sm">
-          <div>Monthly income: <strong>{formatMoney(readinessProfile.financials.monthlyIncomeUsed)}</strong></div>
-          <div>Monthly expenses: <strong>{formatMoney(readinessProfile.financials.monthlyExpenses)}</strong></div>
+          <div>Monthly income used: <strong>{formatMoney(readinessProfile.financials.monthlyIncomeUsed)}</strong></div>
+          <div>Income source: <strong>{readinessProfile.financials.monthlyIncomeSource}</strong></div>
+          <div>Living expenses, excluding housing and debt: <strong>{formatMoney(readinessProfile.financials.nonHousingLivingExpenses)}</strong></div>
+          <div>Housing payment: <strong>{formatMoney(readinessProfile.financials.housingPayment)}</strong></div>
           <div>Monthly debt payments: <strong>{formatMoney(readinessProfile.financials.monthlyDebtPayments)}</strong></div>
+          <div>Total monthly obligations: <strong>{formatMoney(readinessProfile.financials.totalMonthlyObligations)}</strong></div>
           <div>Monthly surplus: <strong>{formatMoney(readinessProfile.financials.monthlySurplus)}</strong></div>
-          <div>Debt-to-Income (debt payments only): <strong>{formatPercent((readinessProfile.ratios.debtToIncome ?? 0) * 100)}</strong></div>
-          <div>Housing Ratio (rent/mortgage only): <strong>{formatPercent((readinessProfile.ratios.housingRatio ?? 0) * 100)}</strong></div>
-          <div>Total Monthly Pressure (living + housing + debt): <strong>{formatPercent((readinessProfile.ratios.totalObligationsRatio ?? 0) * 100)}</strong></div>
+          <div>Debt-to-Income (debt payments only): <strong>{formatRatio(readinessProfile.ratios.debtToIncome)}</strong></div>
+          <div>Housing Ratio (rent/mortgage only): <strong>{formatRatio(readinessProfile.ratios.housingRatio)}</strong></div>
+          <div>Total Monthly Pressure (housing + living expenses + debt): <strong>{formatRatio(readinessProfile.ratios.totalObligationsRatio)}</strong></div>
+          <div>Savings runway: <strong>{readinessProfile.financials.savingsRunwayMonths.toFixed(1)} months</strong></div>
           {downPaymentPercent !== null ? <div>Down payment %: <strong>{formatPercent(downPaymentPercent * 100)}</strong></div> : null}
         </div>
+        <p className="mt-3 text-xs text-slate-500">Savings runway estimates how long liquid savings could cover housing and living expenses. Debt payments are not included in this runway estimate.</p>
       </section>
 
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-base font-semibold text-slate-900">Household Expenses (from Profile)</h2>
+        <h2 className="mb-3 text-base font-semibold text-slate-900">Household Expenses (Canonical Breakdown)</h2>
         <div className="space-y-2 text-sm">
-          <p>Total monthly household expenses: <strong>{formatMoney(householdExpensesTotal)}</strong></p>
-          {householdExpensesTotal <= 0 ? (
-            <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Missing data: no household expenses found in your profile yet.</p>
+          <p>Living expense categories come from the expense profile. Housing comes from the housing profile. Debt payments come from the debt profile.</p>
+          <p>Living expenses, excluding housing and debt: <strong>{formatMoney(nonHousingLivingExpensesTotal)}</strong></p>
+          {totalMonthlyObligations <= 0 ? (
+            <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Missing data: no housing, living expense, or debt payment data found yet.</p>
           ) : null}
           <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <li className="rounded border p-2">
+              Housing payment: <strong>{formatMoney(readinessProfile.financials.housingPayment)}</strong>
+            </li>
             {householdExpenseCategories.map((item) => (
               <li key={item.key} className="rounded border p-2">
                 {item.label}: <strong>{formatMoney(item.amount)}</strong>
               </li>
             ))}
+            <li className="rounded border p-2">
+              Monthly debt payments: <strong>{formatMoney(readinessProfile.financials.monthlyDebtPayments)}</strong>
+            </li>
+            <li className="rounded border p-2">
+              Total monthly obligations: <strong>{formatMoney(readinessProfile.financials.totalMonthlyObligations)}</strong>
+            </li>
           </ul>
         </div>
         <div className="mt-3 flex flex-wrap gap-2 text-sm">

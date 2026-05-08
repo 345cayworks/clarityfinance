@@ -65,6 +65,23 @@ Derived behavior:
 - `loan_readiness_applications` stores readiness score/band, ratios, monthly summary, document checklist, missing docs, and saved application JSON.
 - Advisor escalation is connected through `advisor-request-save` with source context `loan_readiness`.
 
+#### Loan Readiness Calculation Definitions
+
+- `monthlyIncomeUsed`: `profile.monthly_net_income` if greater than zero, else `profile.monthly_gross_income` if greater than zero, else sum of `income_sources.monthly_amount`, else `0`.
+- `monthlyIncomeSource`: the source selected by the loan readiness income priority.
+- `nonHousingLivingExpenses`: sum of expense profile `utilities`, `transport`, `groceries`, `insurance`, `childcare`, `discretionary`, and `other`; excludes housing and debt payments.
+- `housingPayment`: `housing_profiles.mortgage_payment` if greater than zero, else `housing_profiles.rent_amount` if greater than zero, else `0`.
+- `monthlyDebtPayments`: sum of `debts.monthly_payment`.
+- `totalMonthlyObligations`: `housingPayment + nonHousingLivingExpenses + monthlyDebtPayments`.
+- `monthlySurplus`: `monthlyIncomeUsed - totalMonthlyObligations`.
+- `debtToIncome`: `monthlyDebtPayments / monthlyIncomeUsed`, or `null` when income is missing.
+- `housingRatio`: `housingPayment / monthlyIncomeUsed`, or `null` when income is missing.
+- `totalObligationsRatio`: `totalMonthlyObligations / monthlyIncomeUsed`, or `null` when income is missing.
+- `savingsRunwayMonths`: `(cash_savings + emergency_fund) / (housingPayment + nonHousingLivingExpenses)`. Debt payments are not included in this runway estimate.
+- `downPaymentPercent`: `downPaymentAvailable / purchasePrice`, only meaningful when purchase price is greater than zero.
+
+For backward compatibility, the legacy `monthly_expenses` column continues to represent `nonHousingLivingExpenses`; the canonical fields are also stored in `application_json`.
+
 ### 7) Reports
 - `reports` stores report artifacts and metadata.
 - Current metadata fields include `report_version`, `generated_at`, `assumptions_json`, `disclaimer_text`, and `source_context` where the migration has been applied.

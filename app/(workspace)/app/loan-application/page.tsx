@@ -20,6 +20,7 @@ type SavedOnboardingData = {
 
 
 const toYesNoNotProvided = (value: unknown) => (value === true ? "Yes" : value === false ? "No" : "Not provided");
+const formatRatio = (value: number | null | undefined) => value === null || value === undefined ? "Missing income" : formatPercent(value * 100);
 
 function Section({ title, children, breakBefore = false }: { title: string; children: React.ReactNode; breakBefore?: boolean }) {
   return (
@@ -64,11 +65,11 @@ export default function LoanApplicationPage() {
 
   if (!appData || !readinessProfile || !approvalScore) return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading application...</div>;
 
-  const bankSummary = `Loan readiness ${approvalScore.band} (${approvalScore.score}/100). Income ${formatMoney(readinessProfile.financials.monthlyIncomeUsed)}, expenses ${formatMoney(
-    readinessProfile.financials.monthlyExpenses
-  )}, debt payments ${formatMoney(readinessProfile.financials.monthlyDebtPayments)}, surplus ${formatMoney(
-    readinessProfile.financials.monthlySurplus
-  )}, DTI (debt payments only) ${formatPercent((readinessProfile.ratios.debtToIncome ?? 0) * 100)}, housing ratio (rent/mortgage only) ${formatPercent((readinessProfile.ratios.housingRatio ?? 0) * 100)}, total monthly pressure ${formatPercent((readinessProfile.ratios.totalObligationsRatio ?? 0) * 100)}.`;
+  const bankSummary = `Loan readiness ${approvalScore.band} (${approvalScore.score}/100). Monthly income used: ${formatMoney(readinessProfile.financials.monthlyIncomeUsed)}. Living expenses excluding housing/debt: ${formatMoney(
+    readinessProfile.financials.nonHousingLivingExpenses
+  )}. Housing payment: ${formatMoney(readinessProfile.financials.housingPayment)}. Debt payments: ${formatMoney(readinessProfile.financials.monthlyDebtPayments)}. Total monthly obligations: ${formatMoney(
+    readinessProfile.financials.totalMonthlyObligations
+  )}. Monthly surplus: ${formatMoney(readinessProfile.financials.monthlySurplus)}. Debt-to-income: ${formatRatio(readinessProfile.ratios.debtToIncome)}. Housing ratio: ${formatRatio(readinessProfile.ratios.housingRatio)}. Total monthly pressure: ${formatRatio(readinessProfile.ratios.totalObligationsRatio)}.`;
 
 
   const bandStyle = (band: string) => {
@@ -145,9 +146,10 @@ export default function LoanApplicationPage() {
 
       <Section title="6. Statement of Affairs">
         <Row label="Monthly income used" value={formatMoney(readinessProfile.financials.monthlyIncomeUsed)} />
-        <Row label="Monthly expenses" value={formatMoney(readinessProfile.financials.monthlyExpenses)} />
+        <Row label="Living expenses, excluding housing and debt" value={formatMoney(readinessProfile.financials.nonHousingLivingExpenses)} />
         <Row label="Housing payment" value={formatMoney(readinessProfile.financials.housingPayment)} />
         <Row label="Monthly debt payments" value={formatMoney(readinessProfile.financials.monthlyDebtPayments)} />
+        <Row label="Total monthly obligations" value={formatMoney(readinessProfile.financials.totalMonthlyObligations)} />
         <Row label="Monthly surplus" value={formatMoney(readinessProfile.financials.monthlySurplus)} />
       </Section>
 
@@ -163,9 +165,9 @@ export default function LoanApplicationPage() {
         <Row label="Other debts" value={formatMoney(readinessProfile.financials.otherDebt)} />
         <Row label="Total liabilities" value={formatMoney(readinessProfile.financials.totalLiabilities)} />
         <Row label="Net worth" value={formatMoney(readinessProfile.financials.netWorth)} />
-        <Row label="Debt-to-Income (debt payments only)" value={formatPercent((readinessProfile.ratios.debtToIncome ?? 0) * 100)} />
-        <Row label="Housing Ratio (rent/mortgage only)" value={formatPercent((readinessProfile.ratios.housingRatio ?? 0) * 100)} />
-        <Row label="Total Monthly Pressure (living + housing + debt payments)" value={formatPercent((readinessProfile.ratios.totalObligationsRatio ?? 0) * 100)} />
+        <Row label="Debt-to-Income (debt payments only)" value={formatRatio(readinessProfile.ratios.debtToIncome)} />
+        <Row label="Housing Ratio (rent/mortgage only)" value={formatRatio(readinessProfile.ratios.housingRatio)} />
+        <Row label="Total Monthly Pressure (housing + living expenses + debt)" value={formatRatio(readinessProfile.ratios.totalObligationsRatio)} />
       </Section>
 
       <Section title="9. Property Held">

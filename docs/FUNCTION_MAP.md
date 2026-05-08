@@ -13,6 +13,10 @@
 | `loan-readiness-save` | `netlify/functions/loan-readiness-save.ts` | Save/upsert premium loan readiness application | POST | premium_user+ | loan_readiness_applications | loan-readiness hub | LOAN_READINESS | keep |
 | `loan-readiness-get` | `netlify/functions/loan-readiness-get.ts` | Fetch latest user loan readiness application | GET | premium_user+ | loan_readiness_applications | loan-readiness hub | LOAN_READINESS | keep |
 | `loan-readiness-report-create` | `netlify/functions/loan-readiness-report-create.ts` | Create saved report snapshot from latest readiness application | POST | premium_user+ | loan_readiness_applications, reports | loan-readiness hub | LOAN_READINESS | keep |
+
+## Loan readiness calculation contract
+- `loan-readiness-save` accepts canonical fields for income source, non-housing living expenses, housing payment, monthly debt payments, total monthly obligations, monthly surplus, DTI, housing ratio, total monthly pressure, savings runway, and down payment percent.
+- `loan-readiness-report-create` snapshots the same canonical fields under `report_json.canonicalSummary` so report output can match the Loan Readiness Hub labels and values.
 | `report-create` | `netlify/functions/report-create.ts` | Generate persisted report artifacts with report version, generated timestamp, assumptions, source context, and disclaimer metadata | POST | active_user+ | reports | reports page | CORE | keep |
 | `action-plan-generate` | `netlify/functions/action-plan-generate.ts` | Create actionable plan from profile | POST | active_user+ | action plans/report data | action-plan page | CORE | keep |
 | `advisor-request-save` | `netlify/functions/advisor-request-save.ts` | Create advisor assistance request after explicit data-sharing consent; stores consent metadata in `data_sharing_consents` and `recommendation_json` | POST | active_user (computed from approved+active status) | advisor requests, data sharing consents | advisor/request | ADVISOR | keep |

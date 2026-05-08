@@ -364,8 +364,8 @@ export default function ProvenBankPrequalificationPage() {
     const totalObligationsRatio = monthlyIncome > 0 ? totalMonthlyObligations / monthlyIncome : 0;
     const downPaymentPercent = toNumber(form.purchasePrice) > 0 ? toNumber(form.downPaymentAvailable) / toNumber(form.purchasePrice) : 0;
     const loanToValue = toNumber(form.purchasePrice) > 0 ? toNumber(form.requestedLoanAmount) / toNumber(form.purchasePrice) : 0;
-    const liquidSavings = toNumber(form.cashSavings) + toNumber(form.emergencyFund) + toNumber(form.downPaymentSavings);
-    const expenseBase = totalMonthlyObligations;
+    const liquidSavings = toNumber(form.cashSavings) + toNumber(form.emergencyFund);
+    const expenseBase = currentHousingPayment + monthlyLivingExpenses;
     const savingsRunwayMonths = expenseBase > 0 ? liquidSavings / expenseBase : 0;
     return {
       monthlyIncome,
@@ -517,7 +517,10 @@ export default function ProvenBankPrequalificationPage() {
             monthlySurplus: calculations.monthlySurplus,
             debtToIncome: calculations.debtToIncome,
             housingRatio: calculations.housingRatio,
+            totalMonthlyObligations: calculations.totalMonthlyObligations,
             totalMonthlyPressure: calculations.totalObligationsRatio,
+            savingsRunwayMonths: calculations.savingsRunwayMonths,
+            downPaymentPercent: calculations.downPaymentPercent,
             keyNotes: documentGaps.length ? `Documents needed: ${documentGaps.join(", ")}` : "Document checklist complete."
           }
         })
@@ -658,6 +661,7 @@ export default function ProvenBankPrequalificationPage() {
             <div className="rounded-lg border border-slate-200 px-3 py-2">Loan-to-value: <span className="font-semibold">{percent(calculations.loanToValue)}</span></div>
             <div className="rounded-lg border border-slate-200 px-3 py-2">Savings runway: <span className="font-semibold">{calculations.savingsRunwayMonths.toFixed(1)} months</span></div>
           </div>
+          <p className="mt-3 text-xs text-slate-500">Savings runway estimates how long liquid savings could cover housing and living expenses. Debt payments are not included in this runway estimate.</p>
           <p className="mt-3 text-xs text-slate-500">This score is an estimate only and does not represent a bank decision. Final approval is subject to lender underwriting.</p>
         </section>
 

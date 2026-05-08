@@ -43,6 +43,12 @@ function numberValue(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function nullableNumber(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function formatDate(value: string | null) {
   if (!value) return "Unknown date";
   const date = new Date(value);
@@ -57,6 +63,11 @@ function badgeClass(status: Status) {
 
 function StatusBadge({ status }: { status: Status }) {
   return <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${badgeClass(status)}`}>{status}</span>;
+}
+
+function formatRatio(value: unknown) {
+  const ratio = nullableNumber(value);
+  return ratio === null ? "Missing income" : `${(ratio * 100).toFixed(1)}%`;
 }
 
 function downloadCsv(filename: string, rows: string[][]) {
@@ -241,6 +252,7 @@ export default function ReportDetailPage() {
   const reportVersion = String(report.reportJson.reportVersion ?? "Clarity Report v1.0");
   const basedOnUserEnteredData = report.reportJson.basedOnUserEnteredData !== false;
   const disclaimerText = String(report.reportJson.disclaimerText ?? "Based on user-entered information. Not verified by a lender unless separately reviewed. Not a loan approval or investment advice.");
+  const canonicalSummary = record(report.reportJson.canonicalSummary);
 
   const status = {
     income: summary.income > 0 ? "Strong" : "Incomplete",
@@ -294,6 +306,26 @@ export default function ReportDetailPage() {
         <p className="text-xs text-slate-500">{disclaimerText}</p>
       </section>
       <DecisionBoundaryNotice context="report" />
+
+      {canonicalSummary ? (
+        <DetailSection title="Loan Readiness Calculation Summary">
+          <div className="grid gap-2 md:grid-cols-2">
+            <div className="rounded-lg border border-slate-200 p-3 text-sm">Monthly income used: <strong>{toCurrency(numberValue(canonicalSummary.monthlyIncomeUsed), summary.currency)}</strong></div>
+            <div className="rounded-lg border border-slate-200 p-3 text-sm">Income source: <strong>{String(canonicalSummary.monthlyIncomeSource ?? "Missing data")}</strong></div>
+            <div className="rounded-lg border border-slate-200 p-3 text-sm">Living expenses, excluding housing and debt: <strong>{toCurrency(numberValue(canonicalSummary.nonHousingLivingExpenses), summary.currency)}</strong></div>
+            <div className="rounded-lg border border-slate-200 p-3 text-sm">Housing payment: <strong>{toCurrency(numberValue(canonicalSummary.housingPayment), summary.currency)}</strong></div>
+            <div className="rounded-lg border border-slate-200 p-3 text-sm">Monthly debt payments: <strong>{toCurrency(numberValue(canonicalSummary.monthlyDebtPayments), summary.currency)}</strong></div>
+            <div className="rounded-lg border border-slate-200 p-3 text-sm">Total monthly obligations: <strong>{toCurrency(numberValue(canonicalSummary.totalMonthlyObligations), summary.currency)}</strong></div>
+            <div className="rounded-lg border border-slate-200 p-3 text-sm">Monthly surplus: <strong>{toCurrency(numberValue(canonicalSummary.monthlySurplus), summary.currency)}</strong></div>
+            <div className="rounded-lg border border-slate-200 p-3 text-sm">Debt-to-Income (debt payments only): <strong>{formatRatio(canonicalSummary.debtToIncome)}</strong></div>
+            <div className="rounded-lg border border-slate-200 p-3 text-sm">Housing Ratio (rent/mortgage only): <strong>{formatRatio(canonicalSummary.housingRatio)}</strong></div>
+            <div className="rounded-lg border border-slate-200 p-3 text-sm">Total Monthly Pressure (housing + living expenses + debt): <strong>{formatRatio(canonicalSummary.totalObligationsRatio)}</strong></div>
+            <div className="rounded-lg border border-slate-200 p-3 text-sm">Savings runway: <strong>{numberValue(canonicalSummary.savingsRunwayMonths).toFixed(1)} months</strong></div>
+            <div className="rounded-lg border border-slate-200 p-3 text-sm">Readiness score: <strong>{numberValue(canonicalSummary.readinessScore)}/100</strong></div>
+          </div>
+          <p className="text-xs text-slate-500">Savings runway estimates how long liquid savings could cover housing and living expenses. Debt payments are not included in this runway estimate.</p>
+        </DetailSection>
+      ) : null}
 
       <section className="grid gap-3 md:grid-cols-2 print:bg-white">
         <div className="card md:col-span-2 print:bg-white print:shadow-none">
