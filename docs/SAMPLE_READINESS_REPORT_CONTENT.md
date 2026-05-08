@@ -12,20 +12,26 @@ This sample is fictitious and should be used only for demos and documentation.
 
 ## Cash Flow Snapshot
 
-- Monthly income: `$6,500`.
+- Total monthly income used: `$7,200`.
+- Primary applicant income: `$6,500`.
+- Rental income: `$700`.
+- Investment income: `$0`.
+- Other recurring income: `$0`.
 - Living expenses, excluding housing and debt: `$2,100`.
 - Housing payment: `$1,800`.
 - Monthly debt payments: `$850`.
 - Total monthly obligations: `$4,750`.
-- Estimated monthly surplus: `$1,750`.
+- Estimated monthly surplus: `$2,450`.
 - Savings runway: `3.2 months`.
 
 ## Debt Pressure
 
-- Debt-to-income ratio: `13.1%`.
-- Housing ratio: `27.7%`.
-- Total monthly pressure: `73.1%`.
+- Debt-to-income ratio: `11.8%`.
+- Housing ratio: `25.0%`.
+- Total monthly pressure: `66.0%`.
 - Notes: Review recurring expenses and verify all debt statements before lender submission.
+
+The Loan Application Form uses total monthly income as the default base for affordability ratios.
 
 Savings runway estimates how long liquid savings could cover housing and living expenses. Debt payments are not included in this runway estimate.
 

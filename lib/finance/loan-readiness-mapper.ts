@@ -6,7 +6,8 @@ import {
   getTotalDebt,
   getSavingsRunwayMonths,
   getNonHousingNonDebtExpenses,
-  getTotalMonthlyExpenses
+  getTotalMonthlyExpenses,
+  getLoanApplicationTotalIncome
 } from "@/lib/calculations/finance";
 import { interpretDebtPressure } from "@/lib/finance/debt-pressure";
 
@@ -93,6 +94,16 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
   const debtToIncome = monthlyIncomeUsed > 0 ? debtPayments / monthlyIncomeUsed : null;
   const housingRatio = monthlyIncomeUsed > 0 ? housingExpense / monthlyIncomeUsed : null;
   const totalObligationsRatio = monthlyIncomeUsed > 0 ? totalMonthlyObligations / monthlyIncomeUsed : null;
+  const loanApplicationIncome = getLoanApplicationTotalIncome(
+    data.profile ?? null,
+    incomeSources,
+    data.housingProfile ?? null,
+    data.savingsProfile ?? null
+  );
+  const totalMonthlyIncome = loanApplicationIncome.totalIncome;
+  const debtToIncomeUsingTotalIncome = totalMonthlyIncome > 0 ? debtPayments / totalMonthlyIncome : null;
+  const housingRatioUsingTotalIncome = totalMonthlyIncome > 0 ? housingExpense / totalMonthlyIncome : null;
+  const totalObligationsRatioUsingTotalIncome = totalMonthlyIncome > 0 ? totalMonthlyObligations / totalMonthlyIncome : null;
   const runwayMonths = getSavingsRunwayMonths(data.savingsProfile ?? null, data.expenseProfile ?? null, data.housingProfile ?? null);
   const debtPressure = interpretDebtPressure({
     debtToIncome,
@@ -129,6 +140,8 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
       monthlyNetIncome,
       monthlyIncomeUsed,
       monthlyIncomeSource,
+      totalMonthlyIncome,
+      loanApplicationIncome,
       nonHousingLivingExpenses,
       housingExpense,
       livingExpenses,
@@ -199,6 +212,12 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
     ratios: {
       debtToIncome,
       housingRatio,
+      debtToIncomeUsingPrimaryIncome: debtToIncome,
+      housingRatioUsingPrimaryIncome: housingRatio,
+      totalObligationsRatioUsingPrimaryIncome: totalObligationsRatio,
+      debtToIncomeUsingTotalIncome,
+      housingRatioUsingTotalIncome,
+      totalObligationsRatioUsingTotalIncome,
       loanToValue,
       savingsRunwayMonths: runwayMonths,
       totalObligationsRatio,

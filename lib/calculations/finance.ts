@@ -15,6 +15,84 @@ export const getMonthlyIncome = (profile: GenericRow | null, incomeSources: Gene
   return { value: 0, source: "fallback.0" };
 };
 
+export type LoanApplicationIncomeBreakdown = {
+  applicantIncome: number;
+  rentalIncome: number;
+  investmentIncome: number;
+  otherIncome: number;
+  coApplicantIncome: number;
+  totalIncome: number;
+  incomeSourcesUsed: string[];
+};
+
+const sourceText = (row: GenericRow) =>
+  ["type", "label", "name", "source_name", "category", "description"]
+    .map((key) => String(row[key] ?? "").toLowerCase())
+    .join(" ");
+
+const sumIncomeSourcesByKeyword = (incomeSources: GenericRow[] = [], keywords: string[]) =>
+  incomeSources.reduce((sum, row) => {
+    const text = sourceText(row);
+    if (!keywords.some((keyword) => text.includes(keyword))) return sum;
+    return sum + numberValue(row.monthly_amount);
+  }, 0);
+
+export const getLoanApplicationTotalIncome = (
+  profile: GenericRow | null,
+  incomeSources: GenericRow[] = [],
+  housingProfile: GenericRow | null = null,
+  _savingsProfile: GenericRow | null = null
+): LoanApplicationIncomeBreakdown => {
+  const monthlyNetIncome = numberValue(profile?.monthly_net_income);
+  const monthlyGrossIncome = numberValue(profile?.monthly_gross_income);
+  const incomeSourceTotal = incomeSources.reduce((sum, row) => sum + numberValue(row.monthly_amount), 0);
+  const rentalIncomeFromSources = sumIncomeSourcesByKeyword(incomeSources, ["rental", "rent", "room"]);
+  const investmentIncomeFromSources = sumIncomeSourcesByKeyword(incomeSources, ["investment", "dividend"]);
+  const otherIncomeFromSources = sumIncomeSourcesByKeyword(incomeSources, ["other"]);
+  const categorizedIncomeSourceTotal = rentalIncomeFromSources + investmentIncomeFromSources + otherIncomeFromSources;
+  const uncategorizedIncomeSourceTotal = Math.max(0, incomeSourceTotal - categorizedIncomeSourceTotal);
+  const applicantIncome =
+    monthlyNetIncome > 0
+      ? monthlyNetIncome
+      : monthlyGrossIncome > 0
+        ? monthlyGrossIncome
+        : uncategorizedIncomeSourceTotal > 0
+          ? uncategorizedIncomeSourceTotal
+          : categorizedIncomeSourceTotal > 0
+            ? 0
+            : incomeSourceTotal;
+
+  const rentalIncome =
+    numberValue(housingProfile?.estimated_room_rental_income) ||
+    numberValue(profile?.rental_income) ||
+    rentalIncomeFromSources;
+  const investmentIncome = numberValue(profile?.investment_income) || investmentIncomeFromSources;
+  const otherIncome = numberValue(profile?.other_income_amount) || otherIncomeFromSources;
+  const coApplicantIncome = 0;
+
+  const incomeSourcesUsed: string[] = [];
+  if (monthlyNetIncome > 0) incomeSourcesUsed.push("profiles.monthly_net_income");
+  else if (monthlyGrossIncome > 0) incomeSourcesUsed.push("profiles.monthly_gross_income");
+  else if (uncategorizedIncomeSourceTotal > 0) incomeSourcesUsed.push("income_sources.monthly_amount.uncategorized");
+  else if (categorizedIncomeSourceTotal > 0) incomeSourcesUsed.push("income_sources.monthly_amount.categorized");
+  else if (incomeSourceTotal > 0) incomeSourcesUsed.push("income_sources.monthly_amount");
+  else incomeSourcesUsed.push("fallback.0");
+  if (rentalIncome > 0) incomeSourcesUsed.push("housing_profile.estimated_room_rental_income/profile.rental_income/rental income source");
+  if (investmentIncome > 0) incomeSourcesUsed.push("profile.investment_income/investment income source");
+  if (otherIncome > 0) incomeSourcesUsed.push("profile.other_income_amount/other income source");
+  incomeSourcesUsed.push("co_applicant_income.placeholder");
+
+  return {
+    applicantIncome,
+    rentalIncome,
+    investmentIncome,
+    otherIncome,
+    coApplicantIncome,
+    totalIncome: applicantIncome + rentalIncome + investmentIncome + otherIncome + coApplicantIncome,
+    incomeSourcesUsed
+  };
+};
+
 export const getHousingExpense = (housingProfile: GenericRow | null) => {
   const mortgage = numberValue(housingProfile?.mortgage_payment);
   if (mortgage > 0) return { value: mortgage, source: "housingProfile.mortgage_payment" };

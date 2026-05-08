@@ -7,10 +7,13 @@ Clarity Finance is a customer preparation and readiness platform, not an underwr
 1. User completes a financial snapshot.
 2. User reviews cash flow, debt pressure, and readiness indicators.
 3. User runs planning scenarios.
-4. User prepares a document checklist.
-5. User gives explicit consent to share a summary.
-6. Advisor or bank officer receives a readiness packet.
-7. Bank performs final underwriting outside Clarity Finance.
+4. User opens the Loan Application Preparation Form.
+5. User reviews the financial summary, Statement of Affairs, and document checklist in one bank-facing packet.
+6. User gives explicit consent to share a summary.
+7. Advisor or bank officer receives a readiness packet.
+8. Bank performs final underwriting outside Clarity Finance.
+
+The Loan Application Preparation Form uses total monthly income as the default base for affordability ratios.
 
 ## Compliance-Safe Phrases
 

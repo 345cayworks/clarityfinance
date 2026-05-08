@@ -76,16 +76,7 @@ const navSections: NavSection[] = [
         )
       },
       {
-        label: "Loan Readiness",
-        href: "/app/loan-readiness",
-        icon: (
-          <Icon>
-            <path d="M5 12h14M12 5v14M4 4h16v16H4z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </Icon>
-        )
-      },
-      {
-        label: "Loan Application",
+        label: "Loan Application Prep",
         href: "/app/loan-application",
         icon: (
           <Icon>

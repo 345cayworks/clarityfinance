@@ -328,7 +328,7 @@ export default function ReportsPage() {
         <div className="border-t border-slate-200 print:hidden" />
         <div className="print:hidden grid gap-2 text-sm sm:grid-cols-3">
           <Link href="/app/tools/rent-a-room" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center font-medium text-slate-700 hover:border-slate-400">Rent-a-Room Report →</Link>
-          <Link href="/app/loan-readiness" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center font-medium text-slate-700 hover:border-slate-400">Loan readiness →</Link>
+          <Link href="/app/loan-application" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center font-medium text-slate-700 hover:border-slate-400">Loan application prep →</Link>
           <Link href="/app/prequalification/proven-bank" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-center font-medium text-slate-700 hover:border-slate-400">Bank readiness review →</Link>
         </div>
       </section>

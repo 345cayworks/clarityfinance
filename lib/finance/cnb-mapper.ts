@@ -1,4 +1,9 @@
-import { getTotalDebt, getMonthlyDebtPayments, numberValue as toNumber } from "@/lib/calculations/finance";
+import {
+  getLoanApplicationTotalIncome,
+  getTotalDebt,
+  getMonthlyDebtPayments,
+  numberValue as toNumber
+} from "@/lib/calculations/finance";
 import { buildLoanReadinessProfile, type LoanReadinessPayload } from "@/lib/finance/loan-readiness-mapper";
 
 const toText = (value: unknown, fallback = "") => {
@@ -13,7 +18,13 @@ export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
   const readiness = buildLoanReadinessProfile(profileData);
   const debts = profileData.debts ?? [];
   const debtPayments = getMonthlyDebtPayments(debts);
-  const otherDebtBalances = getTotalDebt(debts);
+  const otherDebtBalances = getTotalDebt(debts, profileData.housingProfile ?? null);
+  const incomeBreakdown = getLoanApplicationTotalIncome(
+    profileData.profile ?? null,
+    profileData.incomeSources ?? [],
+    profileData.housingProfile ?? null,
+    profileData.savingsProfile ?? null
+  );
 
   const loanPayments = debts
     .filter((debt) => {
@@ -51,6 +62,12 @@ export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
   // Canonical source order: liabilities
   const mortgages = readiness.housing.mortgageBalance;
   const totalLiabilities = mortgages + otherDebtBalances;
+  const totalIncome = incomeBreakdown.totalIncome;
+  const totalExpenses = readiness.financials.housingPayment + readiness.financials.nonHousingLivingExpenses + debtPayments;
+  const disposableIncome = totalIncome - totalExpenses;
+  const debtToIncome = totalIncome > 0 ? debtPayments / totalIncome : null;
+  const housingRatio = totalIncome > 0 ? readiness.financials.housingPayment / totalIncome : null;
+  const totalMonthlyPressure = totalIncome > 0 ? totalExpenses / totalIncome : null;
 
   return {
     customer: {
@@ -70,7 +87,7 @@ export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
       employer: readiness.employment.employer,
       jobTitle: readiness.employment.jobTitle,
       lengthOfService: readiness.employment.employmentLength,
-      income: readiness.financials.monthlyIncomeUsed,
+      income: incomeBreakdown.applicantIncome,
       employmentType: readiness.employment.employmentType,
       incomeStability: readiness.employment.incomeStability,
       incomeFrequency: readiness.employment.incomeFrequency,
@@ -102,11 +119,13 @@ export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
     },
     // Canonical source order: income
     income: {
-      applicantIncome: readiness.financials.monthlyIncomeUsed,
-      rentalIncome: readiness.housing.estimatedRoomRentalIncome,
-      investmentIncome: 0,
-      otherIncome: readiness.financials.monthlyNetIncome > 0 ? toNumber(profileData.profile?.other_income_amount) : 0,
-      totalIncome: readiness.financials.monthlyIncomeUsed + readiness.housing.estimatedRoomRentalIncome
+      applicantIncome: incomeBreakdown.applicantIncome,
+      rentalIncome: incomeBreakdown.rentalIncome,
+      investmentIncome: incomeBreakdown.investmentIncome,
+      otherIncome: incomeBreakdown.otherIncome,
+      coApplicantIncome: incomeBreakdown.coApplicantIncome,
+      totalIncome: incomeBreakdown.totalIncome,
+      incomeSourcesUsed: incomeBreakdown.incomeSourcesUsed
     },
     // Canonical source order: expenses
     expenses: {
@@ -120,7 +139,8 @@ export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
       childcare: toNumber(profileData.expenseProfile?.childcare),
       discretionary: toNumber(profileData.expenseProfile?.discretionary),
       other: toNumber(profileData.expenseProfile?.other),
-      totalExpenses: readiness.financials.monthlyExpenses + readiness.financials.housingPayment + debtPayments
+      livingExpensesExcludingHousingDebt: readiness.financials.nonHousingLivingExpenses,
+      totalExpenses
     },
     assets: {
       bankBalances,
@@ -140,9 +160,10 @@ export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
     },
     summary: {
       netWorth: totalAssets - totalLiabilities,
-      disposableIncome: readiness.financials.monthlySurplus,
-      debtToIncome: readiness.ratios.debtToIncome ? readiness.ratios.debtToIncome * 100 : 0,
-      housingRatio: readiness.ratios.housingRatio ? readiness.ratios.housingRatio * 100 : 0,
+      disposableIncome,
+      debtToIncome: debtToIncome ? debtToIncome * 100 : 0,
+      housingRatio: housingRatio ? housingRatio * 100 : 0,
+      totalMonthlyPressure: totalMonthlyPressure ? totalMonthlyPressure * 100 : 0,
       runwayMonths: readiness.financials.savingsRunwayMonths ?? 0
     }
   };

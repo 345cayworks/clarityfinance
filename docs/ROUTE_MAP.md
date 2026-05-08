@@ -29,8 +29,8 @@ Legend route types: `PUBLIC`, `USER_CORE`, `SCENARIO`, `LOAN_READINESS`, `ADVISO
 | `/app/report` | `app/(workspace)/app/report/page.tsx` | Generate user reports incl. room-rental report | USER_CORE | active_user+ | `profile-get`, `rent-room-get` | reporting UI | rename labels for scenario clarity |
 | `/app/reports` | `app/(workspace)/app/reports/page.tsx` | Report creation endpoint trigger | USER_CORE | active_user+ | `report-create` | report starter page | merge/improve IA |
 | `/app/action-plan` | `app/(workspace)/app/action-plan/page.tsx` | Action plan generation | USER_CORE | active_user+ | `profile-get`, `action-plan-generate` | plan UI | keep |
-| `/app/loan-readiness` | `app/(workspace)/app/loan-readiness/page.tsx` | Premium loan readiness hub linking application + prequalification | LOAN_READINESS | premium_user/admin/superadmin | `profile-get`, `advisor-request-save` | readiness hub UI | keep |
-| `/app/loan-application` | `app/(workspace)/app/loan-application/page.tsx` | Loan readiness intake (early) | LOAN_READINESS | premium_user (target) | `profile-get` | application form | future phase harden gating |
+| `/app/loan-readiness` | `app/(workspace)/app/loan-readiness/page.tsx` | Compatibility transition page pointing old readiness links to Loan Application Preparation Form | LOAN_READINESS | premium_user/admin/superadmin | none | transition card | keep for backward compatibility |
+| `/app/loan-application` | `app/(workspace)/app/loan-application/page.tsx` | Primary bank-facing Loan Application Preparation Form with readiness summary, financial summary, statement of affairs, and document checklist | LOAN_READINESS | premium_user/admin/superadmin | `profile-get` | application form | primary bank workflow |
 | `/app/prequalification/proven-bank` | `app/(workspace)/app/prequalification/proven-bank/page.tsx` | Bank-specific prequalification flow | LOAN_READINESS | premium_user (target) | `profile-get` | long-form flow | hide from nav until finalized |
 | `/app/advisor` | `app/(workspace)/app/advisor/page.tsx` | Advisor module entry | ADVISOR | active_user+/advisor | varies | advisor module | keep |
 | `/app/advisor/request` | `app/(workspace)/app/advisor/request/page.tsx` | Submit advisor request | ADVISOR | active_user+ | `advisor-request-save` | request form | keep |
@@ -46,6 +46,11 @@ Legend route types: `PUBLIC`, `USER_CORE`, `SCENARIO`, `LOAN_READINESS`, `ADVISO
 - Unauthenticated users are redirected to `/login`.
 - Authenticated users with unresolved or non-active status are redirected to `/app/pending-approval` (with profile/onboarding exceptions).
 - Unauthorized role access is redirected to `/app/dashboard` (or to `/app/pending-approval` for pending users).
+
+## Loan Application workflow note
+- The Loan Application Preparation Form is the primary bank-facing route for affordability and document readiness review.
+- `/app/loan-readiness` remains available for old links but is no longer a primary navigation destination.
+- The Loan Application Form uses total monthly income as the default base for affordability ratios.
 
 | `/app/advisor/request/[requestId]` | `app/(workspace)/app/advisor/request/[requestId]/page.tsx` | Advisor case detail view | ADVISOR | assigned advisor/admin/superadmin | `advisor-request-detail` | request detail card | keep |
 

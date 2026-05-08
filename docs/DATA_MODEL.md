@@ -62,6 +62,8 @@ Derived behavior:
 
 ### 6) Loan readiness
 - Premium-gated routes include `/app/loan-readiness`, `/app/loan-application`, and `/app/prequalification/proven-bank`.
+- `/app/loan-application` is the primary bank-facing Loan Application Preparation Form.
+- `/app/loan-readiness` is retained as a compatibility transition route and should not be treated as the primary user workflow.
 - `loan_readiness_applications` stores readiness score/band, ratios, monthly summary, document checklist, missing docs, and saved application JSON.
 - Advisor escalation is connected through `advisor-request-save` with source context `loan_readiness`.
 
@@ -81,6 +83,26 @@ Derived behavior:
 - `downPaymentPercent`: `downPaymentAvailable / purchasePrice`, only meaningful when purchase price is greater than zero.
 
 For backward compatibility, the legacy `monthly_expenses` column continues to represent `nonHousingLivingExpenses`; the canonical fields are also stored in `application_json`.
+
+#### Loan Application Calculation Definitions
+
+The Loan Application Form uses total monthly income as the default base for affordability ratios.
+
+- `totalMonthlyIncome`: `applicantIncome + rentalIncome + investmentIncome + otherIncome + coApplicantIncome`.
+- `applicantIncome`: `profile.monthly_net_income` if greater than zero, else `profile.monthly_gross_income` if greater than zero, else sum of `income_sources.monthly_amount`.
+- `rentalIncome`: `housing_profiles.estimated_room_rental_income`, else `profile.rental_income`, else rental/room income source rows when income sources were not already used as applicant income.
+- `investmentIncome`: `profile.investment_income`, else investment/dividend income source rows when income sources were not already used as applicant income.
+- `otherIncome`: `profile.other_income_amount`, else other recurring income source rows when income sources were not already used as applicant income.
+- `coApplicantIncome`: currently `0` placeholder until co-applicant fields are implemented.
+- `nonHousingLivingExpenses`: utilities, transport, groceries, insurance, childcare, discretionary, and other living expenses only.
+- `housingPayment`: mortgage payment if present, else rent amount.
+- `monthlyDebtPayments`: sum of debt monthly payments.
+- `totalMonthlyObligations`: `housingPayment + nonHousingLivingExpenses + monthlyDebtPayments`.
+- `monthlySurplus`: `totalMonthlyIncome - totalMonthlyObligations`.
+- `debtToIncome`: `monthlyDebtPayments / totalMonthlyIncome`, or `null` when total income is missing.
+- `housingRatio`: `housingPayment / totalMonthlyIncome`, or `null` when total income is missing.
+- `totalMonthlyPressure`: `totalMonthlyObligations / totalMonthlyIncome`, or `null` when total income is missing.
+- `netWorth`: total assets minus total liabilities.
 
 ### 7) Reports
 - `reports` stores report artifacts and metadata.

@@ -10,13 +10,19 @@
 | `scenario-save` | `netlify/functions/scenario-save.ts` | Save scenario model assumptions/results | POST | active_user+ | scenarios | scenarios page | SCENARIO | keep |
 | `rent-room-get` | `netlify/functions/rent-room-get.ts` | Fetch room rental scenario inputs/results | GET | active_user+ (`requireActiveUser`) | room rental scenario data | report page | ROOM_RENTAL_SCENARIO | keep + conceptually rename |
 | `rent-room-save` | `netlify/functions/rent-room-save.ts` | Save room rental cash-flow scenario | POST | active_user+ | room rental scenario data | rent room tool | ROOM_RENTAL_SCENARIO | keep + conceptually rename |
-| `loan-readiness-save` | `netlify/functions/loan-readiness-save.ts` | Save/upsert premium loan readiness application | POST | premium_user+ | loan_readiness_applications | loan-readiness hub | LOAN_READINESS | keep |
-| `loan-readiness-get` | `netlify/functions/loan-readiness-get.ts` | Fetch latest user loan readiness application | GET | premium_user+ | loan_readiness_applications | loan-readiness hub | LOAN_READINESS | keep |
-| `loan-readiness-report-create` | `netlify/functions/loan-readiness-report-create.ts` | Create saved report snapshot from latest readiness application | POST | premium_user+ | loan_readiness_applications, reports | loan-readiness hub | LOAN_READINESS | keep |
+| `loan-readiness-save` | `netlify/functions/loan-readiness-save.ts` | Save/upsert premium loan readiness application for backward compatibility and saved report support | POST | premium_user+ | loan_readiness_applications | legacy readiness save/report flow | LOAN_READINESS | keep |
+| `loan-readiness-get` | `netlify/functions/loan-readiness-get.ts` | Fetch latest user loan readiness application for backward compatibility and saved report support | GET | premium_user+ | loan_readiness_applications | legacy readiness save/report flow | LOAN_READINESS | keep |
+| `loan-readiness-report-create` | `netlify/functions/loan-readiness-report-create.ts` | Create saved report snapshot from latest readiness application | POST | premium_user+ | loan_readiness_applications, reports | legacy readiness save/report flow | LOAN_READINESS | keep |
 
 ## Loan readiness calculation contract
 - `loan-readiness-save` accepts canonical fields for income source, non-housing living expenses, housing payment, monthly debt payments, total monthly obligations, monthly surplus, DTI, housing ratio, total monthly pressure, savings runway, and down payment percent.
-- `loan-readiness-report-create` snapshots the same canonical fields under `report_json.canonicalSummary` so report output can match the Loan Readiness Hub labels and values.
+- `loan-readiness-report-create` snapshots the same canonical fields under `report_json.canonicalSummary` so saved report output can preserve the legacy readiness labels and values.
+
+## Loan application calculation contract
+- `/app/loan-application` is now the primary bank-facing Loan Application Preparation Form.
+- `mapProfileToCNBApplication` uses total monthly income as the default ratio base: applicant income plus rental, investment, other recurring, and co-applicant placeholder income.
+- Loan application ratios are DTI = debt payments / total monthly income, housing ratio = housing payment / total monthly income, and total monthly pressure = total obligations / total monthly income.
+
 | `report-create` | `netlify/functions/report-create.ts` | Generate persisted report artifacts with report version, generated timestamp, assumptions, source context, and disclaimer metadata | POST | active_user+ | reports | reports page | CORE | keep |
 | `action-plan-generate` | `netlify/functions/action-plan-generate.ts` | Create actionable plan from profile | POST | active_user+ | action plans/report data | action-plan page | CORE | keep |
 | `advisor-request-save` | `netlify/functions/advisor-request-save.ts` | Create advisor assistance request after explicit data-sharing consent; stores consent metadata in `data_sharing_consents` and `recommendation_json` | POST | active_user (computed from approved+active status) | advisor requests, data sharing consents | advisor/request | ADVISOR | keep |

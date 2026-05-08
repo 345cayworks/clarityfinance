@@ -18,9 +18,9 @@ type SavedOnboardingData = {
   goals: Record<string, unknown> | null;
 };
 
-
 const toYesNoNotProvided = (value: unknown) => (value === true ? "Yes" : value === false ? "No" : "Not provided");
-const formatRatio = (value: number | null | undefined) => value === null || value === undefined ? "Missing income" : formatPercent(value * 100);
+const formatRatio = (value: number | null | undefined) =>
+  value === null || value === undefined ? "Missing income" : formatPercent(value * 100);
 
 function Section({ title, children, breakBefore = false }: { title: string; children: React.ReactNode; breakBefore?: boolean }) {
   return (
@@ -35,9 +35,13 @@ function Row({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded border border-slate-300 px-3 py-2 text-sm">
       <p className="text-xs uppercase text-slate-600">{label}</p>
-      <p className="font-medium text-black">{String(value || "—")}</p>
+      <p className="font-medium text-black">{String(value || "-")}</p>
     </div>
   );
+}
+
+function Subheading({ children }: { children: React.ReactNode }) {
+  return <h3 className="md:col-span-2 mt-2 border-b border-slate-200 pb-1 text-sm font-semibold text-slate-900">{children}</h3>;
 }
 
 export default function LoanApplicationPage() {
@@ -65,12 +69,20 @@ export default function LoanApplicationPage() {
 
   if (!appData || !readinessProfile || !approvalScore) return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading application...</div>;
 
-  const bankSummary = `Loan readiness ${approvalScore.band} (${approvalScore.score}/100). Monthly income used: ${formatMoney(readinessProfile.financials.monthlyIncomeUsed)}. Living expenses excluding housing/debt: ${formatMoney(
-    readinessProfile.financials.nonHousingLivingExpenses
-  )}. Housing payment: ${formatMoney(readinessProfile.financials.housingPayment)}. Debt payments: ${formatMoney(readinessProfile.financials.monthlyDebtPayments)}. Total monthly obligations: ${formatMoney(
-    readinessProfile.financials.totalMonthlyObligations
-  )}. Monthly surplus: ${formatMoney(readinessProfile.financials.monthlySurplus)}. Debt-to-income: ${formatRatio(readinessProfile.ratios.debtToIncome)}. Housing ratio: ${formatRatio(readinessProfile.ratios.housingRatio)}. Total monthly pressure: ${formatRatio(readinessProfile.ratios.totalObligationsRatio)}.`;
+  const totalMonthlyIncome = appData.income.totalIncome;
+  const nonHousingLivingExpenses = readinessProfile.financials.nonHousingLivingExpenses;
+  const housingPayment = readinessProfile.financials.housingPayment;
+  const monthlyDebtPayments = readinessProfile.financials.monthlyDebtPayments;
+  const totalMonthlyObligations = housingPayment + nonHousingLivingExpenses + monthlyDebtPayments;
+  const monthlySurplus = totalMonthlyIncome - totalMonthlyObligations;
+  const debtToIncome = totalMonthlyIncome > 0 ? monthlyDebtPayments / totalMonthlyIncome : null;
+  const housingRatio = totalMonthlyIncome > 0 ? housingPayment / totalMonthlyIncome : null;
+  const totalMonthlyPressure = totalMonthlyIncome > 0 ? totalMonthlyObligations / totalMonthlyIncome : null;
+  const downPaymentPercent = readinessProfile.loan.purchasePrice > 0 ? readinessProfile.loan.downPaymentPercent : null;
+  const otherDebtPayments = Math.max(0, monthlyDebtPayments - appData.expenses.loanPayments - appData.expenses.creditCards);
+  const netWorth = appData.assets.totalAssets - appData.liabilities.totalLiabilities;
 
+  const bankSummary = `Loan application preparation summary: Readiness ${approvalScore.band} (${approvalScore.score}/100). Total monthly income used: ${formatMoney(totalMonthlyIncome)}. Primary applicant income: ${formatMoney(appData.income.applicantIncome)}. Rental income: ${formatMoney(appData.income.rentalIncome)}. Investment income: ${formatMoney(appData.income.investmentIncome)}. Other recurring income: ${formatMoney(appData.income.otherIncome)}. Living expenses excluding housing/debt: ${formatMoney(nonHousingLivingExpenses)}. Housing payment: ${formatMoney(housingPayment)}. Debt payments: ${formatMoney(monthlyDebtPayments)}. Total monthly obligations: ${formatMoney(totalMonthlyObligations)}. Monthly surplus: ${formatMoney(monthlySurplus)}. DTI: ${formatRatio(debtToIncome)}. Housing ratio: ${formatRatio(housingRatio)}. Total monthly pressure: ${formatRatio(totalMonthlyPressure)}. Final approval is subject to lender underwriting.`;
 
   const bandStyle = (band: string) => {
     if (band === "Likely Ready")
@@ -97,6 +109,27 @@ export default function LoanApplicationPage() {
         <p className="mt-1 text-xs">This score is an estimate only and does not represent a bank decision. Final approval is subject to lender underwriting.</p>
       </div>
       <DecisionBoundaryNotice context="loan" />
+
+      <Section title="Financial Summary">
+        <div className="md:col-span-2 rounded border border-blue-100 bg-blue-50 p-3 text-xs text-slate-700">
+          Debt-to-Income is debt payments only divided by total monthly income. Housing Ratio is rent or mortgage only divided by total monthly income. Total Monthly Pressure is housing, living expenses, and debt payments divided by total monthly income.
+        </div>
+        <Row label="Total monthly income used" value={formatMoney(totalMonthlyIncome)} />
+        <Row label="Primary applicant income" value={formatMoney(appData.income.applicantIncome)} />
+        <Row label="Rental income" value={formatMoney(appData.income.rentalIncome)} />
+        <Row label="Investment income" value={formatMoney(appData.income.investmentIncome)} />
+        <Row label="Other recurring income" value={formatMoney(appData.income.otherIncome)} />
+        <Row label="Living expenses, excluding housing and debt" value={formatMoney(nonHousingLivingExpenses)} />
+        <Row label="Housing payment" value={formatMoney(housingPayment)} />
+        <Row label="Monthly debt payments" value={formatMoney(monthlyDebtPayments)} />
+        <Row label="Total monthly obligations" value={formatMoney(totalMonthlyObligations)} />
+        <Row label="Monthly surplus / disposable income" value={formatMoney(monthlySurplus)} />
+        <Row label="Debt-to-Income ratio" value={formatRatio(debtToIncome)} />
+        <Row label="Housing ratio" value={formatRatio(housingRatio)} />
+        <Row label="Total Monthly Pressure" value={formatRatio(totalMonthlyPressure)} />
+        <Row label="Down payment %" value={downPaymentPercent === null ? "Not available" : formatPercent(downPaymentPercent * 100)} />
+        <Row label="Savings runway" value={`${readinessProfile.financials.savingsRunwayMonths.toFixed(1)} months`} />
+      </Section>
 
       <div className="print:hidden rounded-2xl border border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -127,6 +160,7 @@ export default function LoanApplicationPage() {
       <Section title="3. Co-applicant Section (Placeholder)">
         <Row label="Co-applicant name" value="____________________" />
         <Row label="Co-applicant contact" value="____________________" />
+        <Row label="Co-applicant income" value={formatMoney(appData.income.coApplicantIncome)} />
       </Section>
 
       <Section title="4. Banking Information" breakBefore>
@@ -140,51 +174,78 @@ export default function LoanApplicationPage() {
         <Row label="Requested amount" value={formatMoney(readinessProfile.loan.requestedLoanAmount)} />
         <Row label="Purchase price" value={formatMoney(readinessProfile.loan.purchasePrice)} />
         <Row label="Down payment available" value={formatMoney(readinessProfile.loan.downPaymentAvailable)} />
-        <Row label="Down payment %" value={formatPercent(readinessProfile.loan.downPaymentPercent * 100)} />
+        <Row label="Down payment %" value={downPaymentPercent === null ? "Not available" : formatPercent(downPaymentPercent * 100)} />
         <Row label="Loan-to-value" value={formatPercent((readinessProfile.loan.loanToValue ?? 0) * 100)} />
       </Section>
 
       <Section title="6. Statement of Affairs">
-        <Row label="Monthly income used" value={formatMoney(readinessProfile.financials.monthlyIncomeUsed)} />
-        <Row label="Living expenses, excluding housing and debt" value={formatMoney(readinessProfile.financials.nonHousingLivingExpenses)} />
-        <Row label="Housing payment" value={formatMoney(readinessProfile.financials.housingPayment)} />
-        <Row label="Monthly debt payments" value={formatMoney(readinessProfile.financials.monthlyDebtPayments)} />
-        <Row label="Total monthly obligations" value={formatMoney(readinessProfile.financials.totalMonthlyObligations)} />
-        <Row label="Monthly surplus" value={formatMoney(readinessProfile.financials.monthlySurplus)} />
+        <Subheading>A. Income</Subheading>
+        <Row label="Primary applicant income" value={formatMoney(appData.income.applicantIncome)} />
+        <Row label="Rental income" value={formatMoney(appData.income.rentalIncome)} />
+        <Row label="Investment income" value={formatMoney(appData.income.investmentIncome)} />
+        <Row label="Other recurring income" value={formatMoney(appData.income.otherIncome)} />
+        <Row label="Co-applicant income placeholder" value={formatMoney(appData.income.coApplicantIncome)} />
+        <Row label="Total monthly income" value={formatMoney(totalMonthlyIncome)} />
+
+        <Subheading>B. Monthly Household Expenses</Subheading>
+        <Row label="Housing payment" value={formatMoney(housingPayment)} />
+        <Row label="Utilities" value={formatMoney(appData.expenses.utilities)} />
+        <Row label="Transport" value={formatMoney(appData.expenses.transport)} />
+        <Row label="Groceries / food" value={formatMoney(appData.expenses.food)} />
+        <Row label="Insurance" value={formatMoney(appData.expenses.insurance)} />
+        <Row label="Childcare" value={formatMoney(appData.expenses.childcare)} />
+        <Row label="Discretionary" value={formatMoney(appData.expenses.discretionary)} />
+        <Row label="Other living expenses" value={formatMoney(appData.expenses.other)} />
+        <Row label="Total living expenses excluding housing and debt" value={formatMoney(nonHousingLivingExpenses)} />
+
+        <Subheading>C. Debt Servicing</Subheading>
+        <Row label="Loan payments" value={formatMoney(appData.expenses.loanPayments)} />
+        <Row label="Credit card payments" value={formatMoney(appData.expenses.creditCards)} />
+        <Row label="Other debt payments" value={formatMoney(otherDebtPayments)} />
+        <Row label="Total monthly debt payments" value={formatMoney(monthlyDebtPayments)} />
+
+        <Subheading>D. Totals</Subheading>
+        <Row label="Total monthly obligations" value={formatMoney(totalMonthlyObligations)} />
+        <Row label="Monthly surplus / disposable income" value={formatMoney(monthlySurplus)} />
+        <Row label="Debt-to-Income ratio" value={formatRatio(debtToIncome)} />
+        <Row label="Housing ratio" value={formatRatio(housingRatio)} />
+        <Row label="Total Monthly Pressure" value={formatRatio(totalMonthlyPressure)} />
+
+        <Subheading>E. Assets</Subheading>
+        <Row label="Bank balances" value={formatMoney(appData.assets.bankBalances)} />
+        <Row label="Cash savings" value={formatMoney(readinessProfile.financials.savingsCash)} />
+        <Row label="Emergency fund" value={formatMoney(readinessProfile.financials.emergencyFund)} />
+        <Row label="Down payment savings" value={formatMoney(appData.assets.downPaymentSavings)} />
+        <Row label="Investments" value={formatMoney(readinessProfile.financials.investments)} />
+        <Row label="Retirement savings" value={formatMoney(appData.assets.retirementSavings)} />
+        <Row label="Real estate value" value={formatMoney(appData.assets.realEstate)} />
+        <Row label="Other assets" value={formatMoney(Number(payload?.savingsProfile?.other_assets ?? 0))} />
+        <Row label="Total assets" value={formatMoney(appData.assets.totalAssets)} />
+
+        <Subheading>F. Liabilities</Subheading>
+        <Row label="Mortgages" value={formatMoney(appData.liabilities.mortgages)} />
+        <Row label="Loans" value={formatMoney(appData.liabilities.loans)} />
+        <Row label="Credit cards" value={formatMoney(appData.liabilities.creditCards)} />
+        <Row label="Other debts" value={formatMoney(appData.liabilities.otherDebts)} />
+        <Row label="Total liabilities" value={formatMoney(appData.liabilities.totalLiabilities)} />
+        <Row label="Net worth" value={formatMoney(netWorth)} />
       </Section>
 
-      <Section title="7. Assets">
-        <Row label="Bank balances" value={formatMoney(readinessProfile.financials.bankBalances)} />
-        <Row label="Investments" value={formatMoney(readinessProfile.financials.totalInvestments)} />
-        <Row label="Real estate" value={formatMoney(readinessProfile.housing.estimatedHomeValue)} />
-        <Row label="Total assets" value={formatMoney(readinessProfile.financials.totalAssets)} />
-      </Section>
-
-      <Section title="8. Liabilities" breakBefore>
-        <Row label="Mortgages" value={formatMoney(readinessProfile.financials.mortgages)} />
-        <Row label="Other debts" value={formatMoney(readinessProfile.financials.otherDebt)} />
-        <Row label="Total liabilities" value={formatMoney(readinessProfile.financials.totalLiabilities)} />
-        <Row label="Net worth" value={formatMoney(readinessProfile.financials.netWorth)} />
-        <Row label="Debt-to-Income (debt payments only)" value={formatRatio(readinessProfile.ratios.debtToIncome)} />
-        <Row label="Housing Ratio (rent/mortgage only)" value={formatRatio(readinessProfile.ratios.housingRatio)} />
-        <Row label="Total Monthly Pressure (housing + living expenses + debt)" value={formatRatio(readinessProfile.ratios.totalObligationsRatio)} />
-      </Section>
-
-      <Section title="9. Property Held">
+      <Section title="7. Property Held">
         <Row label="Housing status" value={readinessProfile.housing.housingStatus} />
         <Row label="Estimated home value" value={formatMoney(readinessProfile.housing.estimatedHomeValue)} />
         <Row label="Mortgage balance" value={formatMoney(readinessProfile.housing.mortgageBalance)} />
         <Row label="Estimated equity" value={formatMoney(readinessProfile.housing.equity)} />
       </Section>
 
-      <Section title="10. Documents Checklist">
+      <Section title="8. Documents Checklist">
         <div className="md:col-span-2 space-y-2 rounded border border-slate-300 bg-white p-3 text-black">
           {[
             ["Government-issued ID", payload?.profile?.has_id],
             ["Proof of address", payload?.profile?.has_proof_of_address],
             ["Employment letter", payload?.profile?.has_employment_letter],
-            ["Recent payslips", payload?.profile?.has_payslips],
-            ["3–6 months bank statements", payload?.profile?.has_bank_statements],
+            ["Payslips", payload?.profile?.has_payslips],
+            ["3-6 months bank statements", payload?.profile?.has_bank_statements],
             ["Existing loan/debt statements", payload?.profile?.has_debt_statements],
             ["Credit report / credit profile", payload?.profile?.has_credit_report],
             ["Proof/source of down payment", payload?.profile?.has_down_payment_proof],
@@ -201,7 +262,7 @@ export default function LoanApplicationPage() {
         </div>
       </Section>
 
-      <Section title="11. Declarations / Signature">
+      <Section title="9. Declarations / Signature">
         <Row label="Applicant signature" value="______________________________" />
         <Row label="Date" value="______________________________" />
         <Row label="Officer notes" value="________________________________________________" />
