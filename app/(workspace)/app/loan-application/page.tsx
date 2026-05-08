@@ -158,7 +158,7 @@ export default function LoanApplicationPage() {
     { group: "Self-Employed / Special Cases", label: "Work permit if applicable", value: payload?.profile?.work_permit_required, optional: true }
   ];
 
-  const bankSummary = `Loan application preparation summary: Readiness ${approvalScore.band} (${approvalScore.score}/100). Total monthly income used: ${formatMoney(totalMonthlyIncome)}. Total monthly obligations: ${formatMoney(totalMonthlyObligations)}. Monthly surplus: ${formatMoney(monthlySurplus)}. DTI: ${formatRatio(debtToIncome)}. Housing ratio: ${formatRatio(housingRatio)}. Total monthly pressure: ${formatRatio(totalMonthlyPressure)}. Down payment: ${formatMoney(readinessProfile.loan.downPaymentAvailable)}. LTV: ${loanToValue === null ? "Not available" : formatRatio(loanToValue)}. Final approval is subject to lender underwriting.`;
+  const bankSummary = `Loan application preparation summary: Readiness ${approvalScore.band} (${approvalScore.score}/100). Total monthly income used: ${formatMoney(totalMonthlyIncome)}. Current total monthly obligations: ${formatMoney(totalMonthlyObligations)}. Current monthly surplus: ${formatMoney(monthlySurplus)}. Current DTI: ${formatRatio(debtToIncome)}. Current housing ratio: ${formatRatio(housingRatio)}. Current total monthly pressure: ${formatRatio(totalMonthlyPressure)}. Proposed loan amount: ${formatMoney(readinessProfile.loan.requestedLoanAmount)}. Proposed down payment: ${formatMoney(readinessProfile.loan.downPaymentAvailable)}. Proposed LTV: ${loanToValue === null ? "Not available" : formatRatio(loanToValue)}. Final approval is subject to lender underwriting.`;
 
   const bandStyle = (band: string) => {
     if (band === "Likely Ready")
@@ -202,13 +202,13 @@ export default function LoanApplicationPage() {
 
       <Section title="1. Readiness Snapshot">
         <Row label="Total monthly income used" value={formatMoney(totalMonthlyIncome)} />
-        <Row label="Total monthly obligations" value={formatMoney(totalMonthlyObligations)} />
-        <Row label="Monthly surplus / disposable income" value={formatMoney(monthlySurplus)} />
-        <Row label="Debt-to-Income ratio" value={formatRatio(debtToIncome)} />
-        <Row label="Housing ratio" value={formatRatio(housingRatio)} />
-        <Row label="Total Monthly Pressure" value={formatRatio(totalMonthlyPressure)} />
-        <Row label="Down payment %" value={downPaymentPercent === null ? "Not available" : formatPercent(downPaymentPercent * 100)} />
-        <Row label="Loan-to-value" value={loanToValue === null ? "Not available" : formatRatio(loanToValue)} />
+        <Row label="Current total monthly obligations" value={formatMoney(totalMonthlyObligations)} />
+        <Row label="Current monthly surplus / disposable income" value={formatMoney(monthlySurplus)} />
+        <Row label="Current debt-to-income ratio" value={formatRatio(debtToIncome)} />
+        <Row label="Current housing ratio" value={formatRatio(housingRatio)} />
+        <Row label="Current total monthly pressure" value={formatRatio(totalMonthlyPressure)} />
+        <Row label="Proposed down payment %" value={downPaymentPercent === null ? "Not available" : formatPercent(downPaymentPercent * 100)} />
+        <Row label="Proposed loan-to-value" value={loanToValue === null ? "Not available" : formatRatio(loanToValue)} />
         <Row label="Savings runway" value={`${readinessProfile.financials.savingsRunwayMonths.toFixed(1)} months`} />
       </Section>
 
@@ -228,7 +228,6 @@ export default function LoanApplicationPage() {
       <Section title="3. Co-applicant Details - Placeholder">
         <Row label="Co-applicant name" value="Not provided" />
         <Row label="Co-applicant contact" value="Not provided" />
-        <Row label="Co-applicant income" value={formatMoney(appData.income.coApplicantIncome)} />
       </Section>
 
       <Section title="4. Employment & Income">
@@ -243,35 +242,34 @@ export default function LoanApplicationPage() {
         <Row label="Rental income" value={formatMoney(appData.income.rentalIncome)} />
         <Row label="Investment income" value={formatMoney(appData.income.investmentIncome)} />
         <Row label="Other recurring income" value={formatMoney(appData.income.otherIncome)} />
+        <Row label="Co-applicant income placeholder" value={formatMoney(appData.income.coApplicantIncome)} />
         <Row label="Total monthly income" value={formatMoney(totalMonthlyIncome)} />
       </Section>
 
       <Section title="5. Loan Request Details">
+        <div className="md:col-span-2 rounded border border-blue-100 bg-blue-50 p-3 text-xs text-slate-700">
+          This section describes the new loan or mortgage the applicant is preparing to request.
+        </div>
         <Row label="Loan purpose" value={textValue(readinessProfile.loan.loanPurpose)} />
-        <Row label="Requested amount" value={formatMoney(readinessProfile.loan.requestedLoanAmount)} />
-        <Row label="Purchase price" value={formatMoney(readinessProfile.loan.purchasePrice)} />
-        <Row label="Down payment available" value={formatMoney(readinessProfile.loan.downPaymentAvailable)} />
-        <Row label="Down payment %" value={downPaymentPercent === null ? "Not available" : formatPercent(downPaymentPercent * 100)} />
-        <Row label="Loan-to-value" value={loanToValue === null ? "Not available" : formatRatio(loanToValue)} />
-        <Row label="Desired loan term" value={readinessProfile.loan.desiredLoanTermYears > 0 ? `${readinessProfile.loan.desiredLoanTermYears} years` : "Not provided"} />
-        <Row label="Property type" value={textValue(readinessProfile.loan.propertyType)} />
-        <Row label="Property location" value={textValue(readinessProfile.loan.propertyLocation)} />
-        <Row label="Property identified" value={toYesNoNotProvided(readinessProfile.loan.propertyIdentified)} />
-        <Row label="Purchase agreement available" value={toYesNoNotProvided(readinessProfile.loan.purchaseAgreementAvailable)} />
+        <Row label="Proposed loan amount requested" value={formatMoney(readinessProfile.loan.requestedLoanAmount)} />
+        <Row label="Proposed purchase price / property price" value={formatMoney(readinessProfile.loan.purchasePrice)} />
+        <Row label="Proposed down payment available" value={formatMoney(readinessProfile.loan.downPaymentAvailable)} />
+        <Row label="Proposed down payment %" value={downPaymentPercent === null ? "Not available" : formatPercent(downPaymentPercent * 100)} />
+        <Row label="Proposed loan-to-value" value={loanToValue === null ? "Not available" : formatRatio(loanToValue)} />
+        <Row label="Proposed loan term" value={readinessProfile.loan.desiredLoanTermYears > 0 ? `${readinessProfile.loan.desiredLoanTermYears} years` : "Not provided"} />
+        <Row label="Proposed property type" value={textValue(readinessProfile.loan.propertyType)} />
+        <Row label="Proposed property location" value={textValue(readinessProfile.loan.propertyLocation)} />
+        <Row label="Proposed property identified" value={toYesNoNotProvided(readinessProfile.loan.propertyIdentified)} />
+        <Row label="Proposed purchase agreement available" value={toYesNoNotProvided(readinessProfile.loan.purchaseAgreementAvailable)} />
+        <div className="md:col-span-2 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          <p className="font-semibold text-slate-900">Future Mortgage Impact - Coming Soon</p>
+          <p className="mt-1 text-xs">Future estimated mortgage payment and post-loan affordability can be added once interest rate, term, and proposed loan amount assumptions are finalized.</p>
+        </div>
       </Section>
 
       <Section title="6. Statement of Affairs" breakBefore>
-        <Subsection title="A. Income Summary">
-          <Row label="Primary applicant income" value={formatMoney(appData.income.applicantIncome)} />
-          <Row label="Rental income" value={formatMoney(appData.income.rentalIncome)} />
-          <Row label="Investment income" value={formatMoney(appData.income.investmentIncome)} />
-          <Row label="Other recurring income" value={formatMoney(appData.income.otherIncome)} />
-          <Row label="Co-applicant income placeholder" value={formatMoney(appData.income.coApplicantIncome)} />
-          <Row label="Total monthly income" value={formatMoney(totalMonthlyIncome)} />
-        </Subsection>
-
-        <Subsection title="B. Household Expenses">
-          <Row label="Housing payment" value={formatMoney(housingPayment)} />
+        <Subsection title="A. Household Expenses">
+          <Row label="Current rent/mortgage payment" value={formatMoney(housingPayment)} />
           <Row label="Utilities" value={formatMoney(appData.expenses.utilities)} />
           <Row label="Transport" value={formatMoney(appData.expenses.transport)} />
           <Row label="Groceries / food" value={formatMoney(appData.expenses.food)} />
@@ -282,19 +280,20 @@ export default function LoanApplicationPage() {
           <Row label="Living expenses excluding housing and debt" value={formatMoney(nonHousingLivingExpenses)} />
         </Subsection>
 
-        <Subsection title="C. Debt Servicing">
+        <Subsection title="B. Debt Servicing">
           <Row label="Loan payments" value={formatMoney(appData.expenses.loanPayments)} />
           <Row label="Credit card payments" value={formatMoney(appData.expenses.creditCards)} />
           <Row label="Other debt payments" value={formatMoney(otherDebtPayments)} />
           <Row label="Total monthly debt payments" value={formatMoney(monthlyDebtPayments)} />
         </Subsection>
 
-        <Subsection title="D. Monthly Position">
+        <Subsection title="C. Monthly Position">
+          <Row label="Total monthly income" value={formatMoney(totalMonthlyIncome)} />
           <Row label="Total monthly obligations" value={formatMoney(totalMonthlyObligations)} />
           <Row label="Monthly surplus / disposable income" value={formatMoney(monthlySurplus)} />
           <Row label="Debt-to-Income ratio" value={formatRatio(debtToIncome)} />
-          <Row label="Housing ratio" value={formatRatio(housingRatio)} />
-          <Row label="Total Monthly Pressure" value={formatRatio(totalMonthlyPressure)} />
+          <Row label="Current housing ratio" value={formatRatio(housingRatio)} />
+          <Row label="Current total monthly pressure" value={formatRatio(totalMonthlyPressure)} />
         </Subsection>
       </Section>
 
@@ -312,7 +311,10 @@ export default function LoanApplicationPage() {
         </Subsection>
 
         <Subsection title="Liabilities">
-          <Row label="Mortgages" value={formatMoney(appData.liabilities.mortgages)} />
+          <div className="md:col-span-2 rounded border border-slate-200 bg-white p-3 text-xs text-slate-600">
+            Liabilities reflect current known obligations and should not include the proposed new loan unless it already exists.
+          </div>
+          <Row label="Existing mortgage balances" value={formatMoney(appData.liabilities.mortgages)} />
           <Row label="Loans" value={formatMoney(appData.liabilities.loans)} />
           <Row label="Credit cards" value={formatMoney(appData.liabilities.creditCards)} />
           <Row label="Other debts" value={formatMoney(appData.liabilities.otherDebts)} />
@@ -326,13 +328,16 @@ export default function LoanApplicationPage() {
         </Subsection>
       </Section>
 
-      <Section title="8. Property / Housing Details">
-        <Row label="Housing status" value={textValue(readinessProfile.housing.housingStatus)} />
-        <Row label="Rent amount" value={optionalMoney(readinessProfile.housing.rentAmount)} />
-        <Row label="Mortgage payment" value={optionalMoney(readinessProfile.housing.mortgagePayment)} />
-        <Row label="Estimated home value" value={formatMoney(readinessProfile.housing.estimatedHomeValue)} />
-        <Row label="Mortgage balance" value={formatMoney(readinessProfile.housing.mortgageBalance)} />
-        <Row label="Estimated equity" value={formatMoney(readinessProfile.housing.equity)} />
+      <Section title="8. Current Housing & Existing Property">
+        <div className="md:col-span-2 rounded border border-blue-100 bg-blue-50 p-3 text-xs text-slate-700">
+          This section describes the applicant&apos;s current housing position, not the proposed new loan.
+        </div>
+        <Row label="Current housing status" value={textValue(readinessProfile.housing.housingStatus)} />
+        <Row label="Current rent amount" value={optionalMoney(readinessProfile.housing.rentAmount)} />
+        <Row label="Current mortgage payment" value={optionalMoney(readinessProfile.housing.mortgagePayment)} />
+        <Row label="Current estimated property value" value={formatMoney(readinessProfile.housing.estimatedHomeValue)} />
+        <Row label="Current mortgage balance" value={formatMoney(readinessProfile.housing.mortgageBalance)} />
+        <Row label="Current estimated equity" value={formatMoney(readinessProfile.housing.equity)} />
         <Row label="Estimated room rental income" value={optionalMoney(readinessProfile.housing.estimatedRoomRentalIncome)} />
       </Section>
 
