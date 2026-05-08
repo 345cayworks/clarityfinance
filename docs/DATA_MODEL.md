@@ -114,6 +114,13 @@ The Loan Application Form uses total monthly income as the default base for affo
 - Stored data is manual-input planning data only: no API keys, external market data, or unnecessary personal profile data.
 - Metadata includes report version, assumptions JSON, and the educational-only disclaimer used for saved calculator projections.
 
+### 9) Dividend yield cache
+- `dividend_yield_cache` stores normalized ticker-level dividend yield lookup results fetched server-side through provider functions.
+- It includes ticker, optional company name, dividend yield percent, annual dividend per share, payout frequency if known, source, raw provider JSON, fetch timestamps, and expiry metadata.
+- Cache freshness defaults to 24 hours. `expires_at` is preferred when present; otherwise functions evaluate `fetched_at`.
+- Market data is cached in the database only and is not stored in GitHub. API keys are never exposed to React components.
+- Dividend yield lookup is optional; users can always enter or override yield values manually in the calculator.
+
 ## Canonical next-phase model recommendation
 1. **User**
 2. **UserAccessStatus**
@@ -123,9 +130,10 @@ The Loan Application Form uses total monthly income as the default base for affo
 6. **LoanReadinessApplication**
 7. **AdvisorRequest**
 8. **AdvisorAssignment**
-9. **DividendCalculatorSave**
-10. **ActionPlan**
-11. **Report**
+9. **DividendYieldCache**
+10. **DividendCalculatorSave**
+11. **ActionPlan**
+12. **Report**
 
 
 > Note: `premium` was considered as a legacy alias, but it is not valid in the live `UserRole` enum.

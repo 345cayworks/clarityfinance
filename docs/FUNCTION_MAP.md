@@ -17,6 +17,9 @@
 | `dividend-calculator-list` | `netlify/functions/dividend-calculator-list.ts` | List lightweight saved dividend projections for the current user | GET | premium_user/advisor/admin/superadmin | dividend_calculator_saves | dividend reinvestment calculator | PREMIUM_TOOL | keep |
 | `dividend-calculator-get` | `netlify/functions/dividend-calculator-get.ts` | Fetch one full saved dividend projection owned by the current user | GET | premium_user/advisor/admin/superadmin | dividend_calculator_saves | dividend reinvestment calculator | PREMIUM_TOOL | keep |
 | `dividend-calculator-delete` | `netlify/functions/dividend-calculator-delete.ts` | Delete one saved dividend projection owned by the current user | POST/DELETE | premium_user/advisor/admin/superadmin | dividend_calculator_saves | dividend reinvestment calculator | PREMIUM_TOOL | keep |
+| `dividend-yield-lookup` | `netlify/functions/dividend-yield-lookup.ts` | Look up dividend yield through the internal DB cache, refreshing from Alpha Vantage server-side only when stale/missing | GET | premium_user/advisor/admin/superadmin | dividend_yield_cache | dividend reinvestment calculator | PREMIUM_TOOL | keep |
+| `dividend-yield-refresh` | `netlify/functions/dividend-yield-refresh.ts` | Admin-triggered cache refresh for stale tickers used in saved dividend portfolios, batch limited for provider quota safety | POST | admin/superadmin | dividend_yield_cache, dividend_calculator_saves | admin/manual ops | ADMIN | keep |
+| `dividend-yield-cache-list` | `netlify/functions/dividend-yield-cache-list.ts` | Admin cache inspection endpoint for dividend yield cache freshness/status | GET | admin/superadmin | dividend_yield_cache | admin/future tools | ADMIN | document |
 
 ## Loan readiness calculation contract
 - `loan-readiness-save` accepts canonical fields for income source, non-housing living expenses, housing payment, monthly debt payments, total monthly obligations, monthly surplus, DTI, housing ratio, total monthly pressure, savings runway, and down payment percent.
@@ -56,6 +59,7 @@
 
 ## Shared enforcement helper
 - `netlify/functions/_access.ts` centralizes auth/role/status gates (`getCurrentUser`, `requireAuth`, `requireActiveUser`, `requirePremiumUser`, `requireAdvisor`, `requireAdmin`, `requireAssignedAdvisorOrAdmin`) and is the default path for function-level access checks.
+- Market-data API keys remain server-side. Dividend yield lookup uses `dividend_yield_cache`; downloaded/provider market datasets must not be committed to the repository.
 
 
 ## Advisor artifact payload contract

@@ -151,6 +151,9 @@ export default function DividendReinvestmentCalculatorPage() {
   const [saveMessageType, setSaveMessageType] = useState<"success" | "error" | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingSaves, setIsLoadingSaves] = useState(false);
+  const [yieldLookupMessage, setYieldLookupMessage] = useState<string | null>(null);
+  const [yieldLookupMessageType, setYieldLookupMessageType] = useState<"success" | "warning" | "error" | null>(null);
+  const [isLookingUpYield, setIsLookingUpYield] = useState(false);
 
   const basket = useMemo(
     () => calculateDividendBasket(positions, projectionMonths, projectionInterval),
@@ -334,6 +337,60 @@ export default function DividendReinvestmentCalculatorPage() {
     }
   };
 
+  const lookupDividendYield = async () => {
+    const ticker = normalizeDividendSymbol(formPosition.symbol);
+    if (!ticker) {
+      setYieldLookupMessageType("error");
+      setYieldLookupMessage("Enter a ticker before looking up dividend yield.");
+      return;
+    }
+
+    setIsLookingUpYield(true);
+    setYieldLookupMessage(null);
+    const token = await getTokenOrSetError();
+    if (!token) {
+      setIsLookingUpYield(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/.netlify/functions/dividend-yield-lookup?ticker=${encodeURIComponent(ticker)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const payload = await response.json() as {
+        result?: { dividendYieldPercent?: number | null; companyName?: string | null; status?: "cached" | "stale" };
+        message?: string;
+        warning?: string;
+        error?: string;
+      };
+
+      if (!response.ok) throw new Error(payload.error ?? "Dividend yield unavailable. Please enter it manually.");
+      const yieldPercent = payload.result?.dividendYieldPercent;
+      if (typeof yieldPercent !== "number" || !Number.isFinite(yieldPercent)) {
+        throw new Error("Dividend yield unavailable. Please enter it manually.");
+      }
+
+      setFormPosition((current) => ({
+        ...current,
+        symbol: ticker,
+        dividendYieldPercent: Number(yieldPercent.toFixed(4))
+      }));
+
+      if (payload.warning || payload.result?.status === "stale") {
+        setYieldLookupMessageType("warning");
+        setYieldLookupMessage("Using previously cached yield. Please verify.");
+      } else {
+        setYieldLookupMessageType("success");
+        setYieldLookupMessage(payload.message ?? "Yield loaded from cache.");
+      }
+    } catch (error) {
+      setYieldLookupMessageType("error");
+      setYieldLookupMessage(error instanceof Error ? error.message : "Yield unavailable. Please enter manually.");
+    } finally {
+      setIsLookingUpYield(false);
+    }
+  };
+
   const updateForm = <K extends keyof DividendPositionInput>(key: K, value: DividendPositionInput[K]) => {
     setFormPosition((current) => ({ ...current, [key]: value }));
   };
@@ -428,7 +485,23 @@ export default function DividendReinvestmentCalculatorPage() {
           </label>
           <label className="block text-sm">
             <FieldLabel>Dividend yield %</FieldLabel>
-            <input type="number" min="0" step="0.01" value={formPosition.dividendYieldPercent} onChange={(event) => updateForm("dividendYieldPercent", setNumber(event.target.value))} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+            <div className="flex gap-2">
+              <input type="number" min="0" step="0.01" value={formPosition.dividendYieldPercent} onChange={(event) => updateForm("dividendYieldPercent", setNumber(event.target.value))} className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+              <button
+                type="button"
+                onClick={lookupDividendYield}
+                disabled={isLookingUpYield || !formPosition.symbol.trim()}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isLookingUpYield ? "Looking..." : "Lookup Yield"}
+              </button>
+            </div>
+            {yieldLookupMessage ? (
+              <p className={`mt-1 text-xs ${yieldLookupMessageType === "success" ? "text-emerald-700" : yieldLookupMessageType === "warning" ? "text-amber-700" : "text-red-700"}`}>
+                {yieldLookupMessage}
+              </p>
+            ) : null}
+            <p className="mt-1 text-xs text-slate-500">Dividend yield data may be delayed, incomplete, or unavailable. Please verify before relying on it.</p>
           </label>
           <label className="block text-sm">
             <FieldLabel>Payout frequency</FieldLabel>

@@ -197,6 +197,20 @@ CREATE TABLE IF NOT EXISTS dividend_calculator_saves (
   updated_at timestamp DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS dividend_yield_cache (
+  ticker text PRIMARY KEY,
+  company_name text,
+  dividend_yield_percent numeric,
+  annual_dividend_per_share numeric,
+  payout_frequency text,
+  source text NOT NULL DEFAULT 'manual_or_provider',
+  raw_json jsonb,
+  fetched_at timestamp DEFAULT now(),
+  expires_at timestamp,
+  created_at timestamp DEFAULT now(),
+  updated_at timestamp DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_income_sources_user_id ON income_sources(user_id);
 CREATE INDEX IF NOT EXISTS idx_expense_profiles_user_id ON expense_profiles(user_id);
@@ -209,3 +223,4 @@ CREATE INDEX IF NOT EXISTS idx_rent_room_scenarios_user_id ON rent_room_scenario
 CREATE INDEX IF NOT EXISTS idx_action_plans_user_id ON action_plans(user_id);
 CREATE INDEX IF NOT EXISTS idx_reports_user_id ON reports(user_id);
 CREATE INDEX IF NOT EXISTS idx_dividend_calculator_saves_user_updated ON dividend_calculator_saves(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_dividend_yield_cache_expires_at ON dividend_yield_cache(expires_at);

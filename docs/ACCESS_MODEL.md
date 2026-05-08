@@ -107,6 +107,8 @@ Premium planning tools stay visible on `/app/tools` for all authenticated active
 
 Dividend Reinvestment Calculator server functions use `requirePremiumOrStaff`, so standard `user` accounts cannot save, list, load, update, or delete saved projections even if they call the endpoints directly. Admin and advisor roles save their own projections only; cross-user saved projection browsing is not part of this feature.
 
+Dividend yield lookup is also a premium-tool function. `dividend-yield-lookup` uses `requirePremiumOrStaff` and returns cached database results when fresh before attempting any server-side provider refresh. Admin-only `dividend-yield-refresh` and `dividend-yield-cache-list` use `requireAdmin`. Market data is cached in the database and must not be stored in the repository; manual dividend yield entry remains available for every authorized calculator user.
+
 ## Data sharing consent
 
 Advisor and bank sharing are separate from role, approval, activation, and premium access. A user must explicitly consent before Clarity Finance creates an advisor/bank sharing request that includes financial profile, readiness, report, or supporting information. Consent is captured by `advisor-request-save` and does not change the user's role or account lifecycle status.
