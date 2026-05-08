@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useWorkspaceUser } from "@/components/auth/workspace-guard";
 import { DecisionBoundaryNotice } from "@/components/compliance/DecisionBoundaryNotice";
 import { PremiumLockedCard } from "@/components/premium-locked-card";
+import { getIdentityToken } from "@/lib/auth/netlify-identity";
 import {
   calculateDividendBasket,
   calculateDividendPosition,
@@ -19,6 +20,28 @@ import {
 import { canUsePremiumTools } from "@/lib/types/roles";
 
 type ChartView = "portfolioValue" | "cumulativeDividends" | "annualDividendIncome" | "sharesOwned" | "all";
+
+type SavedProjectionListItem = {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  position_count: number;
+  summary_preview?: Record<string, unknown>;
+};
+
+type SavedProjectionPayload = {
+  id: string;
+  title: string;
+  positions_json: DividendPositionInput[];
+  settings_json: {
+    projectionMonths?: number;
+    projectionInterval?: ProjectionInterval;
+    chartView?: ChartView;
+  };
+  summary_json?: Record<string, unknown>;
+  projection_json?: unknown[];
+};
 
 const frequencyOptions: Array<{ value: DividendPayoutFrequency; label: string }> = [
   { value: "weekly", label: "Weekly" },
@@ -41,6 +64,18 @@ const intervalOptions: Array<{ value: ProjectionInterval; label: string }> = [
   { value: "yearly", label: "Yearly" }
 ];
 
+const REPORT_VERSION = "Clarity Report v1.0";
+const CALCULATOR_VERSION = "dividend-calculator-v1";
+const EDUCATIONAL_DISCLAIMER = "Results are for education and planning purposes only and are not investment advice.";
+const SAVE_ASSUMPTIONS = {
+  dividendYieldConstant: true,
+  payoutFrequencyPerHolding: true,
+  fractionalShares: true,
+  reinvestmentPriceUsesBuyPrice: true,
+  excludesTaxesFeesDividendCutsMarketChanges: true,
+  educationalOnly: true
+};
+
 const emptyPosition = (): DividendPositionInput => ({
   id: crypto.randomUUID(),
   symbol: "",
@@ -59,6 +94,11 @@ const formatCompactCurrency = (value: number) =>
 
 const formatPercent = (value: number) => `${(Number.isFinite(value) ? value : 0).toFixed(2)}%`;
 const formatShares = (value: number) => (Number.isFinite(value) ? value : 0).toFixed(4);
+
+const formatDateTime = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Saved projection" : date.toLocaleString();
+};
 
 function setNumber(value: string) {
   if (value.trim() === "") return 0;
@@ -94,7 +134,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 export default function DividendReinvestmentCalculatorPage() {
-  const { accountStatus } = useWorkspaceUser();
+  const { user, accountStatus } = useWorkspaceUser();
   const canUseCalculator = canUsePremiumTools(accountStatus?.role);
   const [formPosition, setFormPosition] = useState<DividendPositionInput>(emptyPosition);
   const [positions, setPositions] = useState<DividendPositionInput[]>([]);
@@ -103,6 +143,14 @@ export default function DividendReinvestmentCalculatorPage() {
   const [projectionMonths, setProjectionMonths] = useState(12);
   const [chartView, setChartView] = useState<ChartView>("all");
   const [projectionInterval, setProjectionInterval] = useState<ProjectionInterval>("payout");
+  const [saveTitle, setSaveTitle] = useState("");
+  const [currentSaveId, setCurrentSaveId] = useState<string | null>(null);
+  const [selectedSaveId, setSelectedSaveId] = useState("");
+  const [savedProjections, setSavedProjections] = useState<SavedProjectionListItem[]>([]);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [saveMessageType, setSaveMessageType] = useState<"success" | "error" | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingSaves, setIsLoadingSaves] = useState(false);
 
   const basket = useMemo(
     () => calculateDividendBasket(positions, projectionMonths, projectionInterval),
@@ -110,6 +158,181 @@ export default function DividendReinvestmentCalculatorPage() {
   );
   const hasHoldings = positions.length > 0;
   const resultsById = useMemo(() => new Map(basket.positions.map((position) => [position.id, position])), [basket.positions]);
+  const defaultSaveTitle = useMemo(() => {
+    const symbols = positions.map((position) => normalizeDividendSymbol(position.symbol)).filter(Boolean).slice(0, 3);
+    if (symbols.length > 0) return `Dividend Projection - ${symbols.join(", ")}`;
+    return `Dividend Projection - ${new Date().toLocaleDateString()}`;
+  }, [positions]);
+
+  const getTokenOrSetError = useCallback(async () => {
+    const token = await getIdentityToken(user);
+    if (!token) {
+      setSaveMessageType("error");
+      setSaveMessage("Your session could not be verified. Please sign in again.");
+      return null;
+    }
+    return token;
+  }, [user]);
+
+  const loadSavedProjectionList = useCallback(async () => {
+    if (!canUseCalculator) return;
+    setIsLoadingSaves(true);
+    const token = await getTokenOrSetError();
+    if (!token) {
+      setIsLoadingSaves(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("/.netlify/functions/dividend-calculator-list", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const payload = await response.json() as { saves?: SavedProjectionListItem[]; error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Unable to load saved projections.");
+      setSavedProjections(payload.saves ?? []);
+      if (!selectedSaveId && payload.saves?.[0]) setSelectedSaveId(payload.saves[0].id);
+    } catch (error) {
+      setSaveMessageType("error");
+      setSaveMessage(error instanceof Error ? error.message : "Unable to load saved projections.");
+    } finally {
+      setIsLoadingSaves(false);
+    }
+  }, [canUseCalculator, getTokenOrSetError, selectedSaveId]);
+
+  useEffect(() => {
+    if (canUseCalculator) void loadSavedProjectionList();
+  }, [canUseCalculator, loadSavedProjectionList]);
+
+  const saveProjection = async (saveAsNew = false) => {
+    if (!hasHoldings || isSaving) return;
+    setIsSaving(true);
+    setSaveMessage(null);
+    const token = await getTokenOrSetError();
+    if (!token) {
+      setIsSaving(false);
+      return;
+    }
+
+    const title = (saveTitle.trim() || defaultSaveTitle).slice(0, 120);
+    const payload = {
+      id: saveAsNew ? undefined : currentSaveId ?? undefined,
+      title,
+      positions,
+      settings: {
+        projectionMonths,
+        projectionInterval,
+        chartView,
+        reportVersion: REPORT_VERSION,
+        calculatorVersion: CALCULATOR_VERSION
+      },
+      assumptions: SAVE_ASSUMPTIONS,
+      disclaimer: EDUCATIONAL_DISCLAIMER,
+      summary: basket.summary,
+      projection: basket.projection
+    };
+
+    try {
+      const response = await fetch("/.netlify/functions/dividend-calculator-save", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json() as { id?: string; error?: string };
+      if (!response.ok || !result.id) throw new Error(result.error ?? "Unable to save this projection.");
+      setCurrentSaveId(result.id);
+      setSelectedSaveId(result.id);
+      setSaveTitle(title);
+      setSaveMessageType("success");
+      setSaveMessage(saveAsNew ? "Saved as a new dividend projection." : "Dividend projection saved.");
+      await loadSavedProjectionList();
+    } catch (error) {
+      setSaveMessageType("error");
+      setSaveMessage(error instanceof Error ? error.message : "Unable to save this projection.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const loadSavedProjection = async () => {
+    if (!selectedSaveId || isLoadingSaves) return;
+    setIsLoadingSaves(true);
+    setSaveMessage(null);
+    const token = await getTokenOrSetError();
+    if (!token) {
+      setIsLoadingSaves(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/.netlify/functions/dividend-calculator-get?id=${encodeURIComponent(selectedSaveId)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const payload = await response.json() as { save?: SavedProjectionPayload; error?: string };
+      if (!response.ok || !payload.save) throw new Error(payload.error ?? "Unable to load this projection.");
+      const save = payload.save;
+      const loadedPositions = Array.isArray(save.positions_json) ? save.positions_json : [];
+      setPositions(loadedPositions);
+      setProjectionMonths(Number(save.settings_json?.projectionMonths ?? 12));
+      setProjectionInterval(save.settings_json?.projectionInterval ?? "payout");
+      setChartView(save.settings_json?.chartView ?? "all");
+      setCurrentSaveId(save.id);
+      setSaveTitle(save.title);
+      setEditingId(null);
+      setFormPosition(emptyPosition());
+      setFormErrors([]);
+      setSaveMessageType("success");
+      setSaveMessage("Saved projection loaded. Results have been recalculated from the saved inputs.");
+    } catch (error) {
+      setSaveMessageType("error");
+      setSaveMessage(error instanceof Error ? error.message : "Unable to load this projection.");
+    } finally {
+      setIsLoadingSaves(false);
+    }
+  };
+
+  const deleteSavedProjection = async () => {
+    if (!selectedSaveId || isLoadingSaves) return;
+    const selectedSave = savedProjections.find((save) => save.id === selectedSaveId);
+    const confirmed = window.confirm(`Delete "${selectedSave?.title ?? "this saved projection"}"? Your current calculator inputs will stay on screen.`);
+    if (!confirmed) return;
+
+    setIsLoadingSaves(true);
+    setSaveMessage(null);
+    const token = await getTokenOrSetError();
+    if (!token) {
+      setIsLoadingSaves(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("/.netlify/functions/dividend-calculator-delete", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ id: selectedSaveId })
+      });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Unable to delete this projection.");
+      if (currentSaveId === selectedSaveId) {
+        setCurrentSaveId(null);
+        setSaveTitle("");
+      }
+      setSelectedSaveId("");
+      setSaveMessageType("success");
+      setSaveMessage("Saved projection deleted.");
+      await loadSavedProjectionList();
+    } catch (error) {
+      setSaveMessageType("error");
+      setSaveMessage(error instanceof Error ? error.message : "Unable to delete this projection.");
+    } finally {
+      setIsLoadingSaves(false);
+    }
+  };
 
   const updateForm = <K extends keyof DividendPositionInput>(key: K, value: DividendPositionInput[K]) => {
     setFormPosition((current) => ({ ...current, [key]: value }));
@@ -224,6 +447,72 @@ export default function DividendReinvestmentCalculatorPage() {
           </button>
           {editingId ? <ActionButton onClick={resetForm}>Cancel Edit</ActionButton> : null}
         </div>
+      </section>
+
+      <section className="card space-y-4 print:hidden">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-[#0A2540]">Saved Projections</h2>
+            <p className="mt-1 text-sm text-slate-600">Save the full basket, calculator settings, and locally calculated projection.</p>
+          </div>
+          {currentSaveId ? <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Editing saved projection</span> : null}
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <label className="block text-sm">
+            <FieldLabel>Projection title</FieldLabel>
+            <input
+              value={saveTitle}
+              onChange={(event) => setSaveTitle(event.target.value)}
+              placeholder={defaultSaveTitle}
+              maxLength={120}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </label>
+          <div className="flex flex-wrap items-end gap-2">
+            <button
+              type="button"
+              onClick={() => saveProjection(false)}
+              disabled={!hasHoldings || isSaving}
+              className="rounded-lg bg-[#0A2540] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0e3160] disabled:cursor-not-allowed disabled:bg-slate-400"
+            >
+              {isSaving ? "Saving..." : "Save Current Projection"}
+            </button>
+            {currentSaveId ? (
+              <ActionButton onClick={() => saveProjection(true)} disabled={!hasHoldings || isSaving}>Save As New</ActionButton>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <label className="block text-sm">
+            <FieldLabel>Saved projection</FieldLabel>
+            <select
+              value={selectedSaveId}
+              onChange={(event) => setSelectedSaveId(event.target.value)}
+              disabled={isLoadingSaves || savedProjections.length === 0}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+            >
+              <option value="">{savedProjections.length === 0 ? "No saved projections yet" : "Choose a saved projection"}</option>
+              {savedProjections.map((save) => (
+                <option key={save.id} value={save.id}>
+                  {save.title} - {save.position_count} holding{save.position_count === 1 ? "" : "s"} - {formatDateTime(save.updated_at)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex flex-wrap items-end gap-2">
+            <ActionButton onClick={loadSavedProjectionList} disabled={isLoadingSaves}>{isLoadingSaves ? "Refreshing..." : "Refresh Saved List"}</ActionButton>
+            <ActionButton onClick={loadSavedProjection} disabled={!selectedSaveId || isLoadingSaves}>Load</ActionButton>
+            <ActionButton onClick={deleteSavedProjection} disabled={!selectedSaveId || isLoadingSaves}>Delete</ActionButton>
+          </div>
+        </div>
+
+        {saveMessage ? (
+          <div className={`rounded-lg border px-3 py-2 text-sm ${saveMessageType === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>
+            {saveMessage}
+          </div>
+        ) : null}
       </section>
 
       <section className="card space-y-4">
@@ -398,7 +687,7 @@ export default function DividendReinvestmentCalculatorPage() {
             <li>Results are for education and planning purposes only and are not investment advice.</li>
           </ul>
         </div>
-        <p className="text-xs text-slate-500">TODO: Connect Save actions after a clean dividend_saved_cards persistence path exists.</p>
+        <p className="text-xs text-slate-500">TODO: Individual position save can be added later.</p>
         <p className="text-xs text-slate-500">Generated: {new Date().toLocaleString()} · Report type: Dividend reinvestment projection · Version: Clarity Report v1.0 · Based on user-entered holdings and assumptions.</p>
       </section>
     </div>

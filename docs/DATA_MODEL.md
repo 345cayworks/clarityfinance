@@ -108,6 +108,12 @@ The Loan Application Form uses total monthly income as the default base for affo
 - `reports` stores report artifacts and metadata.
 - Current metadata fields include `report_version`, `generated_at`, `assumptions_json`, `disclaimer_text`, and `source_context` where the migration has been applied.
 
+### 8) Dividend calculator saves
+- `dividend_calculator_saves` stores user-entered Dividend Reinvestment Calculator positions, calculator settings, summary output, and projection output.
+- Rows are scoped by `user_id`; premium users, advisors, admins, and superadmins can save/load their own projections through premium-tool functions.
+- Stored data is manual-input planning data only: no API keys, external market data, or unnecessary personal profile data.
+- Metadata includes report version, assumptions JSON, and the educational-only disclaimer used for saved calculator projections.
+
 ## Canonical next-phase model recommendation
 1. **User**
 2. **UserAccessStatus**
@@ -117,8 +123,9 @@ The Loan Application Form uses total monthly income as the default base for affo
 6. **LoanReadinessApplication**
 7. **AdvisorRequest**
 8. **AdvisorAssignment**
-9. **ActionPlan**
-10. **Report**
+9. **DividendCalculatorSave**
+10. **ActionPlan**
+11. **Report**
 
 
 > Note: `premium` was considered as a legacy alias, but it is not valid in the live `UserRole` enum.

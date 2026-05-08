@@ -100,10 +100,12 @@ Premium planning tools stay visible on `/app/tools` for all authenticated active
 
 | Feature | user | premium_user | advisor | admin | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Dividend Reinvestment Calculator | Visible but locked | Full access | Full access | Full access | Manual-input planning calculator. |
+| Dividend Reinvestment Calculator | Visible but locked | Full access including save/load | Full access including save/load | Full access including save/load | Manual-input planning calculator. Saved projections are scoped to the current user. |
 | Investment Analyzer | Visible but locked | Full access | Full access | Full access | Netlify analysis function requires Premium, Advisor, or Admin access. |
 | Analyze / Advanced Analysis | Visible but locked if present | Full access | Full access | Full access | No separate Advanced Analysis route currently exists. Apply the same premium-tool pattern if added. |
 | Tools page | Can view locked cards | Can open premium cards | Can open premium cards | Can open premium cards | Locked cards show a Premium badge and upgrade CTA. |
+
+Dividend Reinvestment Calculator server functions use `requirePremiumOrStaff`, so standard `user` accounts cannot save, list, load, update, or delete saved projections even if they call the endpoints directly. Admin and advisor roles save their own projections only; cross-user saved projection browsing is not part of this feature.
 
 ## Data sharing consent
 

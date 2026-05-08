@@ -182,6 +182,21 @@ CREATE TABLE IF NOT EXISTS reports (
   created_at timestamp DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS dividend_calculator_saves (
+  id text PRIMARY KEY,
+  user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title text NOT NULL,
+  positions_json jsonb NOT NULL DEFAULT '[]'::jsonb,
+  settings_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  summary_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  projection_json jsonb NOT NULL DEFAULT '[]'::jsonb,
+  report_version text DEFAULT 'Clarity Report v1.0',
+  disclaimer_text text,
+  assumptions_json jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp DEFAULT now(),
+  updated_at timestamp DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_income_sources_user_id ON income_sources(user_id);
 CREATE INDEX IF NOT EXISTS idx_expense_profiles_user_id ON expense_profiles(user_id);
@@ -193,3 +208,4 @@ CREATE INDEX IF NOT EXISTS idx_scenarios_user_id ON scenarios(user_id);
 CREATE INDEX IF NOT EXISTS idx_rent_room_scenarios_user_id ON rent_room_scenarios(user_id);
 CREATE INDEX IF NOT EXISTS idx_action_plans_user_id ON action_plans(user_id);
 CREATE INDEX IF NOT EXISTS idx_reports_user_id ON reports(user_id);
+CREATE INDEX IF NOT EXISTS idx_dividend_calculator_saves_user_updated ON dividend_calculator_saves(user_id, updated_at DESC);
