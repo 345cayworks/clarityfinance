@@ -51,6 +51,7 @@ Legend route types: `PUBLIC`, `USER_CORE`, `SCENARIO`, `LOAN_READINESS`, `ADVISO
 - The Loan Application Preparation Form is the primary bank-facing route for affordability and document readiness review.
 - `/app/loan-readiness` remains available for old links but is no longer a primary navigation destination.
 - The Loan Application Form uses total monthly income as the default base for affordability ratios.
+- The form is organized as a printable readiness packet: application summary, readiness snapshot, applicant details, income, loan request, Statement of Affairs, balance sheet, housing, documents, notes, and declaration.
 
 | `/app/advisor/request/[requestId]` | `app/(workspace)/app/advisor/request/[requestId]/page.tsx` | Advisor case detail view | ADVISOR | assigned advisor/admin/superadmin | `advisor-request-detail` | request detail card | keep |
 
