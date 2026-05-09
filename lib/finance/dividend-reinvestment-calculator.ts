@@ -22,6 +22,12 @@ export type DividendProjectionPoint = {
   label: string;
   startingShares: number;
   endingShares: number;
+  dividendsGenerated: number;
+  dividendsReinvested: number;
+  cashDividendsReceived: number;
+  projectedShareValue: number;
+  projectedPortfolioValue: number;
+  totalValueWithCashDividends: number;
   dividendsEarned: number;
   cumulativeDividends: number;
   portfolioValue: number;
@@ -45,8 +51,14 @@ export type DividendPositionResult = {
   monthlyEquivalentIncome: number;
   weeklyEquivalentIncome: number;
   projectedShares: number;
+  projectedShareValue: number;
+  projectedPortfolioValue: number;
+  totalValueWithCashDividends: number;
   projectedValue: number;
   projectedAnnualDividendIncome: number;
+  dividendsGenerated: number;
+  dividendsReinvested: number;
+  cashDividendsReceived: number;
   cumulativeDividends: number;
   sharesAdded: number;
   projection: DividendProjectionPoint[];
@@ -56,6 +68,11 @@ export type ProjectionPoint = {
   periodIndex: number;
   month: number;
   label: string;
+  projectedShareValue: number;
+  totalValueWithCashDividends: number;
+  dividendsGenerated: number;
+  dividendsReinvested: number;
+  cashDividendsReceived: number;
   portfolioValue: number;
   cumulativeDividends: number;
   annualDividendIncome: number;
@@ -76,11 +93,19 @@ export type DividendBasketSummary = {
   averageYieldAcrossHoldings: number;
   highestYieldPosition: { symbol: string; yieldPercent: number } | null;
   lowestYieldPosition: { symbol: string; yieldPercent: number } | null;
+  projectedShareValue: number;
   projectedPortfolioValue: number;
+  totalValueWithCashDividends: number;
   projectedAnnualDividendIncome: number;
+  dividendsGenerated: number;
+  dividendsReinvested: number;
+  cashDividendsReceived: number;
   cumulativeDividends: number;
   totalGrowthFromReinvestment: number;
   totalSharesAdded: number;
+  noReinvestmentValue: number;
+  reinvestmentValue: number;
+  reinvestmentDifference: number;
 };
 
 export type DividendBasketResult = {
@@ -184,17 +209,25 @@ export function buildPositionProjection(input: DividendPositionInput, projection
   const dividendPerSharePerPeriod = annualDividendPerShare / payoutsPerYear;
 
   let currentShares = quantity;
-  let cumulativeDividends = 0;
+  let dividendsGenerated = 0;
+  let dividendsReinvested = 0;
+  let cashDividendsReceived = 0;
   const projection: DividendProjectionPoint[] = [];
 
   getPayoutMonths(input.payoutFrequency, projectionMonths).forEach((month, index) => {
     const startingShares = currentShares;
     const dividendsEarned = currentShares * dividendPerSharePerPeriod;
-    cumulativeDividends += dividendsEarned;
+    dividendsGenerated += dividendsEarned;
 
     if (input.reinvestDividends && buyPrice > 0) {
+      dividendsReinvested += dividendsEarned;
       currentShares += dividendsEarned / buyPrice;
+    } else {
+      cashDividendsReceived += dividendsEarned;
     }
+
+    const projectedShareValue = currentShares * buyPrice;
+    const totalValueWithCashDividends = projectedShareValue + cashDividendsReceived;
 
     projection.push({
       periodIndex: index + 1,
@@ -202,9 +235,15 @@ export function buildPositionProjection(input: DividendPositionInput, projection
       label: formatProjectionLabel(month, index + 1),
       startingShares,
       endingShares: currentShares,
+      dividendsGenerated,
+      dividendsReinvested,
+      cashDividendsReceived,
+      projectedShareValue,
+      projectedPortfolioValue: projectedShareValue,
+      totalValueWithCashDividends,
       dividendsEarned,
-      cumulativeDividends,
-      portfolioValue: currentShares * buyPrice,
+      cumulativeDividends: dividendsGenerated,
+      portfolioValue: projectedShareValue,
       annualDividendIncome: currentShares * annualDividendPerShare,
       sharesAdded: currentShares - quantity
     });
@@ -226,6 +265,12 @@ export function calculateDividendPosition(input: DividendPositionInput, projecti
   const annualDividendIncome = annualDividendPerShare * quantity;
   const projection = buildPositionProjection({ ...input, symbol }, normalizeProjectionPeriodToMonths(projectionMonths));
   const lastProjection = projection[projection.length - 1];
+  const projectedShares = lastProjection?.endingShares ?? quantity;
+  const projectedShareValue = lastProjection?.projectedShareValue ?? startingValue;
+  const dividendsGenerated = lastProjection?.dividendsGenerated ?? 0;
+  const dividendsReinvested = lastProjection?.dividendsReinvested ?? 0;
+  const cashDividendsReceived = lastProjection?.cashDividendsReceived ?? 0;
+  const totalValueWithCashDividends = lastProjection?.totalValueWithCashDividends ?? startingValue;
 
   return {
     id: input.id,
@@ -242,11 +287,17 @@ export function calculateDividendPosition(input: DividendPositionInput, projecti
     annualDividendIncome,
     monthlyEquivalentIncome: annualDividendIncome / 12,
     weeklyEquivalentIncome: annualDividendIncome / 52,
-    projectedShares: lastProjection?.endingShares ?? quantity,
-    projectedValue: lastProjection?.portfolioValue ?? startingValue,
+    projectedShares,
+    projectedShareValue,
+    projectedPortfolioValue: projectedShareValue,
+    totalValueWithCashDividends,
+    projectedValue: projectedShareValue,
     projectedAnnualDividendIncome: lastProjection?.annualDividendIncome ?? annualDividendIncome,
-    cumulativeDividends: lastProjection?.cumulativeDividends ?? 0,
-    sharesAdded: (lastProjection?.endingShares ?? quantity) - quantity,
+    dividendsGenerated,
+    dividendsReinvested,
+    cashDividendsReceived,
+    cumulativeDividends: dividendsGenerated,
+    sharesAdded: projectedShares - quantity,
     projection
   };
 }
@@ -283,10 +334,15 @@ export function calculateBasketDividendSummary(positions: DividendPositionResult
       monthlyPayoutTotal: summary.monthlyPayoutTotal + (position.payoutFrequency === "monthly" ? position.totalDividendPerPeriod : 0),
       quarterlyPayoutTotal: summary.quarterlyPayoutTotal + (position.payoutFrequency === "quarterly" ? position.totalDividendPerPeriod : 0),
       annualPayoutTotal: summary.annualPayoutTotal + (position.payoutFrequency === "annually" ? position.totalDividendPerPeriod : 0),
-      projectedPortfolioValue: summary.projectedPortfolioValue + position.projectedValue,
+      projectedShareValue: summary.projectedShareValue + position.projectedShareValue,
+      projectedPortfolioValue: summary.projectedPortfolioValue + position.projectedPortfolioValue,
+      totalValueWithCashDividends: summary.totalValueWithCashDividends + position.totalValueWithCashDividends,
       projectedAnnualDividendIncome: summary.projectedAnnualDividendIncome + position.projectedAnnualDividendIncome,
-      cumulativeDividends: summary.cumulativeDividends + position.cumulativeDividends,
-      totalGrowthFromReinvestment: summary.totalGrowthFromReinvestment + (position.projectedValue - position.startingValue),
+      dividendsGenerated: summary.dividendsGenerated + position.dividendsGenerated,
+      dividendsReinvested: summary.dividendsReinvested + position.dividendsReinvested,
+      cashDividendsReceived: summary.cashDividendsReceived + position.cashDividendsReceived,
+      cumulativeDividends: summary.cumulativeDividends + position.dividendsGenerated,
+      totalGrowthFromReinvestment: summary.totalGrowthFromReinvestment + (position.projectedShareValue - position.startingValue),
       totalSharesAdded: summary.totalSharesAdded + position.sharesAdded
     }),
     {
@@ -299,8 +355,13 @@ export function calculateBasketDividendSummary(positions: DividendPositionResult
       monthlyPayoutTotal: 0,
       quarterlyPayoutTotal: 0,
       annualPayoutTotal: 0,
+      projectedShareValue: 0,
       projectedPortfolioValue: 0,
+      totalValueWithCashDividends: 0,
       projectedAnnualDividendIncome: 0,
+      dividendsGenerated: 0,
+      dividendsReinvested: 0,
+      cashDividendsReceived: 0,
       cumulativeDividends: 0,
       totalGrowthFromReinvestment: 0,
       totalSharesAdded: 0
@@ -312,7 +373,23 @@ export function calculateBasketDividendSummary(positions: DividendPositionResult
     basketDividendYield: calculateWeightedBasketYield(positions),
     averageYieldAcrossHoldings: calculateSimpleAverageYield(positions),
     highestYieldPosition: highestYieldPosition ? { symbol: highestYieldPosition.symbol, yieldPercent: highestYieldPosition.dividendYieldPercent } : null,
-    lowestYieldPosition: lowestYieldPosition ? { symbol: lowestYieldPosition.symbol, yieldPercent: lowestYieldPosition.dividendYieldPercent } : null
+    lowestYieldPosition: lowestYieldPosition ? { symbol: lowestYieldPosition.symbol, yieldPercent: lowestYieldPosition.dividendYieldPercent } : null,
+    noReinvestmentValue: 0,
+    reinvestmentValue: totals.totalValueWithCashDividends,
+    reinvestmentDifference: 0
+  };
+}
+
+export function calculateBasketComparison(inputs: DividendPositionInput[], projectionMonths: number) {
+  const noReinvestmentInputs = inputs.map((input) => ({ ...input, reinvestDividends: false }));
+  const selectedPositions = inputs.map((input) => calculateDividendPosition(input, projectionMonths));
+  const noReinvestmentPositions = noReinvestmentInputs.map((input) => calculateDividendPosition(input, projectionMonths));
+  const selectedValue = selectedPositions.reduce((sum, position) => sum + position.totalValueWithCashDividends, 0);
+  const noReinvestmentValue = noReinvestmentPositions.reduce((sum, position) => sum + position.totalValueWithCashDividends, 0);
+  return {
+    noReinvestmentValue,
+    reinvestmentValue: selectedValue,
+    reinvestmentDifference: selectedValue - noReinvestmentValue
   };
 }
 
@@ -363,14 +440,32 @@ export function aggregateProjectionForChart(
       const totals = positions.reduce(
         (sum, position) => {
           const point = latestPositionPointAt(position, rawMonth);
+          const shareValue = point?.projectedShareValue ?? position.startingValue;
+          const totalValue = point?.totalValueWithCashDividends ?? position.startingValue;
+          const dividendsGenerated = point?.dividendsGenerated ?? 0;
           return {
-            portfolioValue: sum.portfolioValue + (point?.portfolioValue ?? position.startingValue),
-            cumulativeDividends: sum.cumulativeDividends + (point?.cumulativeDividends ?? 0),
+            projectedShareValue: sum.projectedShareValue + shareValue,
+            totalValueWithCashDividends: sum.totalValueWithCashDividends + totalValue,
+            dividendsGenerated: sum.dividendsGenerated + dividendsGenerated,
+            dividendsReinvested: sum.dividendsReinvested + (point?.dividendsReinvested ?? 0),
+            cashDividendsReceived: sum.cashDividendsReceived + (point?.cashDividendsReceived ?? 0),
+            portfolioValue: sum.portfolioValue + shareValue,
+            cumulativeDividends: sum.cumulativeDividends + dividendsGenerated,
             annualDividendIncome: sum.annualDividendIncome + (point?.annualDividendIncome ?? position.annualDividendIncome),
             sharesOwned: sum.sharesOwned + (point?.endingShares ?? position.quantity)
           };
         },
-        { portfolioValue: 0, cumulativeDividends: 0, annualDividendIncome: 0, sharesOwned: 0 }
+        {
+          projectedShareValue: 0,
+          totalValueWithCashDividends: 0,
+          dividendsGenerated: 0,
+          dividendsReinvested: 0,
+          cashDividendsReceived: 0,
+          portfolioValue: 0,
+          cumulativeDividends: 0,
+          annualDividendIncome: 0,
+          sharesOwned: 0
+        }
       );
 
       return {
@@ -394,9 +489,9 @@ export function calculateDividendBasket(
 ): DividendBasketResult {
   const normalizedMonths = normalizeProjectionPeriodToMonths(projectionMonths);
   const positions = inputs.map((input) => calculateDividendPosition(input, normalizedMonths));
-  const summary = calculateBasketDividendSummary(positions);
+  const comparison = calculateBasketComparison(inputs, normalizedMonths);
+  const summary = { ...calculateBasketDividendSummary(positions), ...comparison };
   const projection = aggregateProjectionForChart(positions, normalizedMonths, interval);
 
   return { positions, summary, projection };
 }
-

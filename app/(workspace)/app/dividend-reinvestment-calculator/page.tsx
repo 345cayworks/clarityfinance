@@ -19,7 +19,7 @@ import {
 } from "@/lib/finance/dividend-reinvestment-calculator";
 import { canUsePremiumTools } from "@/lib/types/roles";
 
-type ChartView = "portfolioValue" | "cumulativeDividends" | "annualDividendIncome" | "sharesOwned" | "all";
+type ChartView = "totalValueWithCashDividends" | "projectedShareValue" | "dividendsGenerated" | "annualDividendIncome" | "sharesOwned" | "all";
 
 type SavedProjectionListItem = {
   id: string;
@@ -51,16 +51,18 @@ const frequencyOptions: Array<{ value: DividendPayoutFrequency; label: string }>
 ];
 
 const chartViews: Array<{ value: ChartView; label: string }> = [
-  { value: "portfolioValue", label: "Portfolio Value" },
-  { value: "cumulativeDividends", label: "Cumulative Dividends" },
+  { value: "totalValueWithCashDividends", label: "Total Value Including Cash Dividends" },
+  { value: "projectedShareValue", label: "Projected Share Value" },
+  { value: "dividendsGenerated", label: "Dividends Generated" },
   { value: "annualDividendIncome", label: "Annual Dividend Income" },
   { value: "sharesOwned", label: "Shares Owned" },
   { value: "all", label: "All" }
 ];
+const chartViewValues = new Set(chartViews.map((option) => option.value));
 
 const intervalOptions: Array<{ value: ProjectionInterval; label: string }> = [
-  { value: "payout", label: "Payout Frequency Based" },
   { value: "monthly", label: "Monthly" },
+  { value: "payout", label: "Payout Frequency Based" },
   { value: "yearly", label: "Yearly" }
 ];
 
@@ -99,6 +101,10 @@ const formatDateTime = (value: string) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "Saved projection" : date.toLocaleString();
 };
+
+function normalizeChartView(value: unknown): ChartView {
+  return chartViewValues.has(value as ChartView) ? value as ChartView : "all";
+}
 
 function setNumber(value: string) {
   if (value.trim() === "") return 0;
@@ -142,7 +148,7 @@ export default function DividendReinvestmentCalculatorPage() {
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const [projectionMonths, setProjectionMonths] = useState(12);
   const [chartView, setChartView] = useState<ChartView>("all");
-  const [projectionInterval, setProjectionInterval] = useState<ProjectionInterval>("payout");
+  const [projectionInterval, setProjectionInterval] = useState<ProjectionInterval>("monthly");
   const [saveTitle, setSaveTitle] = useState("");
   const [currentSaveId, setCurrentSaveId] = useState<string | null>(null);
   const [selectedSaveId, setSelectedSaveId] = useState("");
@@ -280,7 +286,7 @@ export default function DividendReinvestmentCalculatorPage() {
       setPositions(loadedPositions);
       setProjectionMonths(Number(save.settings_json?.projectionMonths ?? 12));
       setProjectionInterval(save.settings_json?.projectionInterval ?? "payout");
-      setChartView(save.settings_json?.chartView ?? "all");
+      setChartView(normalizeChartView(save.settings_json?.chartView));
       setCurrentSaveId(save.id);
       setSaveTitle(save.title);
       setEditingId(null);
@@ -433,6 +439,8 @@ export default function DividendReinvestmentCalculatorPage() {
   const printPage = () => window.print();
   const showLine = (key: ChartView) => chartView === "all" || chartView === key;
   const summary = basket.summary;
+  const hasHighYieldPosition = positions.some((position) => position.dividendYieldPercent >= 25);
+  const showLongHighYieldWarning = projectionMonths >= 60 && hasHighYieldPosition;
 
   if (!canUseCalculator) {
     return (
@@ -622,7 +630,13 @@ export default function DividendReinvestmentCalculatorPage() {
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <SummaryCard label="Starting Basket Value" value={formatCurrency(summary.startingPortfolioValue)} />
-          <SummaryCard label="Annual Dividend Income" value={formatCurrency(summary.currentAnnualDividendIncome)} />
+          <SummaryCard label="Current Annual Dividend Income" value={formatCurrency(summary.currentAnnualDividendIncome)} />
+          <SummaryCard label="Projected Share Value" value={formatCurrency(summary.projectedShareValue)} note="Reinvested dividends are already reflected here." />
+          <SummaryCard label="Dividends Generated" value={formatCurrency(summary.dividendsGenerated)} />
+          <SummaryCard label="Dividends Reinvested" value={formatCurrency(summary.dividendsReinvested)} note="Already included in projected share value." />
+          <SummaryCard label="Cash Dividends Received" value={formatCurrency(summary.cashDividendsReceived)} />
+          <SummaryCard label="Total Value Including Cash Dividends" value={formatCurrency(summary.totalValueWithCashDividends)} />
+          <SummaryCard label="Growth From Reinvestment" value={formatCurrency(summary.totalGrowthFromReinvestment)} />
           <SummaryCard label="Basket Dividend Yield" value={formatPercent(summary.basketDividendYield)} note="Weighted by position value." />
           <SummaryCard label="Average Yield Across Holdings" value={formatPercent(summary.averageYieldAcrossHoldings)} note="Simple average, not portfolio yield." />
           <SummaryCard label="Monthly Equivalent Income" value={formatCurrency(summary.currentMonthlyEquivalentIncome)} />
@@ -633,6 +647,9 @@ export default function DividendReinvestmentCalculatorPage() {
           <SummaryCard label="Monthly Payout Total" value={formatCurrency(summary.monthlyPayoutTotal)} />
           <SummaryCard label="Quarterly Payout Total" value={formatCurrency(summary.quarterlyPayoutTotal)} />
           <SummaryCard label="Annual Payout Total" value={formatCurrency(summary.annualPayoutTotal)} />
+        </div>
+        <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+          Dividends shown as reinvested are already reflected in projected share value. Do not add reinvested dividends to projected share value again.
         </div>
       </section>
 
@@ -667,11 +684,28 @@ export default function DividendReinvestmentCalculatorPage() {
           </label>
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard label="Projected Portfolio Value" value={formatCurrency(summary.projectedPortfolioValue)} />
+          <SummaryCard label="Projected Share Value" value={formatCurrency(summary.projectedShareValue)} />
           <SummaryCard label="Projected Annual Dividend Income" value={formatCurrency(summary.projectedAnnualDividendIncome)} />
-          <SummaryCard label="Cumulative Dividends" value={formatCurrency(summary.cumulativeDividends)} />
+          <SummaryCard label="Dividends Generated" value={formatCurrency(summary.dividendsGenerated)} />
+          <SummaryCard label="Cash Dividends Received" value={formatCurrency(summary.cashDividendsReceived)} />
+          <SummaryCard label="Total Value Including Cash Dividends" value={formatCurrency(summary.totalValueWithCashDividends)} />
           <SummaryCard label="Total Growth From Reinvestment" value={formatCurrency(summary.totalGrowthFromReinvestment)} />
         </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <SummaryCard label="Value Without Reinvestment" value={formatCurrency(summary.noReinvestmentValue)} />
+          <SummaryCard label="Value With Selected Settings" value={formatCurrency(summary.reinvestmentValue)} />
+          <SummaryCard label="Reinvestment Difference" value={formatCurrency(summary.reinvestmentDifference)} />
+        </div>
+        {hasHighYieldPosition ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            High-yield warning: This projection assumes the entered dividend yield remains constant. High-yield funds may experience changing payouts, NAV decline, or price volatility that this calculator does not model.
+          </div>
+        ) : null}
+        {showLongHighYieldWarning ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            Long-term high-yield projections can become unrealistic if dividend yield and share price are held constant.
+          </div>
+        ) : null}
         <div className="h-80">
           {hasHoldings ? (
             <ResponsiveContainer width="100%" height="100%">
@@ -680,8 +714,9 @@ export default function DividendReinvestmentCalculatorPage() {
                 <XAxis dataKey="label" minTickGap={24} />
                 <YAxis tickFormatter={(value) => chartView === "sharesOwned" ? formatShares(Number(value)) : formatCompactCurrency(Number(value))} />
                 <Tooltip formatter={(value, name) => name === "Shares Owned" ? formatShares(Number(value)) : formatCurrency(Number(value))} labelFormatter={(value) => String(value)} />
-                {showLine("portfolioValue") ? <Line type="monotone" dataKey="portfolioValue" name="Portfolio Value" stroke="#2563EB" strokeWidth={2} dot={false} /> : null}
-                {showLine("cumulativeDividends") ? <Line type="monotone" dataKey="cumulativeDividends" name="Cumulative Dividends" stroke="#14B8A6" strokeWidth={2} dot={false} /> : null}
+                {showLine("totalValueWithCashDividends") ? <Line type="monotone" dataKey="totalValueWithCashDividends" name="Total Value Including Cash Dividends" stroke="#2563EB" strokeWidth={2} dot={false} /> : null}
+                {showLine("projectedShareValue") ? <Line type="monotone" dataKey="projectedShareValue" name="Projected Share Value" stroke="#14B8A6" strokeWidth={2} dot={false} /> : null}
+                {showLine("dividendsGenerated") ? <Line type="monotone" dataKey="dividendsGenerated" name="Dividends Generated" stroke="#8B5CF6" strokeWidth={2} dot={false} /> : null}
                 {showLine("annualDividendIncome") ? <Line type="monotone" dataKey="annualDividendIncome" name="Annual Dividend Income" stroke="#F59E0B" strokeWidth={2} dot={false} /> : null}
                 {showLine("sharesOwned") ? <Line type="monotone" dataKey="sharesOwned" name="Shares Owned" stroke="#7C3AED" strokeWidth={2} dot={false} /> : null}
               </LineChart>
@@ -705,7 +740,7 @@ export default function DividendReinvestmentCalculatorPage() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-[1100px] w-full text-left text-sm">
+          <table className="min-w-[1400px] w-full text-left text-sm">
             <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="py-2 pr-3">Ticker/Name</th>
@@ -715,10 +750,13 @@ export default function DividendReinvestmentCalculatorPage() {
                 <th className="py-2 pr-3">Yield</th>
                 <th className="py-2 pr-3">Payout Frequency</th>
                 <th className="py-2 pr-3">Dividend/Share/Period</th>
-                <th className="py-2 pr-3">Total/Period</th>
+                <th className="py-2 pr-3">Total Dividend/Period</th>
                 <th className="py-2 pr-3">Annual Income</th>
                 <th className="py-2 pr-3">Projected Shares</th>
-                <th className="py-2 pr-3">Projected Value</th>
+                <th className="py-2 pr-3">Projected Share Value</th>
+                <th className="py-2 pr-3">Dividends Generated</th>
+                <th className="py-2 pr-3">Cash Dividends Received</th>
+                <th className="py-2 pr-3">Total Value Including Cash Dividends</th>
                 <th className="py-2 pr-3">Projected Annual Income</th>
               </tr>
             </thead>
@@ -735,11 +773,14 @@ export default function DividendReinvestmentCalculatorPage() {
                   <td className="py-3 pr-3">{formatCurrency(position.totalDividendPerPeriod)}</td>
                   <td className="py-3 pr-3">{formatCurrency(position.annualDividendIncome)}</td>
                   <td className="py-3 pr-3">{formatShares(position.projectedShares)}</td>
-                  <td className="py-3 pr-3">{formatCurrency(position.projectedValue)}</td>
+                  <td className="py-3 pr-3">{formatCurrency(position.projectedShareValue)}</td>
+                  <td className="py-3 pr-3">{formatCurrency(position.dividendsGenerated)}</td>
+                  <td className="py-3 pr-3">{formatCurrency(position.cashDividendsReceived)}</td>
+                  <td className="py-3 pr-3">{formatCurrency(position.totalValueWithCashDividends)}</td>
                   <td className="py-3 pr-3">{formatCurrency(position.projectedAnnualDividendIncome)}</td>
                 </tr>
               ))}
-              {!hasHoldings ? <tr><td colSpan={12} className="py-6 text-center text-sm text-slate-500">Add a holding to calculate the breakdown.</td></tr> : null}
+              {!hasHoldings ? <tr><td colSpan={15} className="py-6 text-center text-sm text-slate-500">Add a holding to calculate the breakdown.</td></tr> : null}
             </tbody>
           </table>
         </div>
@@ -750,12 +791,14 @@ export default function DividendReinvestmentCalculatorPage() {
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
           <p className="font-medium text-[#0A2540]">Assumptions used in this calculator:</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>Dividend yield remains constant.</li>
+            <li>Dividend yield is assumed to remain constant.</li>
+            <li>Share price is assumed to remain constant.</li>
             <li>Each holding uses the payout frequency selected by the user.</li>
             <li>Reinvested dividends buy fractional shares.</li>
             <li>Reinvested dividends are assumed to buy shares at the entered buy price.</li>
-            <li>Share price remains constant unless a future growth assumption is added.</li>
-            <li>Taxes, fees, dividend cuts, and market price changes are not included.</li>
+            <li>High-yield funds may reduce distributions or experience price changes that are not reflected in this calculator.</li>
+            <li>When dividends are reinvested, dividend cash is converted into additional shares and is already included in projected share value.</li>
+            <li>Taxes, fees, distribution changes, and market price changes are not included.</li>
             <li>Basket dividend yield is calculated as weighted annual dividend income divided by total basket value.</li>
             <li>Results are for education and planning purposes only and are not investment advice.</li>
           </ul>
@@ -800,6 +843,8 @@ function PositionCard({
         <MiniMetric label="Position value" value={formatCurrency(result.startingValue)} />
         <MiniMetric label="Estimated payout per period" value={formatCurrency(result.totalDividendPerPeriod)} />
         <MiniMetric label="Annual dividend income" value={formatCurrency(result.annualDividendIncome)} />
+        <MiniMetric label="Projected share value" value={formatCurrency(result.projectedShareValue)} />
+        <MiniMetric label="Cash dividends received" value={formatCurrency(result.cashDividendsReceived)} />
       </div>
     </article>
   );
