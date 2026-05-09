@@ -6,10 +6,10 @@ import { ensureRentRoomScenarioTable, resolveRentRoomUserId, type RentRoomScenar
 
 const safeLog = (error: unknown) => {
   if (error instanceof Error) {
-    console.error("rent-room-get lookup failed", { name: error.name, message: error.message });
+    console.error("rent-room-list lookup failed", { name: error.name, message: error.message });
     return;
   }
-  console.error("rent-room-get lookup failed", { message: "UnknownError" });
+  console.error("rent-room-list lookup failed", { message: "UnknownError" });
 };
 
 export const handler: Handler = async (event) => {
@@ -20,32 +20,16 @@ export const handler: Handler = async (event) => {
   try {
     await ensureRentRoomScenarioTable();
     const userId = await resolveRentRoomUserId(access.user.id, access.user.email);
-    const scenarioId = event.queryStringParameters?.id?.trim();
-
-    if (scenarioId) {
-      const scenarios = (await sql`
-        SELECT id, title, setup_json, income_json, costs_json, result_json, report_version, created_at, updated_at
-        FROM rent_room_scenarios
-        WHERE user_id = ${userId}
-          AND id = ${scenarioId}
-        LIMIT 1
-      `) as RentRoomScenarioRow[];
-
-      if (!scenarios[0]) return json(404, { error: "Rent-a-room scenario not found." });
-      return json(200, { scenario: scenarios[0] });
-    }
-
     const scenarios = (await sql`
       SELECT id, title, setup_json, income_json, costs_json, result_json, report_version, created_at, updated_at
       FROM rent_room_scenarios
       WHERE user_id = ${userId}
       ORDER BY updated_at DESC, created_at DESC
-      LIMIT 1
     `) as RentRoomScenarioRow[];
 
-    return json(200, { scenario: scenarios[0] ?? null });
+    return json(200, { scenarios });
   } catch (error) {
     safeLog(error);
-    return json(500, { error: "Failed to load rent-room scenario." });
+    return json(500, { error: "Failed to load rent-room scenarios." });
   }
 };

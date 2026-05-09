@@ -56,7 +56,7 @@ export const handler: Handler = async (event) => {
     sql`SELECT * FROM housing_profiles WHERE user_id = ${access.user.id} LIMIT 1` as Promise<HousingProfileRow[]>,
     sql`SELECT * FROM savings_profiles WHERE user_id = ${access.user.id} LIMIT 1` as Promise<SavingsProfileRow[]>,
     sql`SELECT * FROM goals WHERE user_id = ${access.user.id} LIMIT 1` as Promise<GoalRow[]>,
-    sql`SELECT * FROM rent_room_scenarios WHERE user_id = ${access.user.id} ORDER BY created_at DESC LIMIT 1` as Promise<RentRoomRow[]>
+    sql`SELECT * FROM rent_room_scenarios WHERE user_id = ${access.user.id} ORDER BY updated_at DESC, created_at DESC LIMIT 1` as Promise<RentRoomRow[]>
   ]);
 
   const reportId = randomId("rpt");

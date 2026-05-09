@@ -56,7 +56,10 @@ Derived behavior:
 - General planning assumptions/outputs saved via `scenario-save`.
 
 ### 4) Room rental scenario
-- Persisted through `rent-room-save`; retrieved via `rent-room-get`.
+- Saved in `rent_room_scenarios` with `title`, setup/income/cost/result JSON, `report_version`, and created/updated timestamps.
+- Persisted through `rent-room-save`; retrieved via `rent-room-get`; listed through `rent-room-list`; deleted through `rent-room-delete`.
+- Users can recall, edit, update, save as new, and delete their own Rent-a-Room scenarios. Function access is owner-scoped by `user_id`; non-owned ids are treated as not found.
+- The latest updated scenario remains available through `rent-room-get` without an id for report compatibility.
 
 ### 5) Advisor requests and assignment
 - Created by users, reviewed by assigned advisors, triaged/assigned by admins.

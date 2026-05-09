@@ -8,8 +8,10 @@
 | `profile-get` | `netlify/functions/profile-get.ts` | Fetch financial profile aggregates, including profile email fallback from Identity | GET | approved user (pending support optional by policy) | profile tables | onboarding/dashboard/report/tools | CORE | keep |
 | `profile-save` | `netlify/functions/profile-save.ts` | Persist onboarding/profile data, profile email, and expense categories **without mutating access role/status** | POST | pending/active user | profile tables | onboarding | CORE | keep (role/status preserved; lifecycle mutations belong to admin-user-role-update/admin-user-invite and admin approval/activation functions) |
 | `scenario-save` | `netlify/functions/scenario-save.ts` | Save scenario model assumptions/results | POST | active_user+ | scenarios | scenarios page | SCENARIO | keep |
-| `rent-room-get` | `netlify/functions/rent-room-get.ts` | Fetch room rental scenario inputs/results | GET | active_user+ (`requireActiveUser`) | room rental scenario data | report page | ROOM_RENTAL_SCENARIO | keep + conceptually rename |
-| `rent-room-save` | `netlify/functions/rent-room-save.ts` | Save room rental cash-flow scenario | POST | active_user+ | room rental scenario data | rent room tool | ROOM_RENTAL_SCENARIO | keep + conceptually rename |
+| `rent-room-get` | `netlify/functions/rent-room-get.ts` | Fetch the latest room rental scenario, or one scenario by id | GET | active_user+ (`requireActiveUser`) | current user's room rental scenario data only | report page, rent room tool | ROOM_RENTAL_SCENARIO | keep + conceptually rename |
+| `rent-room-list` | `netlify/functions/rent-room-list.ts` | List saved room rental scenarios for recall/edit | GET | active_user+ (`requireActiveUser`) | current user's room rental scenario data only | rent room tool | ROOM_RENTAL_SCENARIO | keep |
+| `rent-room-save` | `netlify/functions/rent-room-save.ts` | Create a new room rental scenario or update an owned scenario by id | POST | active_user+ | current user's room rental scenario data only | rent room tool | ROOM_RENTAL_SCENARIO | keep + conceptually rename |
+| `rent-room-delete` | `netlify/functions/rent-room-delete.ts` | Delete one owned room rental scenario | POST/DELETE | active_user+ (`requireActiveUser`) | current user's room rental scenario data only | rent room tool | ROOM_RENTAL_SCENARIO | keep |
 | `loan-readiness-save` | `netlify/functions/loan-readiness-save.ts` | Save/upsert premium loan readiness application for backward compatibility and saved report support | POST | premium_user+ | loan_readiness_applications | legacy readiness save/report flow | LOAN_READINESS | keep |
 | `loan-readiness-get` | `netlify/functions/loan-readiness-get.ts` | Fetch latest user loan readiness application for backward compatibility and saved report support | GET | premium_user+ | loan_readiness_applications | legacy readiness save/report flow | LOAN_READINESS | keep |
 | `loan-readiness-report-create` | `netlify/functions/loan-readiness-report-create.ts` | Create saved report snapshot from latest readiness application | POST | premium_user+ | loan_readiness_applications, reports | legacy readiness save/report flow | LOAN_READINESS | keep |
@@ -55,6 +57,7 @@
 
 ## Naming Guidance
 - Keep deployed endpoints `rent-room-get` and `rent-room-save` intact.
+- Rent-a-Room scenario library endpoints enforce owner-only access through `requireActiveUser` plus `user_id` filters. Missing or non-owned scenario ids return 404.
 - Introduce **conceptual/UI naming** as `room-rental-scenario-get/save` in docs and labels first.
 - If future refactor occurs, add backward-compatible aliases before changing callers.
 

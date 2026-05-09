@@ -158,11 +158,13 @@ CREATE TABLE IF NOT EXISTS scenarios (
 
 CREATE TABLE IF NOT EXISTS rent_room_scenarios (
   id text PRIMARY KEY,
-  user_id text UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  user_id text REFERENCES users(id) ON DELETE CASCADE,
+  title text,
   setup_json jsonb DEFAULT '{}'::jsonb,
   income_json jsonb DEFAULT '{}'::jsonb,
   costs_json jsonb DEFAULT '{}'::jsonb,
   result_json jsonb DEFAULT '{}'::jsonb,
+  report_version text DEFAULT 'Clarity Report v1.0',
   created_at timestamp DEFAULT now(),
   updated_at timestamp DEFAULT now()
 );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getIdentityToken } from "@/lib/auth/netlify-identity";
 import { debtPayoffEstimates, rentRoomImpact } from "@/lib/finance/calculations";
 import { calculateRentRoomProfitability } from "@/lib/finance/rent-room";
@@ -17,11 +17,25 @@ type ProfilePayload = {
   goals: Record<string, unknown> | null;
 } | null;
 
+type RentRoomScenario = {
+  id: string;
+  title?: string | null;
+  setup_json?: Record<string, unknown> | null;
+  income_json?: Record<string, unknown> | null;
+  costs_json?: Record<string, unknown> | null;
+  result_json?: Record<string, unknown> | null;
+  report_version?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 const frequencyDivisor: Record<Frequency, number> = {
   Monthly: 12,
   "Bi-weekly": 26,
   Weekly: 52
 };
+
+const RENT_ROOM_REPORT_VERSION = "Clarity Report v1.0";
 
 const toSafeNumber = (value: unknown) => {
   const num = Number(value ?? 0);
@@ -34,6 +48,21 @@ const formatMoney = (value: number, currency: string) =>
     currency,
     maximumFractionDigits: 0
   }).format(Number.isFinite(value) ? value : 0);
+
+const defaultRentRoomTitle = () => `Rent-a-Room Scenario - ${new Date().toISOString().slice(0, 10)}`;
+
+const rentRoomScenarioSignature = (title: string, input: unknown, result: unknown) =>
+  JSON.stringify({
+    title: title.trim(),
+    input,
+    result
+  });
+
+const scenarioDate = (value: string | null | undefined) => {
+  if (!value) return "Not recorded";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Not recorded" : date.toLocaleString();
+};
 
 export function MortgageTool() {
   const [propertyPrice, setPropertyPrice] = useState(550000);
@@ -309,6 +338,35 @@ export function RentRoomTool() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savingScenario, setSavingScenario] = useState(false);
+  const [loadingScenarios, setLoadingScenarios] = useState(false);
+  const [savedScenarios, setSavedScenarios] = useState<RentRoomScenario[]>([]);
+  const [selectedScenarioId, setSelectedScenarioId] = useState("");
+  const [currentScenarioId, setCurrentScenarioId] = useState<string | null>(null);
+  const [scenarioTitle, setScenarioTitle] = useState(defaultRentRoomTitle);
+  const [loadedScenarioSignature, setLoadedScenarioSignature] = useState("");
+
+  const loadSavedScenarios = useCallback(async () => {
+    setLoadingScenarios(true);
+    const token = await getIdentityToken();
+
+    if (!token) {
+      setLoadingScenarios(false);
+      return;
+    }
+
+    try {
+      const response = await fetch("/.netlify/functions/rent-room-list", {
+        credentials: "same-origin",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok) return;
+      const payload = (await response.json()) as { scenarios?: RentRoomScenario[] };
+      setSavedScenarios(payload.scenarios ?? []);
+    } finally {
+      setLoadingScenarios(false);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -335,6 +393,10 @@ export function RentRoomTool() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    void loadSavedScenarios();
+  }, [loadSavedScenarios]);
 
   const currency = String(profileData?.profile?.preferred_currency ?? "USD") || "USD";
 
@@ -405,10 +467,177 @@ export function RentRoomTool() {
   ]);
 
   const calc = useMemo(() => calculateRentRoomProfitability(rentRoomInput), [rentRoomInput]);
+  const saveInput = useMemo(() => ({
+    ...rentRoomInput,
+    income: {
+      ...rentRoomInput.income,
+      securityDepositCollected
+    }
+  }), [rentRoomInput, securityDepositCollected]);
+  const saveResult = useMemo(() => ({
+    ...calc,
+    securityDepositCollected
+  }), [calc, securityDepositCollected]);
+  const currentSignature = useMemo(
+    () => rentRoomScenarioSignature(scenarioTitle, saveInput, saveResult),
+    [scenarioTitle, saveInput, saveResult]
+  );
+  const currentScenario = useMemo(
+    () => savedScenarios.find((scenario) => scenario.id === currentScenarioId) ?? null,
+    [currentScenarioId, savedScenarios]
+  );
+  const hasUnsavedChanges = Boolean(currentScenarioId && loadedScenarioSignature && currentSignature !== loadedScenarioSignature);
 
-  const onSaveScenario = async () => {
+  const validateRentRoomScenario = () => {
+    const nonNegativeFields: Array<[string, number]> = [
+      ["Monthly rent", expectedMonthlyRent],
+      ["Security deposit", securityDepositCollected],
+      ["Other monthly income", otherMonthlyIncome],
+      ["Basic repairs", basicRepairs],
+      ["Painting", painting],
+      ["Electrical/plumbing", electricalPlumbing],
+      ["Air conditioning/fan", airConditioningFan],
+      ["Bathroom prep", bathroomPrep],
+      ["Door/lock/security", doorLockSecurity],
+      ["WiFi upgrade", wifiUpgrade],
+      ["Cleaning/deep clean", cleaningDeepClean],
+      ["Bedding/furniture", beddingFurniture],
+      ["Desk/chair/storage", deskChairStorage],
+      ["Mini fridge/microwave", miniFridgeMicrowave],
+      ["Decor/staging", decorStaging],
+      ["Permits/legal/admin", permitsLegalAdmin],
+      ["Other setup cost", otherSetupCost],
+      ["Utilities increase", utilitiesIncrease],
+      ["Internet increase", internetIncrease],
+      ["Cleaning", cleaningMonthly],
+      ["Maintenance reserve", maintenanceReserve],
+      ["Insurance increase", insuranceIncrease],
+      ["Property management/help", managementHelp],
+      ["Supplies", supplies],
+      ["Other monthly cost", otherMonthlyCost],
+      ["Months to find tenant", monthsToFindTenant],
+      ["Vacancy allowance", vacancyAllowancePercent],
+      ["One-time contingency", oneTimeContingencyPercent]
+    ];
+
+    const invalidField = nonNegativeFields.find(([, value]) => !Number.isFinite(value) || value < 0);
+    if (invalidField) return `${invalidField[0]} must be zero or greater.`;
+    if (!Number.isFinite(occupancyPercent) || occupancyPercent < 0 || occupancyPercent > 100) return "Expected occupancy must be between 0 and 100.";
+    const numericResultValues = [
+      calc.totalSetupCost,
+      calc.effectiveMonthlyRent,
+      calc.monthlyAddedCosts,
+      calc.netMonthlyProfit,
+      calc.firstYearNet,
+      calc.annualProfitAfterBreakEven
+    ];
+    if (numericResultValues.some((value) => !Number.isFinite(value))) return "Scenario results must be valid numbers before saving.";
+    if (calc.effectiveMonthlyRent < 0) return "Effective monthly rent cannot be negative.";
+    return null;
+  };
+
+  const applyScenarioToForm = (scenario: RentRoomScenario) => {
+    const setup = scenario.setup_json ?? {};
+    const income = scenario.income_json ?? {};
+    const costs = scenario.costs_json ?? {};
+    const title = String(scenario.title ?? defaultRentRoomTitle());
+
+    setBasicRepairs(toSafeNumber(setup.basicRepairs));
+    setPainting(toSafeNumber(setup.painting));
+    setElectricalPlumbing(toSafeNumber(setup.electricalPlumbing));
+    setAirConditioningFan(toSafeNumber(setup.airConditioningFan));
+    setBathroomPrep(toSafeNumber(setup.bathroomPrep));
+    setDoorLockSecurity(toSafeNumber(setup.doorLockSecurity));
+    setWifiUpgrade(toSafeNumber(setup.wifiUpgrade));
+    setCleaningDeepClean(toSafeNumber(setup.cleaningDeepClean));
+    setBeddingFurniture(toSafeNumber(setup.beddingFurniture));
+    setDeskChairStorage(toSafeNumber(setup.deskChairStorage));
+    setMiniFridgeMicrowave(toSafeNumber(setup.miniFridgeMicrowave));
+    setDecorStaging(toSafeNumber(setup.decorStaging));
+    setPermitsLegalAdmin(toSafeNumber(setup.permitsLegalAdmin));
+    setOtherSetupCost(toSafeNumber(setup.otherSetupCost));
+    setOneTimeContingencyPercent(toSafeNumber(setup.oneTimeContingencyPercent));
+    setExpectedMonthlyRent(toSafeNumber(income.expectedMonthlyRent ?? income.monthlyRent));
+    setOccupancyPercent(toSafeNumber(income.occupancyPercent));
+    setSecurityDepositCollected(toSafeNumber(income.securityDepositCollected));
+    setOtherMonthlyIncome(toSafeNumber(income.otherMonthlyIncome));
+    setMonthsToFindTenant(toSafeNumber(income.monthsToFindTenant));
+    setVacancyAllowancePercent(toSafeNumber(income.vacancyAllowancePercent));
+    setUtilitiesIncrease(toSafeNumber(costs.utilitiesIncrease));
+    setInternetIncrease(toSafeNumber(costs.internetIncrease));
+    setCleaningMonthly(toSafeNumber(costs.cleaningMonthly));
+    setMaintenanceReserve(toSafeNumber(costs.maintenanceReserve));
+    setInsuranceIncrease(toSafeNumber(costs.insuranceIncrease));
+    setManagementHelp(toSafeNumber(costs.managementHelp));
+    setSupplies(toSafeNumber(costs.supplies));
+    setOtherMonthlyCost(toSafeNumber(costs.otherMonthlyCost));
+    setScenarioTitle(title);
+    setCurrentScenarioId(scenario.id);
+    setSelectedScenarioId(scenario.id);
     setSaveMessage(null);
     setSaveError(null);
+
+    const restoredInput = {
+      setup: {
+        basicRepairs: toSafeNumber(setup.basicRepairs),
+        painting: toSafeNumber(setup.painting),
+        electricalPlumbing: toSafeNumber(setup.electricalPlumbing),
+        airConditioningFan: toSafeNumber(setup.airConditioningFan),
+        bathroomPrep: toSafeNumber(setup.bathroomPrep),
+        doorLockSecurity: toSafeNumber(setup.doorLockSecurity),
+        wifiUpgrade: toSafeNumber(setup.wifiUpgrade),
+        cleaningDeepClean: toSafeNumber(setup.cleaningDeepClean),
+        beddingFurniture: toSafeNumber(setup.beddingFurniture),
+        deskChairStorage: toSafeNumber(setup.deskChairStorage),
+        miniFridgeMicrowave: toSafeNumber(setup.miniFridgeMicrowave),
+        decorStaging: toSafeNumber(setup.decorStaging),
+        permitsLegalAdmin: toSafeNumber(setup.permitsLegalAdmin),
+        otherSetupCost: toSafeNumber(setup.otherSetupCost),
+        oneTimeContingencyPercent: toSafeNumber(setup.oneTimeContingencyPercent)
+      },
+      income: {
+        expectedMonthlyRent: toSafeNumber(income.expectedMonthlyRent ?? income.monthlyRent),
+        occupancyPercent: toSafeNumber(income.occupancyPercent),
+        monthsToFindTenant: toSafeNumber(income.monthsToFindTenant),
+        vacancyAllowancePercent: toSafeNumber(income.vacancyAllowancePercent),
+        otherMonthlyIncome: toSafeNumber(income.otherMonthlyIncome),
+        securityDepositCollected: toSafeNumber(income.securityDepositCollected)
+      },
+      costs: {
+        utilitiesIncrease: toSafeNumber(costs.utilitiesIncrease),
+        internetIncrease: toSafeNumber(costs.internetIncrease),
+        cleaningMonthly: toSafeNumber(costs.cleaningMonthly),
+        maintenanceReserve: toSafeNumber(costs.maintenanceReserve),
+        insuranceIncrease: toSafeNumber(costs.insuranceIncrease),
+        managementHelp: toSafeNumber(costs.managementHelp),
+        supplies: toSafeNumber(costs.supplies),
+        otherMonthlyCost: toSafeNumber(costs.otherMonthlyCost)
+      }
+    };
+    const restoredResult = {
+      ...calculateRentRoomProfitability(restoredInput),
+      securityDepositCollected: toSafeNumber(income.securityDepositCollected)
+    };
+    setLoadedScenarioSignature(rentRoomScenarioSignature(title, restoredInput, restoredResult));
+  };
+
+  const selectedScenario = savedScenarios.find((scenario) => scenario.id === selectedScenarioId) ?? null;
+
+  const onLoadSelectedScenario = () => {
+    if (!selectedScenario) return;
+    applyScenarioToForm(selectedScenario);
+    setSaveMessage("Saved scenario loaded for editing.");
+  };
+
+  const onSaveScenario = async (saveAsNew = false) => {
+    setSaveMessage(null);
+    setSaveError(null);
+    const validationError = validateRentRoomScenario();
+    if (validationError) {
+      setSaveError(validationError);
+      return;
+    }
+
     setSavingScenario(true);
     const token = await getIdentityToken();
 
@@ -418,6 +647,7 @@ export function RentRoomTool() {
       return;
     }
 
+    const titleToSave = scenarioTitle.trim() || defaultRentRoomTitle();
     const response = await fetch("/.netlify/functions/rent-room-save", {
       method: "POST",
       credentials: "same-origin",
@@ -426,24 +656,72 @@ export function RentRoomTool() {
         Authorization: `Bearer ${token}`
       },
       body: JSON.stringify({
-        input: {
-          ...rentRoomInput,
-          income: {
-            ...rentRoomInput.income,
-            securityDepositCollected
-          }
-        },
-        result: calc
+        id: currentScenarioId,
+        saveAsNew,
+        title: titleToSave,
+        scenarioType: "rent_a_room",
+        input: saveInput,
+        result: saveResult,
+        reportVersion: RENT_ROOM_REPORT_VERSION
       })
     });
 
     setSavingScenario(false);
     if (!response.ok) {
-      setSaveError(response.status === 401 ? "Your session has expired. Please sign in again." : "Failed to save scenario.");
+      if (response.status === 404) {
+        setSaveError("That saved scenario could not be found. It may have been deleted.");
+      } else {
+        setSaveError(response.status === 401 ? "Your session has expired. Please sign in again." : "Failed to save scenario.");
+      }
       return;
     }
 
-    setSaveMessage("Rent-a-room scenario saved.");
+    const payload = (await response.json()) as { id?: string; scenario?: RentRoomScenario | null };
+    const savedId = payload.id ?? payload.scenario?.id ?? currentScenarioId;
+    if (savedId) {
+      setCurrentScenarioId(savedId);
+      setSelectedScenarioId(savedId);
+    }
+    setScenarioTitle(titleToSave);
+    setLoadedScenarioSignature(rentRoomScenarioSignature(titleToSave, saveInput, saveResult));
+    await loadSavedScenarios();
+    setSaveMessage(saveAsNew ? "New rent-a-room scenario saved." : currentScenarioId ? "Saved scenario updated." : "Rent-a-room scenario saved.");
+  };
+
+  const onDeleteScenario = async () => {
+    const scenarioId = selectedScenarioId || currentScenarioId;
+    if (!scenarioId) return;
+    const token = await getIdentityToken();
+
+    if (!token) {
+      setSaveError("Your session has expired. Please sign in again.");
+      return;
+    }
+
+    setSaveMessage(null);
+    setSaveError(null);
+    const response = await fetch("/.netlify/functions/rent-room-delete", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ id: scenarioId })
+    });
+
+    if (!response.ok) {
+      setSaveError(response.status === 404 ? "That saved scenario could not be found." : "Failed to delete scenario.");
+      return;
+    }
+
+    if (currentScenarioId === scenarioId) {
+      setCurrentScenarioId(null);
+      setLoadedScenarioSignature("");
+    }
+    setSelectedScenarioId("");
+    await loadSavedScenarios();
+    setSaveMessage("Saved scenario deleted.");
   };
 
   return (
@@ -457,6 +735,109 @@ export function RentRoomTool() {
       {String(profileData?.goals?.target_goal ?? "") === "Rent out a room" ? (
         <p className="text-sm text-blue-700">Recommended based on your selected goal.</p>
       ) : null}
+
+      <section className="rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold text-[#0A2540]">Saved Rent-a-Room Scenarios</h3>
+            {currentScenario ? (
+              <p className="mt-1 text-xs text-slate-500">
+                Editing saved scenario: {currentScenario.title ?? scenarioTitle}
+                {hasUnsavedChanges ? <span className="ml-2 font-medium text-amber-700">Unsaved changes</span> : null}
+              </p>
+            ) : null}
+          </div>
+          {loadingScenarios ? <p className="text-xs text-slate-500">Loading saved scenarios...</p> : null}
+        </div>
+
+        <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+          <label className="block">
+            <span className="mb-1 block text-slate-500">Scenario title</span>
+            <input
+              type="text"
+              value={scenarioTitle}
+              onChange={(event) => setScenarioTitle(event.target.value)}
+              className="w-full rounded-lg border p-2"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-slate-500">Saved scenarios</span>
+            <select
+              value={selectedScenarioId}
+              onChange={(event) => setSelectedScenarioId(event.target.value)}
+              className="min-w-56 rounded-lg border p-2"
+            >
+              <option value="">Select a scenario</option>
+              {savedScenarios.map((scenario) => (
+                <option key={scenario.id} value={scenario.id}>
+                  {scenario.title ?? "Untitled scenario"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-end gap-2">
+            <button
+              type="button"
+              onClick={onLoadSelectedScenario}
+              disabled={!selectedScenario}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Load / Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => void onDeleteScenario()}
+              disabled={!selectedScenarioId}
+              className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:border-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+
+        {savedScenarios.length === 0 && !loadingScenarios ? (
+          <p className="mt-3 rounded-lg bg-slate-50 p-3 text-slate-600">
+            No saved Rent-a-Room scenarios yet. Complete the form and save your first scenario.
+          </p>
+        ) : null}
+
+        {savedScenarios.length > 0 ? (
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            {savedScenarios.map((scenario) => {
+              const result = scenario.result_json ?? {};
+              return (
+                <div key={scenario.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-[#0A2540]">{scenario.title ?? "Untitled scenario"}</p>
+                      <p className="text-xs text-slate-500">Created: {scenarioDate(scenario.created_at)}</p>
+                      <p className="text-xs text-slate-500">Updated: {scenarioDate(scenario.updated_at)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => applyScenarioToForm(scenario)}
+                      className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-400"
+                    >
+                      Load / Edit
+                    </button>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <ScenarioPreviewMetric label="Effective monthly rent" value={formatMoney(toSafeNumber(result.effectiveMonthlyRent), currency)} />
+                    <ScenarioPreviewMetric label="Monthly added costs" value={formatMoney(toSafeNumber(result.monthlyAddedCosts), currency)} />
+                    <ScenarioPreviewMetric label="Net monthly profit" value={formatMoney(toSafeNumber(result.netMonthlyProfit ?? result.monthlyNetProfit), currency)} />
+                    <ScenarioPreviewMetric
+                      label="Break-even timeline"
+                      value={result.breakEvenMonths === null ? "Not profitable" : `${toSafeNumber(result.breakEvenMonths).toFixed(1)} months`}
+                    />
+                    <ScenarioPreviewMetric label="First-year net result" value={formatMoney(toSafeNumber(result.firstYearNet), currency)} />
+                    <ScenarioPreviewMetric label="Annual profit after break-even" value={formatMoney(toSafeNumber(result.annualProfitAfterBreakEven), currency)} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+      </section>
 
       <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-4 mb-1 pt-2 border-t border-slate-100">A. Room Preparation Costs</h3>
       <div className="grid gap-3 md:grid-cols-2">
@@ -525,8 +906,18 @@ export function RentRoomTool() {
           disabled={savingScenario}
           className="rounded-lg bg-[#0A2540] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#0e3160] disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {savingScenario ? "Saving…" : "Save Rent-a-Room Scenario"}
+          {savingScenario ? "Saving..." : currentScenarioId ? "Save Changes" : "Save Rent-a-Room Scenario"}
         </button>
+        {currentScenarioId ? (
+          <button
+            type="button"
+            onClick={() => void onSaveScenario(true)}
+            disabled={savingScenario}
+            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            Save As New
+          </button>
+        ) : null}
         {saveMessage ? <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{saveMessage}</p> : null}
         {saveError ? <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{saveError}</p> : null}
       </div>
@@ -594,6 +985,15 @@ export function DebtPlanTool() {
 
 function ToolCard({ title, result, children }: { title: string; result: string; children: React.ReactNode }) {
   return <div className="card"><h1 className="text-2xl font-semibold">{title}</h1><p className="mt-2 text-2xl font-semibold text-emerald-600">{result}</p><div className="mt-4 space-y-2">{children}</div></div>;
+}
+
+function ScenarioPreviewMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="font-medium text-slate-800">{value}</p>
+    </div>
+  );
 }
 
 function Field({ label, value, setValue, step = "1" }: { label: string; value: number; setValue: (v: number) => void; step?: string }) {
