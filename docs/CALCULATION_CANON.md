@@ -1,7 +1,7 @@
 # Calculation Canon
 
 ## Definitions
-- `nonHousingLivingExpenses` = utilities + transport + groceries + insurance + childcare + discretionary + other.
+- `nonHousingLivingExpenses` = utilities + water + transport + groceries + insurance + childcare + entertainment + travel + discretionary + other.
 - `housingExpense` = mortgage_payment if present, else rent_amount, else 0.
 - `totalLivingExpenses` = nonHousingLivingExpenses + housingExpense.
 - `monthlyDebtPayments` = sum of `debts.monthly_payment` only (contractual debt servicing only).
@@ -25,15 +25,15 @@ Bands: Healthy, Watch, Stressed, Critical.
 - Housing ratio is separate from DTI to isolate shelter-cost concentration risk.
 
 ## Example
-Monthly income: 5,000; housing: 1,500; utilities: 300; transport: 400; groceries: 700; insurance: 250; childcare: 0; discretionary: 300; other: 200; debt payments: 600.
-- nonHousingLivingExpenses = 2,150
+Monthly income: 5,000; housing: 1,500; utilities: 300; water: 50; transport: 400; groceries: 700; insurance: 250; childcare: 0; entertainment: 150; travel: 100; discretionary: 300; other: 200; debt payments: 600.
+- nonHousingLivingExpenses = 2,450
 - housingExpense = 1,500
-- totalLivingExpenses = 3,650
+- totalLivingExpenses = 3,950
 - monthlyDebtPayments = 600
-- totalMonthlyObligations = 4,250
-- monthlySurplus = 750
+- totalMonthlyObligations = 4,550
+- monthlySurplus = 450
 - debtToIncome = 600 / 5,000 = 12%
 - housingRatio = 1,500 / 5,000 = 30%
-- totalMonthlyPressure = 4,250 / 5,000 = 85%
+- totalMonthlyPressure = 4,550 / 5,000 = 91%
 
 Interpretation: low DTI can still coincide with high total monthly pressure; both must be shown together.

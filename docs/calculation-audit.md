@@ -3,7 +3,7 @@
 ## Canonical formulas
 - Monthly income: `monthly_net_income` → `monthly_gross_income` → sum of `incomeSources.monthly_amount` → `0`.
 - Housing expense: `housingProfile.mortgage_payment` else `housingProfile.rent_amount`.
-- Non-housing living expenses: utilities + transport + groceries + insurance + childcare + discretionary + other.
+- Non-housing living expenses: utilities + water + transport + groceries + insurance + childcare + entertainment + travel + discretionary + other.
 - Total living expenses: housing + non-housing.
 - Debt payments: sum debts.monthly_payment.
 - Total obligations: living + debt payments.

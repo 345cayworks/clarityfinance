@@ -101,9 +101,22 @@ export const getHousingExpense = (housingProfile: GenericRow | null) => {
   return { value: 0, source: "fallback.0" };
 };
 
+export const NON_HOUSING_NON_DEBT_EXPENSE_KEYS = [
+  "utilities",
+  "water",
+  "transport",
+  "groceries",
+  "insurance",
+  "childcare",
+  "entertainment",
+  "travel",
+  "discretionary",
+  "other"
+] as const;
+
 export const getNonHousingNonDebtExpenses = (expenseProfile: GenericRow | null) => {
-  const value = ["utilities", "transport", "groceries", "insurance", "childcare", "discretionary", "other"].reduce(
-    (sum, key) => sum + numberValue(expenseProfile?.[key]),0
+  const value = NON_HOUSING_NON_DEBT_EXPENSE_KEYS.reduce(
+    (sum, key) => sum + numberValue(expenseProfile?.[key]), 0
   );
   return { value, source: "expenseProfile.non_housing_categories" };
 };

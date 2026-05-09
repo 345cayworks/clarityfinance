@@ -72,6 +72,7 @@ export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
   return {
     customer: {
       name: readiness.applicant.name,
+      email: readiness.applicant.email,
       dob: readiness.applicant.dateOfBirth,
       phone: readiness.applicant.phone,
       maritalStatus: toText(profileData.profile?.household_status),
@@ -135,8 +136,11 @@ export function mapProfileToCNBApplication(profileData: LoanReadinessPayload) {
       insurance: toNumber(profileData.expenseProfile?.insurance),
       food: toNumber(profileData.expenseProfile?.groceries),
       utilities: toNumber(profileData.expenseProfile?.utilities),
+      water: toNumber(profileData.expenseProfile?.water),
       transport: toNumber(profileData.expenseProfile?.transport),
       childcare: toNumber(profileData.expenseProfile?.childcare),
+      entertainment: toNumber(profileData.expenseProfile?.entertainment),
+      travel: toNumber(profileData.expenseProfile?.travel),
       discretionary: toNumber(profileData.expenseProfile?.discretionary),
       other: toNumber(profileData.expenseProfile?.other),
       livingExpensesExcludingHousingDebt: readiness.financials.nonHousingLivingExpenses,

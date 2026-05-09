@@ -230,10 +230,13 @@ export default function ReportsPage() {
     const expenseRows = [
       { label: "Housing", value: housing },
       { label: "Utilities", value: toNumber(data?.expenseProfile?.utilities) },
+      { label: "Water", value: toNumber(data?.expenseProfile?.water) },
       { label: "Transport", value: toNumber(data?.expenseProfile?.transport) },
       { label: "Groceries", value: toNumber(data?.expenseProfile?.groceries) },
       { label: "Insurance", value: toNumber(data?.expenseProfile?.insurance) },
       { label: "Childcare", value: toNumber(data?.expenseProfile?.childcare) },
+      { label: "Entertainment", value: toNumber(data?.expenseProfile?.entertainment) },
+      { label: "Travel", value: toNumber(data?.expenseProfile?.travel) },
       { label: "Discretionary", value: toNumber(data?.expenseProfile?.discretionary) },
       { label: "Other", value: toNumber(data?.expenseProfile?.other) }
     ].map((row) => ({ ...row, pct: totalExpenseWithHousing > 0 ? (row.value / totalExpenseWithHousing) * 100 : 0 }));

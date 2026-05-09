@@ -41,6 +41,13 @@ const isMissingRoleColumnError = (error: unknown) => {
 
 type UserIdRow = { id: string };
 
+async function ensureProfileColumns() {
+  await sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email text`;
+  await sql`ALTER TABLE expense_profiles ADD COLUMN IF NOT EXISTS water numeric DEFAULT 0`;
+  await sql`ALTER TABLE expense_profiles ADD COLUMN IF NOT EXISTS entertainment numeric DEFAULT 0`;
+  await sql`ALTER TABLE expense_profiles ADD COLUMN IF NOT EXISTS travel numeric DEFAULT 0`;
+}
+
 const upsertUser = async (userId: string, identityUser: Awaited<ReturnType<typeof getIdentityUser>>) => {
   if (!identityUser) return userId;
 
@@ -117,6 +124,10 @@ export const handler: Handler = async (event) => {
     const incomeSources = getIncomeSourcesFromBody(body);
     const totalMonthlyIncome = incomeSources.reduce((sum, source) => sum + source.monthlyAmount, 0);
     const primaryIncome = incomeSources[0];
+    const submittedEmail = String(body.email ?? "").trim();
+    const effectiveEmail = submittedEmail || identityUser.email;
+
+    await ensureProfileColumns();
 
     await sql`
     INSERT INTO profiles (
@@ -128,7 +139,7 @@ export const handler: Handler = async (event) => {
       purchase_agreement_available, primary_bank_name, existing_bank_relationship, bank_statements_available,
       missed_payments_history, bankruptcy_history, has_id, has_proof_of_address, has_payslips, has_employment_letter,
       has_bank_statements, has_debt_statements, has_credit_report, has_purchase_agreement, has_valuation,
-      has_down_payment_proof, has_business_financials, marital_status, other_assets, source_of_down_payment, purchase_price, borrower_contribution, security_offered, security_value, has_tax_returns
+      has_down_payment_proof, has_business_financials, marital_status, other_assets, source_of_down_payment, purchase_price, borrower_contribution, security_offered, security_value, has_tax_returns, email
     )
     VALUES (
       ${randomId("pro")}, ${userId}, ${String(body.countryOrMarket ?? "")}, ${String(body.preferredCurrency ?? "")}, ${String(body.ageRange ?? "")}, ${String(body.employmentType ?? "")}, ${String(body.householdStatus ?? "")}, ${toNumber(body.dependents)},
@@ -139,7 +150,7 @@ export const handler: Handler = async (event) => {
       ${toBoolean(body.purchaseAgreementAvailable)}, ${String(body.primaryBankName ?? "")}, ${toBoolean(body.existingBankRelationship)}, ${toBoolean(body.bankStatementsAvailable)},
       ${toBoolean(body.missedPaymentsHistory)}, ${toBoolean(body.bankruptcyHistory)}, ${toBoolean(body.hasID)}, ${toBoolean(body.hasProofOfAddress)}, ${toBoolean(body.hasPayslips)}, ${toBoolean(body.hasEmploymentLetter)},
       ${toBoolean(body.hasBankStatements)}, ${toBoolean(body.hasDebtStatements)}, ${toBoolean(body.hasCreditReport)}, ${toBoolean(body.hasPurchaseAgreement)}, ${toBoolean(body.hasValuation)},
-      ${toBoolean(body.hasDownPaymentProof)}, ${toBoolean(body.hasBusinessFinancials)}, ${String(body.maritalStatus ?? "")}, ${toNumber(body.otherAssets)}, ${String(body.sourceOfDownPayment ?? "")}, ${toNumber(body.purchasePrice)}, ${toNumber(body.borrowerContribution)}, ${String(body.securityOffered ?? "")}, ${toNumber(body.securityValue)}, ${toBoolean(body.hasTaxReturns)}
+      ${toBoolean(body.hasDownPaymentProof)}, ${toBoolean(body.hasBusinessFinancials)}, ${String(body.maritalStatus ?? "")}, ${toNumber(body.otherAssets)}, ${String(body.sourceOfDownPayment ?? "")}, ${toNumber(body.purchasePrice)}, ${toNumber(body.borrowerContribution)}, ${String(body.securityOffered ?? "")}, ${toNumber(body.securityValue)}, ${toBoolean(body.hasTaxReturns)}, ${effectiveEmail}
     )
     ON CONFLICT (user_id) DO UPDATE SET
       country_or_market = EXCLUDED.country_or_market,
@@ -199,19 +210,23 @@ export const handler: Handler = async (event) => {
       security_offered = EXCLUDED.security_offered,
       security_value = EXCLUDED.security_value,
       has_tax_returns = EXCLUDED.has_tax_returns,
+      email = COALESCE(NULLIF(EXCLUDED.email, ''), profiles.email, ${identityUser.email}),
       updated_at = NOW()
   `;
 
     await sql`
-    INSERT INTO expense_profiles (id, user_id, housing, utilities, transport, groceries, insurance, childcare, discretionary, other)
-    VALUES (${randomId("exp")}, ${userId}, ${toNumber(body.expenseHousing)}, ${toNumber(body.expenseUtilities)}, ${toNumber(body.expenseTransport)}, ${toNumber(body.expenseGroceries)}, ${toNumber(body.expenseInsurance)}, ${toNumber(body.expenseChildcare)}, ${toNumber(body.expenseDiscretionary)}, ${toNumber(body.expenseOther)})
+    INSERT INTO expense_profiles (id, user_id, housing, utilities, water, transport, groceries, insurance, childcare, entertainment, travel, discretionary, other)
+    VALUES (${randomId("exp")}, ${userId}, ${toNumber(body.expenseHousing)}, ${toNumber(body.expenseUtilities)}, ${toNumber(body.expenseWater)}, ${toNumber(body.expenseTransport)}, ${toNumber(body.expenseGroceries)}, ${toNumber(body.expenseInsurance)}, ${toNumber(body.expenseChildcare)}, ${toNumber(body.expenseEntertainment)}, ${toNumber(body.expenseTravel)}, ${toNumber(body.expenseDiscretionary)}, ${toNumber(body.expenseOther)})
     ON CONFLICT (user_id) DO UPDATE SET
       housing = EXCLUDED.housing,
       utilities = EXCLUDED.utilities,
+      water = EXCLUDED.water,
       transport = EXCLUDED.transport,
       groceries = EXCLUDED.groceries,
       insurance = EXCLUDED.insurance,
       childcare = EXCLUDED.childcare,
+      entertainment = EXCLUDED.entertainment,
+      travel = EXCLUDED.travel,
       discretionary = EXCLUDED.discretionary,
       other = EXCLUDED.other,
       updated_at = NOW()

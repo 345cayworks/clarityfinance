@@ -105,6 +105,18 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
   const housingRatioUsingTotalIncome = totalMonthlyIncome > 0 ? housingExpense / totalMonthlyIncome : null;
   const totalObligationsRatioUsingTotalIncome = totalMonthlyIncome > 0 ? totalMonthlyObligations / totalMonthlyIncome : null;
   const runwayMonths = getSavingsRunwayMonths(data.savingsProfile ?? null, data.expenseProfile ?? null, data.housingProfile ?? null);
+  const expenseBreakdown = {
+    utilities: toNumber(data.expenseProfile?.utilities),
+    water: toNumber(data.expenseProfile?.water),
+    transport: toNumber(data.expenseProfile?.transport),
+    groceries: toNumber(data.expenseProfile?.groceries),
+    insurance: toNumber(data.expenseProfile?.insurance),
+    childcare: toNumber(data.expenseProfile?.childcare),
+    entertainment: toNumber(data.expenseProfile?.entertainment),
+    travel: toNumber(data.expenseProfile?.travel),
+    discretionary: toNumber(data.expenseProfile?.discretionary),
+    other: toNumber(data.expenseProfile?.other)
+  };
   const debtPressure = interpretDebtPressure({
     debtToIncome,
     housingRatio,
@@ -142,6 +154,7 @@ export function buildLoanReadinessProfile(data: LoanReadinessPayload) {
       monthlyIncomeSource,
       totalMonthlyIncome,
       loanApplicationIncome,
+      expenseBreakdown,
       nonHousingLivingExpenses,
       housingExpense,
       livingExpenses,

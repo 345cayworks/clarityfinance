@@ -49,6 +49,8 @@ Derived behavior:
 
 ### 2) Financial profile
 - Captured in onboarding and consumed by dashboard/report/tools via `profile-save` and `profile-get`.
+- `profiles.email`: applicant contact email captured in Personal Information. Save falls back to the Netlify Identity email when the onboarding field is blank.
+- `expense_profiles.water`, `expense_profiles.entertainment`, and `expense_profiles.travel`: monthly non-housing, non-debt living expense categories.
 
 ### 3) Scenarios
 - General planning assumptions/outputs saved via `scenario-save`.
@@ -71,7 +73,7 @@ Derived behavior:
 
 - `monthlyIncomeUsed`: `profile.monthly_net_income` if greater than zero, else `profile.monthly_gross_income` if greater than zero, else sum of `income_sources.monthly_amount`, else `0`.
 - `monthlyIncomeSource`: the source selected by the loan readiness income priority.
-- `nonHousingLivingExpenses`: sum of expense profile `utilities`, `transport`, `groceries`, `insurance`, `childcare`, `discretionary`, and `other`; excludes housing and debt payments.
+- `nonHousingLivingExpenses`: sum of expense profile `utilities`, `water`, `transport`, `groceries`, `insurance`, `childcare`, `entertainment`, `travel`, `discretionary`, and `other`; excludes housing and debt payments.
 - `housingPayment`: `housing_profiles.mortgage_payment` if greater than zero, else `housing_profiles.rent_amount` if greater than zero, else `0`.
 - `monthlyDebtPayments`: sum of `debts.monthly_payment`.
 - `totalMonthlyObligations`: `housingPayment + nonHousingLivingExpenses + monthlyDebtPayments`.
@@ -94,7 +96,7 @@ The Loan Application Form uses total monthly income as the default base for affo
 - `investmentIncome`: `profile.investment_income`, else investment/dividend income source rows when income sources were not already used as applicant income.
 - `otherIncome`: `profile.other_income_amount`, else other recurring income source rows when income sources were not already used as applicant income.
 - `coApplicantIncome`: currently `0` placeholder until co-applicant fields are implemented.
-- `nonHousingLivingExpenses`: utilities, transport, groceries, insurance, childcare, discretionary, and other living expenses only.
+- `nonHousingLivingExpenses`: utilities, water, transport, groceries, insurance, childcare, entertainment, travel, discretionary, and other living expenses only.
 - `housingPayment`: mortgage payment if present, else rent amount.
 - `monthlyDebtPayments`: sum of debt monthly payments.
 - `totalMonthlyObligations`: `housingPayment + nonHousingLivingExpenses + monthlyDebtPayments`.

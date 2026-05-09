@@ -1,7 +1,11 @@
 "use client";
 
-type FieldType = "number"|"text"|"checkbox"|"yesno";
-type Field = { name: string; label: string; type?: FieldType; placeholder?: string; options?: readonly string[]; showWhen?: { field: string; equals: boolean | string }; group?: string };
+type FieldType = "number" | "text" | "email" | "date" | "checkbox" | "yesno";
+type FieldOption = string | { label: string; value: string | boolean };
+type Field = { name: string; label: string; type?: FieldType; placeholder?: string; options?: readonly FieldOption[]; showWhen?: { field: string; equals: boolean | string }; group?: string };
+
+const optionLabel = (option: FieldOption) => (typeof option === "string" ? option : option.label);
+const optionValue = (option: FieldOption) => String(typeof option === "string" ? option : option.value);
 
 export function CardSection({ title, description, fields, formData, setFormData, error }: { title: string; description: string; fields: readonly Field[]; formData: Record<string, string|boolean>; setFormData: React.Dispatch<React.SetStateAction<Record<string, string|boolean>>>; error?: string }) {
   const visibleFields = fields.filter((field) => !field.showWhen || formData[field.showWhen.field] === field.showWhen.equals);
@@ -16,6 +20,8 @@ export function CardSection({ title, description, fields, formData, setFormData,
       return <div key={f.name} className={`rounded border px-3 py-2 text-sm ${f.group === "documents" ? "bg-slate-50" : ""}`}><span className="mb-2 block font-medium">{f.label}</span><div className="flex gap-2"><button type="button" className={`rounded border px-3 py-1 ${currentValue === true ? "border-blue-600 bg-blue-600 text-white" : "bg-white"}`} onClick={()=>setFormData((p)=>({...p,[f.name]:true}))}>Yes</button><button type="button" className={`rounded border px-3 py-1 ${currentValue === false ? "border-slate-700 bg-slate-700 text-white" : "bg-white"}`} onClick={()=>setFormData((p)=>({...p,[f.name]:false}))}>No</button></div></div>;
     }
 
-    return <label key={f.name} className="text-sm">{f.type==="checkbox" ? <span className="flex items-center gap-2 rounded border px-3 py-2"><input type="checkbox" checked={Boolean(formData[f.name])} onChange={(e)=>setFormData((p)=>({...p,[f.name]:e.target.checked}))} />{f.label}</span> : <><span className="mb-1 block font-medium">{f.label}</span>{f.options ? <select className="w-full rounded border px-3 py-2" value={String(formData[f.name] ?? "")} onChange={(e)=>setFormData((p)=>({...p,[f.name]:e.target.value}))}><option value="">Select...</option>{f.options.map((o)=><option key={o} value={o}>{o}</option>)}</select> : <input className="w-full rounded border px-3 py-2" type={f.type ?? "text"} value={String(formData[f.name] ?? "")} placeholder={f.placeholder} onChange={(e)=>setFormData((p)=>({...p,[f.name]:e.target.value}))} />}</>}</label>;
+    const currentValue = String(formData[f.name] ?? "");
+    const hasCurrentOption = f.options?.some((option) => optionValue(option) === currentValue);
+    return <label key={f.name} className="text-sm">{f.type==="checkbox" ? <span className="flex items-center gap-2 rounded border px-3 py-2"><input type="checkbox" checked={Boolean(formData[f.name])} onChange={(e)=>setFormData((p)=>({...p,[f.name]:e.target.checked}))} />{f.label}</span> : <><span className="mb-1 block font-medium">{f.label}</span>{f.options ? <select className="w-full rounded border px-3 py-2" value={currentValue} onChange={(e)=>setFormData((p)=>({...p,[f.name]:e.target.value}))}><option value="">Select...</option>{currentValue && !hasCurrentOption ? <option value={currentValue}>{currentValue}</option> : null}{f.options.map((o)=><option key={optionValue(o)} value={optionValue(o)}>{optionLabel(o)}</option>)}</select> : <input className="w-full rounded border px-3 py-2" type={f.type ?? "text"} value={currentValue} placeholder={f.placeholder} onChange={(e)=>setFormData((p)=>({...p,[f.name]:e.target.value}))} />}</>}</label>;
   })}</div>{error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}</div>;
 }

@@ -271,10 +271,13 @@ export default function LoanApplicationPage() {
         <Subsection title="A. Household Expenses">
           <Row label="Current rent/mortgage payment" value={formatMoney(housingPayment)} />
           <Row label="Utilities" value={formatMoney(appData.expenses.utilities)} />
+          <Row label="Water" value={formatMoney(appData.expenses.water)} />
           <Row label="Transport" value={formatMoney(appData.expenses.transport)} />
           <Row label="Groceries / food" value={formatMoney(appData.expenses.food)} />
           <Row label="Insurance" value={formatMoney(appData.expenses.insurance)} />
           <Row label="Childcare" value={formatMoney(appData.expenses.childcare)} />
+          <Row label="Entertainment" value={formatMoney(appData.expenses.entertainment)} />
+          <Row label="Travel" value={formatMoney(appData.expenses.travel)} />
           <Row label="Discretionary" value={formatMoney(appData.expenses.discretionary)} />
           <Row label="Other living expenses" value={formatMoney(appData.expenses.other)} />
           <Row label="Living expenses excluding housing and debt" value={formatMoney(nonHousingLivingExpenses)} />

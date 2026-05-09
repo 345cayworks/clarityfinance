@@ -44,9 +44,11 @@ export const handler: Handler = async (event) => {
   const savings = results[5] as SavingsProfileRow[];
   const goals = results[6] as GoalRow[];
   const plans = results[7] as ActionPlanRow[];
+  const profile = profiles[0] ? { ...profiles[0], email: profiles[0].email || identityUser.email } : null;
 
   return json(200, {
-    profile: profiles[0] ?? null,
+    profile,
+    identityUser: { email: identityUser.email },
     incomeSources: income,
     expenseProfile: expenses[0] ?? null,
     householdExpenses: expenses[0] ?? null,

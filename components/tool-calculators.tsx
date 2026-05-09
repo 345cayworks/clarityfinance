@@ -86,10 +86,13 @@ export function MortgageTool() {
   const monthlyExpensesWithoutDebt =
     toSafeNumber(profileData?.expenseProfile?.housing) +
     toSafeNumber(profileData?.expenseProfile?.utilities) +
+    toSafeNumber(profileData?.expenseProfile?.water) +
     toSafeNumber(profileData?.expenseProfile?.transport) +
     toSafeNumber(profileData?.expenseProfile?.groceries) +
     toSafeNumber(profileData?.expenseProfile?.insurance) +
     toSafeNumber(profileData?.expenseProfile?.childcare) +
+    toSafeNumber(profileData?.expenseProfile?.entertainment) +
+    toSafeNumber(profileData?.expenseProfile?.travel) +
     toSafeNumber(profileData?.expenseProfile?.discretionary) +
     toSafeNumber(profileData?.expenseProfile?.other);
   const monthlySurplus = monthlyIncome - monthlyExpensesWithoutDebt - monthlyDebtPayments;
