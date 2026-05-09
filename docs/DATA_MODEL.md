@@ -61,11 +61,19 @@ Derived behavior:
 - Users can recall, edit, update, save as new, and delete their own Rent-a-Room scenarios. Function access is owner-scoped by `user_id`; non-owned ids are treated as not found.
 - The latest updated scenario remains available through `rent-room-get` without an id for report compatibility.
 
-### 5) Advisor requests and assignment
+### 5) Monthly budgets
+- Saved in `monthly_budgets` through `sql/add-budget-planner.sql`.
+- Columns: `id`, `user_id`, `budget_month`, `title`, `income_json`, `expenses_json`, `summary_json`, `notes`, `created_at`, and `updated_at`.
+- A unique index on `(user_id, budget_month)` keeps one saved budget per user/month; save uses upsert semantics for that key.
+- `income_json` and `expenses_json` store manual-entry line items with category key/name, item name, planned amount, actual amount, notes, and default/custom marker.
+- `summary_json` stores server-calculated totals: planned/actual income, planned/actual expenses, planned/actual surplus, over/under budget variance, savings rate, expense-to-income ratio, fixed-expense ratio, and lifestyle-spending ratio.
+- Budget Planner is a core manual-entry feature for active users across roles (`user`, `premium_user`, `advisor`, `admin`, `superadmin`). It does not call external bank APIs and does not feed dashboard or loan application calculations in this pass.
+
+### 6) Advisor requests and assignment
 - Created by users, reviewed by assigned advisors, triaged/assigned by admins.
 - Advisor/bank sharing requires explicit consent. Consent metadata is stored in `data_sharing_consents` when available and embedded in advisor request `recommendation_json` for compatibility.
 
-### 6) Loan readiness
+### 7) Loan readiness
 - Premium-gated routes include `/app/loan-readiness`, `/app/loan-application`, and `/app/prequalification/proven-bank`.
 - `/app/loan-application` is the primary bank-facing Loan Application Preparation Form.
 - `/app/loan-readiness` is retained as a compatibility transition route and should not be treated as the primary user workflow.
@@ -109,24 +117,24 @@ The Loan Application Form uses total monthly income as the default base for affo
 - `totalMonthlyPressure`: `totalMonthlyObligations / totalMonthlyIncome`, or `null` when total income is missing.
 - `netWorth`: total assets minus total liabilities.
 
-### 7) Reports
+### 8) Reports
 - `reports` stores report artifacts and metadata.
 - Current metadata fields include `report_version`, `generated_at`, `assumptions_json`, `disclaimer_text`, and `source_context` where the migration has been applied.
 
-### 8) Dividend calculator saves
+### 9) Dividend calculator saves
 - `dividend_calculator_saves` stores user-entered Dividend Reinvestment Calculator positions, calculator settings, summary output, and projection output.
 - Rows are scoped by `user_id`; premium users, advisors, admins, and superadmins can save/load their own projections through premium-tool functions.
 - Stored data is manual-input planning data only: no API keys, external market data, or unnecessary personal profile data.
 - Metadata includes report version, assumptions JSON, and the educational-only disclaimer used for saved calculator projections.
 
-### 9) Dividend yield cache
+### 10) Dividend yield cache
 - `dividend_yield_cache` stores normalized ticker-level dividend yield lookup results fetched server-side through provider functions.
 - It includes ticker, optional company name, dividend yield percent, annual dividend per share, payout frequency if known, source, raw provider JSON, fetch timestamps, and expiry metadata.
 - Cache freshness defaults to 24 hours. `expires_at` is preferred when present; otherwise functions evaluate `fetched_at`.
 - Market data is cached in the database only and is not stored in GitHub. API keys are never exposed to React components.
 - Dividend yield lookup is optional; users can always enter or override yield values manually in the calculator.
 
-### 10) Historical market data cache
+### 11) Historical market data cache
 - `market_price_history` stores daily adjusted market data by `(ticker, price_date)` for Investment Analyzer backtesting.
 - Cached rows include close price, adjusted close price, dividend amount, split coefficient, source, fetch timestamp, and raw provider JSON when available.
 - `market_data_sync_status` tracks ticker-level provider sync state, last full refresh time, latest cached trading date, and the last error message.
@@ -145,8 +153,9 @@ The Loan Application Form uses total monthly income as the default base for affo
 9. **DividendYieldCache**
 10. **HistoricalMarketDataCache**
 11. **DividendCalculatorSave**
-12. **ActionPlan**
-13. **Report**
+12. **MonthlyBudget**
+13. **ActionPlan**
+14. **Report**
 
 
 > Note: `premium` was considered as a legacy alias, but it is not valid in the live `UserRole` enum.

@@ -58,6 +58,15 @@ const navSections: NavSection[] = [
         )
       },
       {
+        label: "Budget Planner",
+        href: "/app/budget-planner" as Route,
+        icon: (
+          <Icon>
+            <path d="M5 4h14v16H5zM8 8h8M8 12h3M13 12h3M8 16h3M13 16h3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </Icon>
+        )
+      },
+      {
         label: "Tools",
         href: "/app/tools",
         icon: (

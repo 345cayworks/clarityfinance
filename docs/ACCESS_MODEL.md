@@ -69,7 +69,7 @@ Derived when authenticated and both:
 - `account_status = active`.
 
 Allowed routes:
-- dashboard, onboarding, profile, scenarios, tools, rent-room, reports, action plan, settings.
+- dashboard, onboarding, profile, scenarios, tools, rent-room, reports, action plan, budget planner, settings.
 
 Role-specific overlays for active users:
 - `premium_user` unlocks premium loan routes.
@@ -104,6 +104,10 @@ Premium planning tools stay visible on `/app/tools` for all authenticated active
 | Investment Analyzer | Visible but locked | Full access | Full access | Full access | Netlify analysis function requires Premium, Advisor, or Admin access. Historical market data is cached in the database and reused for backtesting. |
 | Analyze / Advanced Analysis | Visible but locked if present | Full access | Full access | Full access | No separate Advanced Analysis route currently exists. Apply the same premium-tool pattern if added. |
 | Tools page | Can view locked cards | Can open premium cards | Can open premium cards | Can open premium cards | Locked cards show a Premium badge and upgrade CTA. |
+
+## Core Budget Planner access
+
+Budget Planner is not premium-gated in the MVP. `/app/budget-planner` and its `budget-*` Netlify functions use active-user access, so approved and active `user`, `premium_user`, `advisor`, `admin`, and `superadmin` accounts can create, save, load, duplicate, print, and delete their own monthly budgets. All server reads/writes are scoped by `user_id`; non-owned budget ids return not found behavior.
 
 Dividend Reinvestment Calculator server functions use `requirePremiumOrStaff`, so standard `user` accounts cannot save, list, load, update, or delete saved projections even if they call the endpoints directly. Admin and advisor roles save their own projections only; cross-user saved projection browsing is not part of this feature.
 
