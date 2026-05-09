@@ -145,6 +145,18 @@ export const projectionPeriodOptions: ProjectionPeriodOption[] = [
   { label: "30 years", months: 360 }
 ];
 
+export function createEmptyDividendPosition(id = globalThis.crypto?.randomUUID?.() ?? `div_${Date.now()}`): DividendPositionInput {
+  return {
+    id,
+    symbol: "",
+    buyPrice: 0,
+    quantity: 0,
+    dividendYieldPercent: 0,
+    payoutFrequency: "weekly",
+    reinvestDividends: true
+  };
+}
+
 export function normalizeProjectionPeriodToMonths(value: number | ProjectionPeriodOption) {
   const months = typeof value === "number" ? value : value.months;
   return Number.isFinite(months) && months > 0 ? Math.round(months) : 12;
@@ -393,18 +405,18 @@ export function calculateBasketComparison(inputs: DividendPositionInput[], proje
   };
 }
 
-function monthBucket(month: number, interval: ProjectionInterval) {
-  if (interval === "yearly") return Math.max(12, Math.ceil(month / 12) * 12);
-  if (interval === "monthly") return Math.max(1, Math.ceil(month));
-  return month;
-}
-
 function formatProjectionLabel(month: number, periodIndex: number) {
   if (month < 1) return `P${periodIndex}`;
   if (month < 12) return `M${Math.ceil(month)}`;
   const year = Math.floor(month / 12);
   const remainingMonths = Math.round(month % 12);
   return remainingMonths === 0 ? `Y${year}` : `Y${year} M${remainingMonths}`;
+}
+
+function formatChartLabel(interval: ProjectionInterval, periodIndex: number, month: number) {
+  if (interval === "payout") return `P${periodIndex}`;
+  if (interval === "monthly") return `M${Math.max(1, Math.round(month))}`;
+  return `Y${Math.max(1, Math.round(month / 12))}`;
 }
 
 function latestPositionPointAt(position: DividendPositionResult, month: number) {
@@ -436,16 +448,15 @@ export function aggregateProjectionForChart(
   return [...monthSet]
     .sort((a, b) => a - b)
     .map((rawMonth, index) => {
-      const month = monthBucket(rawMonth, interval);
+      const month = rawMonth;
       const totals = positions.reduce(
         (sum, position) => {
           const point = latestPositionPointAt(position, rawMonth);
           const shareValue = point?.projectedShareValue ?? position.startingValue;
-          const totalValue = point?.totalValueWithCashDividends ?? position.startingValue;
           const dividendsGenerated = point?.dividendsGenerated ?? 0;
           return {
             projectedShareValue: sum.projectedShareValue + shareValue,
-            totalValueWithCashDividends: sum.totalValueWithCashDividends + totalValue,
+            totalValueWithCashDividends: sum.totalValueWithCashDividends + shareValue + (point?.cashDividendsReceived ?? 0),
             dividendsGenerated: sum.dividendsGenerated + dividendsGenerated,
             dividendsReinvested: sum.dividendsReinvested + (point?.dividendsReinvested ?? 0),
             cashDividendsReceived: sum.cashDividendsReceived + (point?.cashDividendsReceived ?? 0),
@@ -471,13 +482,13 @@ export function aggregateProjectionForChart(
       return {
         periodIndex: index + 1,
         month,
-        label: formatProjectionLabel(month, index + 1),
+        label: formatChartLabel(interval, index + 1, month),
         ...totals
       };
     });
 }
 
-export function buildBasketProjection(inputs: DividendPositionInput[], projectionMonths: number, interval: ProjectionInterval = "payout") {
+export function buildBasketProjection(inputs: DividendPositionInput[], projectionMonths: number, interval: ProjectionInterval = "monthly") {
   const positions = inputs.map((input) => calculateDividendPosition(input, projectionMonths));
   return aggregateProjectionForChart(positions, projectionMonths, interval);
 }
@@ -485,7 +496,7 @@ export function buildBasketProjection(inputs: DividendPositionInput[], projectio
 export function calculateDividendBasket(
   inputs: DividendPositionInput[],
   projectionMonths = 120,
-  interval: ProjectionInterval = "payout"
+  interval: ProjectionInterval = "monthly"
 ): DividendBasketResult {
   const normalizedMonths = normalizeProjectionPeriodToMonths(projectionMonths);
   const positions = inputs.map((input) => calculateDividendPosition(input, normalizedMonths));

@@ -9,6 +9,7 @@ import { getIdentityToken } from "@/lib/auth/netlify-identity";
 import {
   calculateDividendBasket,
   calculateDividendPosition,
+  createEmptyDividendPosition,
   normalizeDividendSymbol,
   projectionPeriodOptions,
   validateDividendPosition,
@@ -62,7 +63,7 @@ const chartViewValues = new Set(chartViews.map((option) => option.value));
 
 const intervalOptions: Array<{ value: ProjectionInterval; label: string }> = [
   { value: "monthly", label: "Monthly" },
-  { value: "payout", label: "Payout Frequency Based" },
+  { value: "payout", label: "Payout Frequency Events" },
   { value: "yearly", label: "Yearly" }
 ];
 
@@ -77,16 +78,6 @@ const SAVE_ASSUMPTIONS = {
   excludesTaxesFeesDividendCutsMarketChanges: true,
   educationalOnly: true
 };
-
-const emptyPosition = (): DividendPositionInput => ({
-  id: crypto.randomUUID(),
-  symbol: "",
-  buyPrice: 0,
-  quantity: 0,
-  dividendYieldPercent: 0,
-  payoutFrequency: "quarterly",
-  reinvestDividends: true
-});
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(Number.isFinite(value) ? value : 0);
@@ -142,7 +133,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 export default function DividendReinvestmentCalculatorPage() {
   const { user, accountStatus } = useWorkspaceUser();
   const canUseCalculator = canUsePremiumTools(accountStatus?.role);
-  const [formPosition, setFormPosition] = useState<DividendPositionInput>(emptyPosition);
+  const [formPosition, setFormPosition] = useState<DividendPositionInput>(createEmptyDividendPosition);
   const [positions, setPositions] = useState<DividendPositionInput[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<string[]>([]);
@@ -285,12 +276,12 @@ export default function DividendReinvestmentCalculatorPage() {
       const loadedPositions = Array.isArray(save.positions_json) ? save.positions_json : [];
       setPositions(loadedPositions);
       setProjectionMonths(Number(save.settings_json?.projectionMonths ?? 12));
-      setProjectionInterval(save.settings_json?.projectionInterval ?? "payout");
+      setProjectionInterval(save.settings_json?.projectionInterval ?? "monthly");
       setChartView(normalizeChartView(save.settings_json?.chartView));
       setCurrentSaveId(save.id);
       setSaveTitle(save.title);
       setEditingId(null);
-      setFormPosition(emptyPosition());
+      setFormPosition(createEmptyDividendPosition());
       setFormErrors([]);
       setSaveMessageType("success");
       setSaveMessage("Saved projection loaded. Results have been recalculated from the saved inputs.");
@@ -403,7 +394,7 @@ export default function DividendReinvestmentCalculatorPage() {
 
   const resetForm = () => {
     setEditingId(null);
-    setFormPosition(emptyPosition());
+    setFormPosition(createEmptyDividendPosition());
     setFormErrors([]);
   };
 
@@ -682,6 +673,9 @@ export default function DividendReinvestmentCalculatorPage() {
               {intervalOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </label>
+        </div>
+        <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+          Monthly view smooths mixed payout schedules into month-end values. Payout-frequency view shows each dividend event and may appear more jagged for weekly payers.
         </div>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <SummaryCard label="Projected Share Value" value={formatCurrency(summary.projectedShareValue)} />
