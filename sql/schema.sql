@@ -211,6 +211,30 @@ CREATE TABLE IF NOT EXISTS dividend_yield_cache (
   updated_at timestamp DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS market_price_history (
+  ticker text NOT NULL,
+  price_date date NOT NULL,
+  close_price numeric,
+  adjusted_close_price numeric,
+  dividend_amount numeric,
+  split_coefficient numeric,
+  source text NOT NULL DEFAULT 'alpha_vantage',
+  fetched_at timestamp DEFAULT now(),
+  raw_json jsonb,
+  PRIMARY KEY (ticker, price_date)
+);
+
+CREATE TABLE IF NOT EXISTS market_data_sync_status (
+  ticker text PRIMARY KEY,
+  source text NOT NULL DEFAULT 'alpha_vantage',
+  last_full_refresh_at timestamp,
+  last_trading_date_cached date,
+  status text NOT NULL DEFAULT 'never_synced',
+  error_message text,
+  created_at timestamp DEFAULT now(),
+  updated_at timestamp DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_income_sources_user_id ON income_sources(user_id);
 CREATE INDEX IF NOT EXISTS idx_expense_profiles_user_id ON expense_profiles(user_id);
@@ -224,3 +248,5 @@ CREATE INDEX IF NOT EXISTS idx_action_plans_user_id ON action_plans(user_id);
 CREATE INDEX IF NOT EXISTS idx_reports_user_id ON reports(user_id);
 CREATE INDEX IF NOT EXISTS idx_dividend_calculator_saves_user_updated ON dividend_calculator_saves(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_dividend_yield_cache_expires_at ON dividend_yield_cache(expires_at);
+CREATE INDEX IF NOT EXISTS idx_market_price_history_ticker_date ON market_price_history(ticker, price_date DESC);
+CREATE INDEX IF NOT EXISTS idx_market_data_sync_status_updated ON market_data_sync_status(updated_at DESC);

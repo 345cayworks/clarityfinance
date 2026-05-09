@@ -20,6 +20,8 @@
 | `dividend-yield-lookup` | `netlify/functions/dividend-yield-lookup.ts` | Look up dividend yield through the internal DB cache, refreshing from Alpha Vantage server-side only when stale/missing | GET | premium_user/advisor/admin/superadmin | dividend_yield_cache | dividend reinvestment calculator | PREMIUM_TOOL | keep |
 | `dividend-yield-refresh` | `netlify/functions/dividend-yield-refresh.ts` | Admin-triggered cache refresh for stale tickers used in saved dividend portfolios, batch limited for provider quota safety | POST | admin/superadmin | dividend_yield_cache, dividend_calculator_saves | admin/manual ops | ADMIN | keep |
 | `dividend-yield-cache-list` | `netlify/functions/dividend-yield-cache-list.ts` | Admin cache inspection endpoint for dividend yield cache freshness/status | GET | admin/superadmin | dividend_yield_cache | admin/future tools | ADMIN | document |
+| `investment-analyzer-analyze` | `netlify/functions/investment-analyzer-analyze.ts` | Cache-first historical backtest analyzer; one daily adjusted provider refresh per stale/missing ticker, then derives historical price, latest price, and dividends from cached series | POST | premium_user/advisor/admin/superadmin | market_price_history, market_data_sync_status | investment analyzer | PREMIUM_TOOL | keep |
+| `market-data-refresh-ticker` | `netlify/functions/market-data-refresh-ticker.ts` | Force-refresh one ticker's daily adjusted series into the market data cache for admin testing/maintenance | POST | admin/superadmin | market_price_history, market_data_sync_status | admin/manual ops | ADMIN | keep |
 
 ## Loan readiness calculation contract
 - `loan-readiness-save` accepts canonical fields for income source, non-housing living expenses, housing payment, monthly debt payments, total monthly obligations, monthly surplus, DTI, housing ratio, total monthly pressure, savings runway, and down payment percent.
@@ -59,7 +61,8 @@
 
 ## Shared enforcement helper
 - `netlify/functions/_access.ts` centralizes auth/role/status gates (`getCurrentUser`, `requireAuth`, `requireActiveUser`, `requirePremiumUser`, `requireAdvisor`, `requireAdmin`, `requireAssignedAdvisorOrAdmin`) and is the default path for function-level access checks.
-- Market-data API keys remain server-side. Dividend yield lookup uses `dividend_yield_cache`; downloaded/provider market datasets must not be committed to the repository.
+- Market-data API keys remain server-side. Dividend yield lookup uses `dividend_yield_cache`, and Investment Analyzer backtests use `market_price_history` plus `market_data_sync_status`; downloaded/provider market datasets must not be committed to the repository.
+- TODO: Add a quota-aware saved-ticker batch refresh job after saved investment analyses exist. It should scan saved investment/dividend portfolios, refresh only stale tickers, and cap batch size for Alpha Vantage limits.
 
 
 ## Advisor artifact payload contract

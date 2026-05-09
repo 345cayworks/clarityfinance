@@ -1,6 +1,10 @@
-import type { CurrentPriceResult, DividendResult, HistoricalPriceResult, MarketDataProvider } from "./types";
+import type { CurrentPriceResult, DailyAdjustedRecord, DividendResult, HistoricalPriceResult, MarketDataProvider } from "./types";
 
 export class FutureProvider implements MarketDataProvider {
+  async getDailyAdjustedSeries(): Promise<DailyAdjustedRecord[]> {
+    throw new Error("Future market data provider is not implemented yet.");
+  }
+
   async getHistoricalClosePrice(): Promise<HistoricalPriceResult> {
     throw new Error("Future market data provider is not implemented yet.");
   }
@@ -13,4 +17,3 @@ export class FutureProvider implements MarketDataProvider {
     throw new Error("Future market data provider is not implemented yet.");
   }
 }
-

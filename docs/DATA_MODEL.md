@@ -121,6 +121,13 @@ The Loan Application Form uses total monthly income as the default base for affo
 - Market data is cached in the database only and is not stored in GitHub. API keys are never exposed to React components.
 - Dividend yield lookup is optional; users can always enter or override yield values manually in the calculator.
 
+### 10) Historical market data cache
+- `market_price_history` stores daily adjusted market data by `(ticker, price_date)` for Investment Analyzer backtesting.
+- Cached rows include close price, adjusted close price, dividend amount, split coefficient, source, fetch timestamp, and raw provider JSON when available.
+- `market_data_sync_status` tracks ticker-level provider sync state, last full refresh time, latest cached trading date, and the last error message.
+- Cache freshness defaults to 24 hours from `last_full_refresh_at`; stale cached data can still be used if the provider fails.
+- Historical market data is stored in the database cache and reused for backtesting. Market data files are not committed to the repository.
+
 ## Canonical next-phase model recommendation
 1. **User**
 2. **UserAccessStatus**
@@ -131,9 +138,10 @@ The Loan Application Form uses total monthly income as the default base for affo
 7. **AdvisorRequest**
 8. **AdvisorAssignment**
 9. **DividendYieldCache**
-10. **DividendCalculatorSave**
-11. **ActionPlan**
-12. **Report**
+10. **HistoricalMarketDataCache**
+11. **DividendCalculatorSave**
+12. **ActionPlan**
+13. **Report**
 
 
 > Note: `premium` was considered as a legacy alias, but it is not valid in the live `UserRole` enum.

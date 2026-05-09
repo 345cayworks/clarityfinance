@@ -42,6 +42,21 @@ function formatPositionPercent(value: number, failed: boolean) {
   return failed ? "N/A" : formatPercent(value);
 }
 
+function formatDataStatus(status: string | undefined) {
+  switch (status) {
+    case "cached":
+      return "Cached";
+    case "refreshed":
+      return "Refreshed";
+    case "stale_cache":
+      return "Stale cache used";
+    case "unavailable":
+      return "Data unavailable";
+    default:
+      return "Unknown";
+  }
+}
+
 function formatDate(value: string | null) {
   if (!value) return "N/A";
   return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
@@ -222,6 +237,7 @@ export default function InvestmentAnalyzerPage() {
             <SummaryCard label="Original Spend" value={formatCurrency(result.summary.originalSpendAmount)} />
             <SummaryCard label="Requested Allocation" value={formatCurrency(result.summary.requestedAllocationTotal)} />
             <SummaryCard label="Analyzed Allocation" value={formatCurrency(result.summary.successfullyAnalyzedAllocationTotal)} />
+            <SummaryCard label="Unavailable Allocation" value={formatCurrency(result.summary.unavailableAllocationTotal)} />
             <SummaryCard label="Amount Invested" value={formatCurrency(result.summary.totalAmountInvested)} />
             <SummaryCard label="Leftover Cash" value={formatCurrency(result.summary.totalLeftoverCash)} />
             <SummaryCard label="Current Share Value" value={formatCurrency(result.summary.currentShareValue)} />
@@ -263,6 +279,7 @@ export default function InvestmentAnalyzerPage() {
                     <th className="px-3 py-2">Gain/Loss</th>
                     <th className="px-3 py-2">Return</th>
                     <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Data</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -288,6 +305,14 @@ export default function InvestmentAnalyzerPage() {
                         <span className={`rounded-full px-2 py-1 text-xs font-semibold ${position.status === "analyzed" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
                           {position.status === "analyzed" ? "Analyzed" : "Failed"}
                         </span>
+                        {position.status === "failed" ? <p className="mt-1 text-xs text-red-700">Data unavailable. This ticker was excluded from return calculations.</p> : null}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className={`rounded-full px-2 py-1 text-xs font-semibold ${position.dataStatus === "stale_cache" ? "bg-amber-50 text-amber-700" : position.dataStatus === "unavailable" ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"}`}>
+                          {formatDataStatus(position.dataStatus)}
+                        </span>
+                        <p className="mt-1 text-xs text-slate-500">Source: {position.dataSource ?? "N/A"}</p>
+                        {position.dataWarning ? <p className="mt-1 text-xs text-amber-700">{position.dataWarning}</p> : null}
                       </td>
                     </tr>
                   ))}

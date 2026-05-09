@@ -1,6 +1,5 @@
 import type { Handler } from "@netlify/functions";
 import { analyzeInvestmentBasket, normalizeTickerInput, validateInvestmentAnalysisRequest } from "../../lib/market-data/investment-analyzer";
-import { getMarketDataProvider } from "../../lib/market-data/provider";
 import { requirePremiumOrStaff } from "./_access";
 import { json, parseJsonBody } from "./_utils";
 
@@ -33,7 +32,7 @@ export const handler: Handler = async (event) => {
   if (errors.length > 0) return json(400, { error: errors[0], errors });
 
   try {
-    const result = await analyzeInvestmentBasket(request, getMarketDataProvider());
+    const result = await analyzeInvestmentBasket(request);
     return json(200, result);
   } catch (error) {
     return json(500, {

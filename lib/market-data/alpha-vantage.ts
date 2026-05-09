@@ -1,4 +1,4 @@
-import type { CurrentPriceResult, DividendResult, HistoricalPriceResult, MarketDataProvider } from "./types";
+import type { CurrentPriceResult, DailyAdjustedRecord, DividendResult, HistoricalPriceResult, MarketDataProvider } from "./types";
 
 type AlphaVantageSeriesRow = {
   "4. close"?: string;
@@ -12,14 +12,6 @@ type AlphaVantageTimeSeriesResponse = {
   "Error Message"?: string;
   Note?: string;
   Information?: string;
-};
-
-type DailyAdjustedRecord = {
-  date: string;
-  close: number;
-  adjustedClose: number;
-  dividendAmount: number;
-  splitCoefficient: number;
 };
 
 type CacheEntry<T> = {
@@ -89,7 +81,7 @@ function isInRange(date: string, startDate: string, endDate: string) {
   return date >= startDate && date <= endDate;
 }
 
-function parseDailyAdjustedSeries(payload: AlphaVantageTimeSeriesResponse): DailyAdjustedRecord[] {
+function parseDailyAdjustedSeries(ticker: string, payload: AlphaVantageTimeSeriesResponse): DailyAdjustedRecord[] {
   const series = payload["Time Series (Daily)"];
   if (!series || typeof series !== "object") throw new Error("Market data is unavailable for this ticker.");
 
@@ -99,14 +91,17 @@ function parseDailyAdjustedSeries(payload: AlphaVantageTimeSeriesResponse): Dail
       const adjustedClose = parsePositiveNumber(row["5. adjusted close"]);
       if (!close || !adjustedClose) return null;
       return {
+        ticker,
         date,
         close,
         adjustedClose,
         dividendAmount: parseNumber(row["7. dividend amount"]),
-        splitCoefficient: parseNumber(row["8. split coefficient"], 1)
+        splitCoefficient: parseNumber(row["8. split coefficient"], 1),
+        source: "alpha_vantage",
+        raw: row as Record<string, unknown>
       };
     })
-    .filter((record): record is DailyAdjustedRecord => Boolean(record))
+    .filter((record): record is NonNullable<typeof record> => Boolean(record))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   if (records.length === 0) throw new Error("Market data is unavailable for this ticker.");
@@ -140,7 +135,7 @@ export class AlphaVantageProvider implements MarketDataProvider {
       const payload = (await response.json()) as AlphaVantageTimeSeriesResponse;
       const providerMessage = getAlphaVantageMessage(payload);
       if (providerMessage) throw new Error(providerMessage);
-      return parseDailyAdjustedSeries(payload);
+      return parseDailyAdjustedSeries(normalizedTicker, payload);
     })();
 
     return setCached(cacheKey, request);
@@ -194,4 +189,3 @@ export class AlphaVantageProvider implements MarketDataProvider {
       }));
   }
 }
-

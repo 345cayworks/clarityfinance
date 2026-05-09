@@ -101,13 +101,15 @@ Premium planning tools stay visible on `/app/tools` for all authenticated active
 | Feature | user | premium_user | advisor | admin | Notes |
 | --- | --- | --- | --- | --- | --- |
 | Dividend Reinvestment Calculator | Visible but locked | Full access including save/load | Full access including save/load | Full access including save/load | Manual-input planning calculator. Saved projections are scoped to the current user. |
-| Investment Analyzer | Visible but locked | Full access | Full access | Full access | Netlify analysis function requires Premium, Advisor, or Admin access. |
+| Investment Analyzer | Visible but locked | Full access | Full access | Full access | Netlify analysis function requires Premium, Advisor, or Admin access. Historical market data is cached in the database and reused for backtesting. |
 | Analyze / Advanced Analysis | Visible but locked if present | Full access | Full access | Full access | No separate Advanced Analysis route currently exists. Apply the same premium-tool pattern if added. |
 | Tools page | Can view locked cards | Can open premium cards | Can open premium cards | Can open premium cards | Locked cards show a Premium badge and upgrade CTA. |
 
 Dividend Reinvestment Calculator server functions use `requirePremiumOrStaff`, so standard `user` accounts cannot save, list, load, update, or delete saved projections even if they call the endpoints directly. Admin and advisor roles save their own projections only; cross-user saved projection browsing is not part of this feature.
 
 Dividend yield lookup is also a premium-tool function. `dividend-yield-lookup` uses `requirePremiumOrStaff` and returns cached database results when fresh before attempting any server-side provider refresh. Admin-only `dividend-yield-refresh` and `dividend-yield-cache-list` use `requireAdmin`. Market data is cached in the database and must not be stored in the repository; manual dividend yield entry remains available for every authorized calculator user.
+
+Investment Analyzer remains premium/staff only through `requirePremiumOrStaff`. Alpha Vantage calls are server-side only and populate `market_price_history` plus `market_data_sync_status`; React components never receive API keys and historical market data is not committed to the repository. Admin-only `market-data-refresh-ticker` can force refresh one ticker for cache maintenance.
 
 ## Data sharing consent
 

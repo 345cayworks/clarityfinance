@@ -1,4 +1,11 @@
-import type { MarketDataProvider } from "./types";
+import {
+  findReferenceTradingDay,
+  getLatestTradingDay,
+  getOrRefreshDailyAdjustedSeries,
+  normalizeTicker,
+  sumDividendsBetweenDates,
+  type SeriesCacheStatus
+} from "./historical-market-data";
 
 export type InvestmentAnalysisRequest = {
   tickers: string[];
@@ -23,6 +30,9 @@ export type InvestmentPosition = {
   gainLoss: number;
   returnPercent: number;
   status: "analyzed" | "failed";
+  dataSource: string | null;
+  dataStatus: SeriesCacheStatus;
+  dataWarning: string | null;
   warnings: string[];
   error: string | null;
 };
@@ -31,6 +41,7 @@ export type InvestmentSummary = {
   originalSpendAmount: number;
   requestedAllocationTotal: number;
   successfullyAnalyzedAllocationTotal: number;
+  unavailableAllocationTotal: number;
   totalAmountInvested: number;
   totalLeftoverCash: number;
   currentShareValue: number;
@@ -67,7 +78,7 @@ function roundPercent(value: number) {
 export function normalizeTickerInput(tickers: string[]) {
   const normalized: string[] = [];
   for (const rawTicker of tickers) {
-    const ticker = rawTicker.trim().replace(/\s+/g, "").toUpperCase();
+    const ticker = normalizeTicker(rawTicker);
     if (ticker && !normalized.includes(ticker)) normalized.push(ticker);
   }
   return normalized;
@@ -86,7 +97,6 @@ export function validateInvestmentAnalysisRequest(input: InvestmentAnalysisReque
 
 export async function analyzeInvestmentBasket(
   request: InvestmentAnalysisRequest,
-  provider: MarketDataProvider,
   today = new Date().toISOString().slice(0, 10)
 ): Promise<InvestmentAnalysisResponse> {
   const tickers = normalizeTickerInput(request.tickers);
@@ -96,29 +106,39 @@ export async function analyzeInvestmentBasket(
   const positions = await Promise.all(
     tickers.map(async (ticker): Promise<InvestmentPosition> => {
       try {
-        const historical = await provider.getHistoricalClosePrice(ticker, request.historicalDate);
-        const current = await provider.getCurrentPrice(ticker);
-        const dividends = await provider.getDividendHistory(ticker, historical.referenceDate, today);
-        const totalDividendPerShare = dividends.reduce((sum, dividend) => sum + dividend.amount, 0);
-        const sharesPurchased = Math.floor(allocationAmount / historical.closePrice);
-        const amountInvested = roundMoney(sharesPurchased * historical.closePrice);
+        const data = await getOrRefreshDailyAdjustedSeries(ticker);
+        const referenceRecord = findReferenceTradingDay(data.series, request.historicalDate);
+        const latestRecord = getLatestTradingDay(data.series);
+
+        if (!referenceRecord || !latestRecord) throw new Error("Market data is unavailable for this ticker.");
+
+        const historicalPrice = referenceRecord.adjustedClose || referenceRecord.close;
+        const currentPrice = latestRecord.adjustedClose || latestRecord.close;
+        if (!Number.isFinite(historicalPrice) || historicalPrice <= 0 || !Number.isFinite(currentPrice) || currentPrice <= 0) {
+          throw new Error("Market prices are unavailable for this ticker.");
+        }
+
+        const totalDividendPerShare = sumDividendsBetweenDates(data.series, referenceRecord.date, latestRecord.date);
+        const sharesPurchased = Math.floor(allocationAmount / historicalPrice);
+        const amountInvested = roundMoney(sharesPurchased * historicalPrice);
         const leftoverCash = roundMoney(allocationAmount - amountInvested);
-        const currentShareValue = roundMoney(sharesPurchased * current.price);
+        const currentShareValue = roundMoney(sharesPurchased * currentPrice);
         const estimatedDividends = roundMoney(sharesPurchased * totalDividendPerShare);
         const totalCurrentValue = roundMoney(currentShareValue + estimatedDividends + leftoverCash);
         const gainLoss = roundMoney(totalCurrentValue - allocationAmount);
         const returnPercent = allocationAmount > 0 ? roundPercent((gainLoss / allocationAmount) * 100) : 0;
         const positionWarnings: string[] = [];
 
-        if (historical.referenceDate !== request.historicalDate) {
-          positionWarnings.push(`Selected date was not a trading day; used ${historical.referenceDate}.`);
+        if (referenceRecord.date !== request.historicalDate) {
+          positionWarnings.push(`Selected date was not a trading day; used ${referenceRecord.date}.`);
         }
         if (sharesPurchased === 0) {
           positionWarnings.push("Allocation was lower than the historical share price, so zero shares were purchased.");
         }
-        if (dividends.length === 0) {
+        if (totalDividendPerShare === 0) {
           positionWarnings.push("Dividend data unavailable or no dividends found.");
         }
+        if (data.warning) positionWarnings.push(data.warning);
 
         warnings.push(...positionWarnings.map((message) => `${ticker}: ${message}`));
 
@@ -126,19 +146,22 @@ export async function analyzeInvestmentBasket(
           ticker,
           allocationAmount: roundMoney(allocationAmount),
           requestedDate: request.historicalDate,
-          referenceDateUsed: historical.referenceDate,
-          historicalClosePrice: roundMoney(historical.closePrice),
+          referenceDateUsed: referenceRecord.date,
+          historicalClosePrice: roundMoney(historicalPrice),
           sharesPurchased,
           amountInvested,
           leftoverCash,
-          currentPrice: roundMoney(current.price),
-          currentPriceDate: current.referenceDate,
+          currentPrice: roundMoney(currentPrice),
+          currentPriceDate: latestRecord.date,
           currentShareValue,
           estimatedDividends,
           totalCurrentValue,
           gainLoss,
           returnPercent,
           status: "analyzed",
+          dataSource: latestRecord.source,
+          dataStatus: data.cacheStatus,
+          dataWarning: data.warning,
           warnings: positionWarnings,
           error: null
         };
@@ -162,8 +185,11 @@ export async function analyzeInvestmentBasket(
           gainLoss: 0,
           returnPercent: 0,
           status: "failed",
+          dataSource: null,
+          dataStatus: "unavailable",
+          dataWarning: "Data unavailable. This ticker was excluded from return calculations.",
           warnings: [],
-          error: message
+          error: `${message} Data unavailable. This ticker was excluded from return calculations.`
         };
       }
     })
@@ -172,6 +198,7 @@ export async function analyzeInvestmentBasket(
   const analyzedPositions = positions.filter((position) => position.status === "analyzed");
   const requestedAllocationTotal = roundMoney(request.spendAmount);
   const successfullyAnalyzedAllocationTotal = roundMoney(analyzedPositions.reduce((sum, position) => sum + position.allocationAmount, 0));
+  const unavailableAllocationTotal = roundMoney(positions.filter((position) => position.status === "failed").reduce((sum, position) => sum + position.allocationAmount, 0));
   const totalAmountInvested = roundMoney(analyzedPositions.reduce((sum, position) => sum + position.amountInvested, 0));
   const totalLeftoverCash = roundMoney(analyzedPositions.reduce((sum, position) => sum + position.leftoverCash, 0));
   const currentShareValue = roundMoney(analyzedPositions.reduce((sum, position) => sum + position.currentShareValue, 0));
@@ -185,6 +212,7 @@ export async function analyzeInvestmentBasket(
       originalSpendAmount: roundMoney(request.spendAmount),
       requestedAllocationTotal,
       successfullyAnalyzedAllocationTotal,
+      unavailableAllocationTotal,
       totalAmountInvested,
       totalLeftoverCash,
       currentShareValue,
