@@ -129,9 +129,10 @@ The Loan Application Form uses total monthly income as the default base for affo
 
 ### 10) Dividend yield cache
 - `dividend_yield_cache` stores normalized ticker-level dividend yield lookup results fetched server-side through provider functions.
-- It includes ticker, optional company name, dividend yield percent, annual dividend per share, payout frequency if known, source, raw provider JSON, fetch timestamps, and expiry metadata.
+- It includes ticker, optional company name, dividend yield percent, annual dividend per share, current price when supplied by the provider, payout frequency if known, source, raw provider JSON, fetch timestamps, and expiry metadata.
 - Cache freshness defaults to 24 hours. `expires_at` is preferred when present; otherwise functions evaluate `fetched_at`.
 - Market data is cached in the database only and is not stored in GitHub. API keys are never exposed to React components.
+- `source` can be `alpha_vantage` or `massive` depending on `MARKET_DATA_PROVIDER`; when `MARKET_DATA_PROVIDER` is missing, MASSIVE is preferred if `MASSIVE_API_KEY` exists, otherwise Alpha Vantage is used if `ALPHA_VANTAGE_API_KEY` exists.
 - Dividend yield lookup is optional; users can always enter or override yield values manually in the calculator.
 
 ### 11) Historical market data cache
@@ -140,6 +141,7 @@ The Loan Application Form uses total monthly income as the default base for affo
 - `market_data_sync_status` tracks ticker-level provider sync state, last full refresh time, latest cached trading date, and the last error message.
 - Cache freshness defaults to 24 hours from `last_full_refresh_at`; stale cached data can still be used if the provider fails.
 - Historical market data is stored in the database cache and reused for backtesting. Market data files are not committed to the repository.
+- `MARKET_DATA_PROVIDER=massive` uses MASSIVE for daily aggregates and dividends. If adjusted-close data is unavailable from MASSIVE for a record, the provider maps close to `adjustedClose` and keeps a raw warning for traceability.
 
 ## Canonical next-phase model recommendation
 1. **User**

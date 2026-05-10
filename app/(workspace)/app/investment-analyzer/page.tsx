@@ -57,6 +57,12 @@ function formatDataStatus(status: string | undefined) {
   }
 }
 
+function formatDataSource(source: string | null | undefined) {
+  if (source === "massive") return "MASSIVE";
+  if (source === "alpha_vantage") return "Alpha Vantage";
+  return "N/A";
+}
+
 function formatDate(value: string | null) {
   if (!value) return "N/A";
   return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
@@ -311,7 +317,7 @@ export default function InvestmentAnalyzerPage() {
                         <span className={`rounded-full px-2 py-1 text-xs font-semibold ${position.dataStatus === "stale_cache" ? "bg-amber-50 text-amber-700" : position.dataStatus === "unavailable" ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"}`}>
                           {formatDataStatus(position.dataStatus)}
                         </span>
-                        <p className="mt-1 text-xs text-slate-500">Source: {position.dataSource ?? "N/A"}</p>
+                        <p className="mt-1 text-xs text-slate-500">Data source: {formatDataSource(position.dataSource)}</p>
                         {position.dataWarning ? <p className="mt-1 text-xs text-amber-700">{position.dataWarning}</p> : null}
                       </td>
                     </tr>

@@ -1,5 +1,9 @@
 import type { Handler } from "@netlify/functions";
-import { getDividendYieldProvider } from "../../lib/market-data/dividend-yield-provider";
+import {
+  getDividendYieldProviderSourceLabel,
+  lookupDividendYieldWithFallback,
+  sanitizeDividendYieldError
+} from "../../lib/market-data/dividend-yield-provider";
 import { requirePremiumOrStaff } from "./_access";
 import {
   cacheRowToResult,
@@ -34,13 +38,17 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const provider = getDividendYieldProvider();
-    const providerResult = await provider.getDividendYield(ticker);
+    const providerResult = await lookupDividendYieldWithFallback(ticker);
     const saved = await upsertYieldCache({ ...providerResult, ticker });
+    const result = {
+      ...cacheRowToResult(saved, "cached"),
+      source: saved.source,
+      status: "refreshed"
+    };
     return json(200, {
       success: true,
-      result: cacheRowToResult(saved, "cached"),
-      message: "Yield refreshed from Alpha Vantage."
+      result,
+      message: `Yield loaded from ${getDividendYieldProviderSourceLabel(result.source)}.`
     });
   } catch (error) {
     console.error("dividend-yield-lookup provider failed", { ticker, name: error instanceof Error ? error.name : "UnknownError" });
@@ -54,7 +62,8 @@ export const handler: Handler = async (event) => {
 
     return json(503, {
       success: false,
-      error: MANUAL_ENTRY_MESSAGE
+      error: sanitizeDividendYieldError(error),
+      message: MANUAL_ENTRY_MESSAGE
     });
   }
 };

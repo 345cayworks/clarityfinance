@@ -1,11 +1,13 @@
 import { sql } from "../../lib/db/neon";
 import type { DividendYieldLookup } from "../../lib/market-data/dividend-yield-provider";
+import type { DividendYieldSource } from "../../lib/market-data/types";
 
 export type DividendYieldCacheRow = {
   ticker: string;
   company_name: string | null;
   dividend_yield_percent: string | number | null;
   annual_dividend_per_share: string | number | null;
+  current_price: string | number | null;
   payout_frequency: string | null;
   source: string;
   raw_json: Record<string, unknown> | null;
@@ -32,8 +34,9 @@ export async function ensureDividendYieldCacheTable() {
       company_name TEXT,
       dividend_yield_percent NUMERIC,
       annual_dividend_per_share NUMERIC,
+      current_price NUMERIC,
       payout_frequency TEXT,
-      source TEXT NOT NULL DEFAULT 'manual_or_provider',
+      source TEXT NOT NULL DEFAULT 'massive',
       raw_json JSONB,
       fetched_at TIMESTAMP DEFAULT now(),
       expires_at TIMESTAMP,
@@ -41,6 +44,9 @@ export async function ensureDividendYieldCacheTable() {
       updated_at TIMESTAMP DEFAULT now()
     )
   `;
+  await sql`ALTER TABLE dividend_yield_cache ADD COLUMN IF NOT EXISTS current_price NUMERIC`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_dividend_yield_cache_ticker ON dividend_yield_cache(ticker)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_dividend_yield_cache_fetched_at ON dividend_yield_cache(fetched_at)`;
   await sql`
     CREATE INDEX IF NOT EXISTS idx_dividend_yield_cache_expires_at
     ON dividend_yield_cache(expires_at)
@@ -53,8 +59,10 @@ export function cacheRowToResult(row: DividendYieldCacheRow, status: "cached" | 
     companyName: row.company_name,
     dividendYieldPercent: row.dividend_yield_percent === null ? null : Number(row.dividend_yield_percent),
     annualDividendPerShare: row.annual_dividend_per_share === null ? null : Number(row.annual_dividend_per_share),
+    currentPrice: row.current_price === null ? null : Number(row.current_price),
     payoutFrequency: row.payout_frequency,
-    source: row.source,
+    source: "cache" as DividendYieldSource,
+    providerSource: row.source,
     fetchedAt: row.fetched_at,
     expiresAt: row.expires_at,
     status
@@ -71,7 +79,7 @@ export function isFreshCache(row: DividendYieldCacheRow | null) {
 
 export async function getYieldCacheRow(ticker: string) {
   const rows = await sql`
-    SELECT ticker, company_name, dividend_yield_percent, annual_dividend_per_share, payout_frequency, source, raw_json, fetched_at, expires_at, created_at, updated_at
+    SELECT ticker, company_name, dividend_yield_percent, annual_dividend_per_share, current_price, payout_frequency, source, raw_json, fetched_at, expires_at, created_at, updated_at
     FROM dividend_yield_cache
     WHERE ticker = ${ticker}
     LIMIT 1
@@ -86,6 +94,7 @@ export async function upsertYieldCache(result: DividendYieldLookup) {
       company_name,
       dividend_yield_percent,
       annual_dividend_per_share,
+      current_price,
       payout_frequency,
       source,
       raw_json,
@@ -99,6 +108,7 @@ export async function upsertYieldCache(result: DividendYieldLookup) {
       ${result.companyName},
       ${result.dividendYieldPercent},
       ${result.annualDividendPerShare},
+      ${result.currentPrice},
       ${result.payoutFrequency},
       ${result.source},
       ${JSON.stringify(result.raw ?? {})}::jsonb,
@@ -111,13 +121,14 @@ export async function upsertYieldCache(result: DividendYieldLookup) {
       company_name = EXCLUDED.company_name,
       dividend_yield_percent = EXCLUDED.dividend_yield_percent,
       annual_dividend_per_share = EXCLUDED.annual_dividend_per_share,
+      current_price = EXCLUDED.current_price,
       payout_frequency = EXCLUDED.payout_frequency,
       source = EXCLUDED.source,
       raw_json = EXCLUDED.raw_json,
       fetched_at = EXCLUDED.fetched_at,
       expires_at = EXCLUDED.expires_at,
       updated_at = NOW()
-    RETURNING ticker, company_name, dividend_yield_percent, annual_dividend_per_share, payout_frequency, source, raw_json, fetched_at, expires_at, created_at, updated_at
+    RETURNING ticker, company_name, dividend_yield_percent, annual_dividend_per_share, current_price, payout_frequency, source, raw_json, fetched_at, expires_at, created_at, updated_at
   ` as DividendYieldCacheRow[];
   return rows[0];
 }

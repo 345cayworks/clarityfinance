@@ -49,6 +49,12 @@ const formatMoney = (value: number, currency: string) =>
     maximumFractionDigits: 0
   }).format(Number.isFinite(value) ? value : 0);
 
+const formatPercent = (value: number | null | undefined) =>
+  value === null || value === undefined || !Number.isFinite(value) ? "N/A" : `${(value * 100).toFixed(1)}%`;
+
+const formatMonths = (value: number | null | undefined) =>
+  value === null || value === undefined || !Number.isFinite(value) ? "Not profitable with current assumptions." : `${value.toFixed(1)} months`;
+
 const defaultRentRoomTitle = () => `Rent-a-Room Scenario - ${new Date().toISOString().slice(0, 10)}`;
 
 const rentRoomScenarioSignature = (title: string, input: unknown, result: unknown) =>
@@ -476,7 +482,9 @@ export function RentRoomTool() {
   }), [rentRoomInput, securityDepositCollected]);
   const saveResult = useMemo(() => ({
     ...calc,
-    securityDepositCollected
+    securityDepositCollected,
+    securityDepositCountedAsProfit: false,
+    securityDepositAssumption: "Security deposit is shown for cash-on-hand planning but is not counted as profit because it may be refundable."
   }), [calc, securityDepositCollected]);
   const currentSignature = useMemo(
     () => rentRoomScenarioSignature(scenarioTitle, saveInput, saveResult),
@@ -499,7 +507,7 @@ export function RentRoomTool() {
       ["Air conditioning/fan", airConditioningFan],
       ["Bathroom prep", bathroomPrep],
       ["Door/lock/security", doorLockSecurity],
-      ["WiFi upgrade", wifiUpgrade],
+      ["One-time WiFi/router setup", wifiUpgrade],
       ["Cleaning/deep clean", cleaningDeepClean],
       ["Bedding/furniture", beddingFurniture],
       ["Desk/chair/storage", deskChairStorage],
@@ -508,7 +516,7 @@ export function RentRoomTool() {
       ["Permits/legal/admin", permitsLegalAdmin],
       ["Other setup cost", otherSetupCost],
       ["Utilities increase", utilitiesIncrease],
-      ["Internet increase", internetIncrease],
+      ["Monthly internet increase", internetIncrease],
       ["Cleaning", cleaningMonthly],
       ["Maintenance reserve", maintenanceReserve],
       ["Insurance increase", insuranceIncrease],
@@ -516,7 +524,7 @@ export function RentRoomTool() {
       ["Supplies", supplies],
       ["Other monthly cost", otherMonthlyCost],
       ["Months to find tenant", monthsToFindTenant],
-      ["Vacancy allowance", vacancyAllowancePercent],
+      ["Additional vacancy buffer", vacancyAllowancePercent],
       ["One-time contingency", oneTimeContingencyPercent]
     ];
 
@@ -525,14 +533,14 @@ export function RentRoomTool() {
     if (!Number.isFinite(occupancyPercent) || occupancyPercent < 0 || occupancyPercent > 100) return "Expected occupancy must be between 0 and 100.";
     const numericResultValues = [
       calc.totalSetupCost,
-      calc.effectiveMonthlyRent,
+      calc.effectiveMonthlyRentOnceOccupied,
       calc.monthlyAddedCosts,
-      calc.netMonthlyProfit,
-      calc.firstYearNet,
-      calc.annualProfitAfterBreakEven
+      calc.netMonthlyProfitOnceOccupied,
+      calc.firstYearNetAfterSetup,
+      calc.annualRecurringProfitAfterBreakEven
     ];
     if (numericResultValues.some((value) => !Number.isFinite(value))) return "Scenario results must be valid numbers before saving.";
-    if (calc.effectiveMonthlyRent < 0) return "Effective monthly rent cannot be negative.";
+    if (calc.effectiveMonthlyRentOnceOccupied < 0) return "Effective monthly rent once occupied cannot be negative.";
     return null;
   };
 
@@ -616,7 +624,9 @@ export function RentRoomTool() {
     };
     const restoredResult = {
       ...calculateRentRoomProfitability(restoredInput),
-      securityDepositCollected: toSafeNumber(income.securityDepositCollected)
+      securityDepositCollected: toSafeNumber(income.securityDepositCollected),
+      securityDepositCountedAsProfit: false,
+      securityDepositAssumption: "Security deposit is shown for cash-on-hand planning but is not counted as profit because it may be refundable."
     };
     setLoadedScenarioSignature(rentRoomScenarioSignature(title, restoredInput, restoredResult));
   };
@@ -727,7 +737,7 @@ export function RentRoomTool() {
   return (
     <ToolCard
       title="Rent-a-Room Tool"
-      result={`Net monthly profit estimate: ${formatMoney(calc.netMonthlyProfit, currency)}`}
+      result={`Net monthly profit once occupied: ${formatMoney(calc.netMonthlyProfitOnceOccupied, currency)}`}
     >
       {profileData?.housingProfile?.spare_room_available ? (
         <p className="text-sm text-emerald-700">Room marked as available in your profile.</p>
@@ -822,15 +832,19 @@ export function RentRoomTool() {
                     </button>
                   </div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <ScenarioPreviewMetric label="Effective monthly rent" value={formatMoney(toSafeNumber(result.effectiveMonthlyRent), currency)} />
+                    <ScenarioPreviewMetric label="Effective monthly rent once occupied" value={formatMoney(toSafeNumber(result.effectiveMonthlyRentOnceOccupied ?? result.effectiveMonthlyRent), currency)} />
                     <ScenarioPreviewMetric label="Monthly added costs" value={formatMoney(toSafeNumber(result.monthlyAddedCosts), currency)} />
-                    <ScenarioPreviewMetric label="Net monthly profit" value={formatMoney(toSafeNumber(result.netMonthlyProfit ?? result.monthlyNetProfit), currency)} />
+                    <ScenarioPreviewMetric label="Net monthly profit once occupied" value={formatMoney(toSafeNumber(result.netMonthlyProfitOnceOccupied ?? result.netMonthlyProfit ?? result.monthlyNetProfit), currency)} />
                     <ScenarioPreviewMetric
-                      label="Break-even timeline"
-                      value={result.breakEvenMonths === null ? "Not profitable" : `${toSafeNumber(result.breakEvenMonths).toFixed(1)} months`}
+                      label="Operating break-even"
+                      value={result.operatingBreakEvenMonths === null || result.breakEvenMonths === null ? "Not profitable" : `${toSafeNumber(result.operatingBreakEvenMonths ?? result.breakEvenMonths).toFixed(1)} months`}
                     />
-                    <ScenarioPreviewMetric label="First-year net result" value={formatMoney(toSafeNumber(result.firstYearNet), currency)} />
-                    <ScenarioPreviewMetric label="Annual profit after break-even" value={formatMoney(toSafeNumber(result.annualProfitAfterBreakEven), currency)} />
+                    <ScenarioPreviewMetric
+                      label="Calendar break-even including tenant search"
+                      value={result.calendarBreakEvenMonths === null ? "Not profitable" : `${toSafeNumber(result.calendarBreakEvenMonths).toFixed(1)} months`}
+                    />
+                    <ScenarioPreviewMetric label="First-year net after setup cost" value={formatMoney(toSafeNumber(result.firstYearNetAfterSetup ?? result.firstYearNet), currency)} />
+                    <ScenarioPreviewMetric label="Annual recurring profit after break-even" value={formatMoney(toSafeNumber(result.annualRecurringProfitAfterBreakEven ?? result.annualProfitAfterBreakEven), currency)} />
                   </div>
                 </div>
               );
@@ -847,7 +861,7 @@ export function RentRoomTool() {
         <Field label="Air conditioning/fan" value={airConditioningFan} setValue={setAirConditioningFan} />
         <Field label="Bathroom upgrade/shared bathroom prep" value={bathroomPrep} setValue={setBathroomPrep} />
         <Field label="Door/lock/security" value={doorLockSecurity} setValue={setDoorLockSecurity} />
-        <Field label="Internet/WiFi upgrade" value={wifiUpgrade} setValue={setWifiUpgrade} />
+        <Field label="One-time WiFi/router setup" value={wifiUpgrade} setValue={setWifiUpgrade} />
         <Field label="Cleaning/deep clean" value={cleaningDeepClean} setValue={setCleaningDeepClean} />
         <Field label="Bedding/furniture" value={beddingFurniture} setValue={setBeddingFurniture} />
         <Field label="Desk/chair/storage" value={deskChairStorage} setValue={setDeskChairStorage} />
@@ -868,7 +882,7 @@ export function RentRoomTool() {
       <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-4 mb-1 pt-2 border-t border-slate-100">C. Monthly Added Costs</h3>
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="Utilities increase" value={utilitiesIncrease} setValue={setUtilitiesIncrease} />
-        <Field label="Internet increase" value={internetIncrease} setValue={setInternetIncrease} />
+        <Field label="Monthly internet increase" value={internetIncrease} setValue={setInternetIncrease} />
         <Field label="Cleaning" value={cleaningMonthly} setValue={setCleaningMonthly} />
         <Field label="Maintenance reserve" value={maintenanceReserve} setValue={setMaintenanceReserve} />
         <Field label="Insurance increase" value={insuranceIncrease} setValue={setInsuranceIncrease} />
@@ -880,22 +894,33 @@ export function RentRoomTool() {
       <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-4 mb-1 pt-2 border-t border-slate-100">D. Optional Risk/Comfort Inputs</h3>
       <div className="grid gap-3 md:grid-cols-2">
         <Field label="Months to find tenant" value={monthsToFindTenant} setValue={setMonthsToFindTenant} />
-        <Field label="Vacancy allowance %" value={vacancyAllowancePercent} setValue={setVacancyAllowancePercent} step="0.1" />
+        <Field label="Additional vacancy buffer %" value={vacancyAllowancePercent} setValue={setVacancyAllowancePercent} step="0.1" />
         <Field label="One-time contingency %" value={oneTimeContingencyPercent} setValue={setOneTimeContingencyPercent} step="0.1" />
       </div>
 
       <div className="rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
+        <p>Base setup cost: {formatMoney(calc.baseSetupCost, currency)}</p>
+        <p>Contingency amount: {formatMoney(calc.contingencyAmount, currency)}</p>
         <p>Total setup cost: {formatMoney(calc.totalSetupCost, currency)}</p>
-        <p>Effective monthly rent: {formatMoney(calc.effectiveMonthlyRent, currency)}</p>
+        <p>Effective monthly rent once occupied: {formatMoney(calc.effectiveMonthlyRentOnceOccupied, currency)}</p>
         <p>Monthly added costs: {formatMoney(calc.monthlyAddedCosts, currency)}</p>
-        <p>Net monthly profit: {formatMoney(calc.netMonthlyProfit, currency)}</p>
-        <p>
-          Break-even timeline: {calc.breakEvenMonths === null ? "Not profitable with current assumptions." : `${calc.breakEvenMonths.toFixed(1)} months`}
-        </p>
-        <p>First-year net result: {formatMoney(calc.firstYearNet, currency)}</p>
-        <p>Annual profit after break-even: {formatMoney(calc.annualProfitAfterBreakEven, currency)}</p>
-        <p>Security deposit collected: {formatMoney(securityDepositCollected, currency)} (cash collected, not profit).</p>
+        <p>Net monthly profit once occupied: {formatMoney(calc.netMonthlyProfitOnceOccupied, currency)}</p>
+        <p>Active rental months in first year: {calc.activeRentalMonthsFirstYear.toFixed(1)}</p>
+        <p>First-year gross income: {formatMoney(calc.firstYearGrossIncome, currency)}</p>
+        <p>First-year added costs: {formatMoney(calc.firstYearAddedCosts, currency)}</p>
+        <p>First-year operating profit: {formatMoney(calc.firstYearOperatingProfit, currency)}</p>
+        <p>First-year net after setup cost: {formatMoney(calc.firstYearNetAfterSetup, currency)}</p>
+        <p>Operating break-even: {formatMonths(calc.operatingBreakEvenMonths)}</p>
+        <p>Calendar break-even including tenant search: {formatMonths(calc.calendarBreakEvenMonths)}</p>
+        <p>Annual recurring profit after break-even: {formatMoney(calc.annualRecurringProfitAfterBreakEven, currency)}</p>
+        <p>Monthly return on setup cost: {formatPercent(calc.monthlyReturnOnSetupCost)}</p>
+        <p>Annual return on setup cost: {formatPercent(calc.annualReturnOnSetupCost)}</p>
+        <p>Security deposit collected, not counted as profit: {formatMoney(securityDepositCollected, currency)}</p>
       </div>
+
+      <p className="text-xs text-slate-500">
+        Security deposit is shown for cash-on-hand planning but is not counted as profit because it may be refundable.
+      </p>
 
       <p className="text-sm font-medium text-[#0A2540]">Status: {calc.statusLabel}</p>
 

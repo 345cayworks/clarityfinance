@@ -1,5 +1,6 @@
 import type { Handler } from "@netlify/functions";
 import { sql } from "../../lib/db/neon";
+import { calculateRentRoomProfitability } from "../../lib/finance/rent-room";
 import { requireActiveUser } from "./_access";
 import { json, parseJsonBody, randomId } from "./_utils";
 import {
@@ -31,7 +32,16 @@ export const handler: Handler = async (event) => {
   const rawIncomeJson = ((input.income as AnyRecord | undefined) ?? {}) as AnyRecord;
   const costsJson = ((input.costs as AnyRecord | undefined) ?? {}) as AnyRecord;
   const rawResultJson = ((body.result as AnyRecord | undefined) ?? {}) as AnyRecord;
-  const { normalizedIncome: incomeJson, normalizedResult: resultJson } = withReportAliases(rawIncomeJson, rawResultJson);
+  const calculatedResultJson = calculateRentRoomProfitability({ setup: setupJson, income: rawIncomeJson, costs: costsJson });
+  const { normalizedIncome: incomeJson, normalizedResult: resultJson } = withReportAliases(rawIncomeJson, {
+    ...rawResultJson,
+    ...calculatedResultJson,
+    securityDepositCollected: rawResultJson.securityDepositCollected ?? rawIncomeJson.securityDepositCollected ?? 0,
+    securityDepositCountedAsProfit: false,
+    securityDepositAssumption:
+      rawResultJson.securityDepositAssumption ??
+      "Security deposit is shown for cash-on-hand planning but is not counted as profit because it may be refundable."
+  });
   const title = normalizeScenarioTitle(body.title);
   const reportVersion = normalizeReportVersion(body.reportVersion);
   const scenarioId = typeof body.id === "string" ? body.id.trim() : "";

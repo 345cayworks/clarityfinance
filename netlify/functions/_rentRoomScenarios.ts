@@ -80,8 +80,17 @@ export function withReportAliases(incomeJson: AnyRecord, resultJson: AnyRecord) 
 
   const normalizedResult = {
     ...resultJson,
-    netMonthly: resultJson.netMonthly ?? resultJson.netMonthlyProfit ?? 0,
-    monthlyNetProfit: resultJson.monthlyNetProfit ?? resultJson.netMonthlyProfit ?? resultJson.netMonthly ?? 0
+    effectiveMonthlyRentOnceOccupied: resultJson.effectiveMonthlyRentOnceOccupied ?? resultJson.effectiveMonthlyRent ?? 0,
+    netMonthlyProfitOnceOccupied: resultJson.netMonthlyProfitOnceOccupied ?? resultJson.netMonthlyProfit ?? resultJson.monthlyNetProfit ?? resultJson.netMonthly ?? 0,
+    operatingBreakEvenMonths: resultJson.operatingBreakEvenMonths ?? resultJson.breakEvenMonths ?? null,
+    firstYearNetAfterSetup: resultJson.firstYearNetAfterSetup ?? resultJson.firstYearNet ?? 0,
+    annualRecurringProfitAfterBreakEven: resultJson.annualRecurringProfitAfterBreakEven ?? resultJson.annualProfitAfterBreakEven ?? 0,
+    securityDepositCountedAsProfit: resultJson.securityDepositCountedAsProfit ?? false,
+    securityDepositAssumption:
+      resultJson.securityDepositAssumption ??
+      "Security deposit is shown for cash-on-hand planning but is not counted as profit because it may be refundable.",
+    netMonthly: resultJson.netMonthly ?? resultJson.netMonthlyProfitOnceOccupied ?? resultJson.netMonthlyProfit ?? 0,
+    monthlyNetProfit: resultJson.monthlyNetProfit ?? resultJson.netMonthlyProfitOnceOccupied ?? resultJson.netMonthlyProfit ?? resultJson.netMonthly ?? 0
   };
 
   return { normalizedIncome, normalizedResult };

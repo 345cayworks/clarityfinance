@@ -67,6 +67,8 @@ const assumptions = [
   "Results are for education and planning purposes only, not investment advice."
 ];
 
+const MARKET_DATA_UNAVAILABLE_MESSAGE = "Market data unavailable. Please try again later or enter values manually.";
+
 function roundMoney(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
@@ -166,7 +168,9 @@ export async function analyzeInvestmentBasket(
           error: null
         };
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to analyze this ticker.";
+        const message = error instanceof Error && !error.message.includes("_API_KEY")
+          ? error.message
+          : MARKET_DATA_UNAVAILABLE_MESSAGE;
         warnings.push(`${ticker}: ${message}`);
         return {
           ticker,

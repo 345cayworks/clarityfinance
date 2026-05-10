@@ -38,15 +38,37 @@ export type RentRoomInput = {
 };
 
 export type RentRoomResult = {
+  baseSetupCost: number;
+  contingencyAmount: number;
   totalSetupCost: number;
   effectiveMonthlyRent: number;
+  effectiveMonthlyRentOnceOccupied: number;
   monthlyAddedCosts: number;
   netMonthlyProfit: number;
+  netMonthlyProfitOnceOccupied: number;
+  operatingBreakEvenMonths: number | null;
+  calendarBreakEvenMonths: number | null;
   breakEvenMonths: number | null;
+  activeRentalMonthsFirstYear: number;
+  firstYearGrossIncome: number;
+  firstYearAddedCosts: number;
+  firstYearOperatingProfit: number;
   firstYearNet: number;
+  firstYearNetAfterSetup: number;
   annualProfitAfterBreakEven: number;
+  annualRecurringProfitAfterBreakEven: number;
+  monthlyReturnOnSetupCost: number | null;
+  annualReturnOnSetupCost: number | null;
   statusLabel: string;
 };
+
+const clamp = (value: unknown, min: number, max: number) => {
+  const number = toNumber(value);
+  if (!Number.isFinite(number)) return min;
+  return Math.min(max, Math.max(min, number));
+};
+
+const finite = (value: number) => (Number.isFinite(value) ? value : 0);
 
 export function calculateRentRoomProfitability(input: RentRoomInput): RentRoomResult {
   const setup = input.setup ?? {};
@@ -69,14 +91,15 @@ export function calculateRentRoomProfitability(input: RentRoomInput): RentRoomRe
     toNumber(setup.permitsLegalAdmin) +
     toNumber(setup.otherSetupCost);
 
-  const contingencyAmount = baseSetupCost * (toNumber(setup.oneTimeContingencyPercent) / 100);
+  const contingencyAmount = baseSetupCost * (clamp(setup.oneTimeContingencyPercent, 0, 100) / 100);
   const totalSetupCost = baseSetupCost + contingencyAmount;
 
-  const occupancyFactor = toNumber(income.occupancyPercent) / 100;
-  const vacancyFactor = Math.max(0, 1 - toNumber(income.vacancyAllowancePercent) / 100);
-  const tenantSearchFactor = Math.max(0, (12 - toNumber(income.monthsToFindTenant)) / 12);
+  const occupancyFactor = clamp(income.occupancyPercent, 0, 100) / 100;
+  const additionalVacancyBufferFactor = 1 - clamp(income.vacancyAllowancePercent, 0, 100) / 100;
+  const monthsToFindTenantClamped = clamp(income.monthsToFindTenant, 0, 12);
+  const activeRentalMonthsFirstYear = Math.max(0, 12 - monthsToFindTenantClamped);
 
-  const effectiveMonthlyRent = toNumber(income.expectedMonthlyRent) * occupancyFactor * vacancyFactor;
+  const effectiveMonthlyRentOnceOccupied = toNumber(income.expectedMonthlyRent) * occupancyFactor * additionalVacancyBufferFactor;
 
   const monthlyAddedCosts =
     toNumber(costs.utilitiesIncrease) +
@@ -88,30 +111,50 @@ export function calculateRentRoomProfitability(input: RentRoomInput): RentRoomRe
     toNumber(costs.supplies) +
     toNumber(costs.otherMonthlyCost);
 
-  const netMonthlyProfit = effectiveMonthlyRent + toNumber(income.otherMonthlyIncome) - monthlyAddedCosts;
-  const breakEvenMonths = netMonthlyProfit > 0 ? totalSetupCost / netMonthlyProfit : null;
-  const firstYearNet = netMonthlyProfit * 12 * tenantSearchFactor - totalSetupCost;
-  const annualProfitAfterBreakEven = netMonthlyProfit * 12;
+  const netMonthlyProfitOnceOccupied = effectiveMonthlyRentOnceOccupied + toNumber(income.otherMonthlyIncome) - monthlyAddedCosts;
+  const operatingBreakEvenMonths = netMonthlyProfitOnceOccupied > 0 ? totalSetupCost / netMonthlyProfitOnceOccupied : null;
+  const calendarBreakEvenMonths = operatingBreakEvenMonths === null ? null : monthsToFindTenantClamped + operatingBreakEvenMonths;
+  const firstYearGrossIncome = (effectiveMonthlyRentOnceOccupied + toNumber(income.otherMonthlyIncome)) * activeRentalMonthsFirstYear;
+  const firstYearAddedCosts = monthlyAddedCosts * activeRentalMonthsFirstYear;
+  const firstYearOperatingProfit = netMonthlyProfitOnceOccupied * activeRentalMonthsFirstYear;
+  const firstYearNetAfterSetup = firstYearOperatingProfit - totalSetupCost;
+  const annualRecurringProfitAfterBreakEven = netMonthlyProfitOnceOccupied * 12;
+  const monthlyReturnOnSetupCost = totalSetupCost > 0 ? netMonthlyProfitOnceOccupied / totalSetupCost : null;
+  const annualReturnOnSetupCost = totalSetupCost > 0 ? annualRecurringProfitAfterBreakEven / totalSetupCost : null;
 
   const statusLabel =
-    netMonthlyProfit <= 0 || breakEvenMonths === null
+    netMonthlyProfitOnceOccupied <= 0 || operatingBreakEvenMonths === null
       ? "Not recommended as structured"
-      : breakEvenMonths < 6
+      : operatingBreakEvenMonths < 6
         ? "Strong opportunity"
-        : breakEvenMonths <= 12
+        : operatingBreakEvenMonths <= 12
           ? "Reasonable opportunity"
-          : breakEvenMonths <= 24
+          : operatingBreakEvenMonths <= 24
             ? "Longer payback"
             : "Review carefully";
 
   return {
-    totalSetupCost,
-    effectiveMonthlyRent,
-    monthlyAddedCosts,
-    netMonthlyProfit,
-    breakEvenMonths,
-    firstYearNet,
-    annualProfitAfterBreakEven,
+    baseSetupCost: finite(baseSetupCost),
+    contingencyAmount: finite(contingencyAmount),
+    totalSetupCost: finite(totalSetupCost),
+    effectiveMonthlyRent: finite(effectiveMonthlyRentOnceOccupied),
+    effectiveMonthlyRentOnceOccupied: finite(effectiveMonthlyRentOnceOccupied),
+    monthlyAddedCosts: finite(monthlyAddedCosts),
+    netMonthlyProfit: finite(netMonthlyProfitOnceOccupied),
+    netMonthlyProfitOnceOccupied: finite(netMonthlyProfitOnceOccupied),
+    operatingBreakEvenMonths: operatingBreakEvenMonths === null ? null : finite(operatingBreakEvenMonths),
+    calendarBreakEvenMonths: calendarBreakEvenMonths === null ? null : finite(calendarBreakEvenMonths),
+    breakEvenMonths: operatingBreakEvenMonths === null ? null : finite(operatingBreakEvenMonths),
+    activeRentalMonthsFirstYear: finite(activeRentalMonthsFirstYear),
+    firstYearGrossIncome: finite(firstYearGrossIncome),
+    firstYearAddedCosts: finite(firstYearAddedCosts),
+    firstYearOperatingProfit: finite(firstYearOperatingProfit),
+    firstYearNet: finite(firstYearNetAfterSetup),
+    firstYearNetAfterSetup: finite(firstYearNetAfterSetup),
+    annualProfitAfterBreakEven: finite(annualRecurringProfitAfterBreakEven),
+    annualRecurringProfitAfterBreakEven: finite(annualRecurringProfitAfterBreakEven),
+    monthlyReturnOnSetupCost: monthlyReturnOnSetupCost === null ? null : finite(monthlyReturnOnSetupCost),
+    annualReturnOnSetupCost: annualReturnOnSetupCost === null ? null : finite(annualReturnOnSetupCost),
     statusLabel
   };
 }

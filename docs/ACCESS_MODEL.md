@@ -113,7 +113,7 @@ Dividend Reinvestment Calculator server functions use `requirePremiumOrStaff`, s
 
 Dividend yield lookup is also a premium-tool function. `dividend-yield-lookup` uses `requirePremiumOrStaff` and returns cached database results when fresh before attempting any server-side provider refresh. Admin-only `dividend-yield-refresh` and `dividend-yield-cache-list` use `requireAdmin`. Market data is cached in the database and must not be stored in the repository; manual dividend yield entry remains available for every authorized calculator user.
 
-Investment Analyzer remains premium/staff only through `requirePremiumOrStaff`. Alpha Vantage calls are server-side only and populate `market_price_history` plus `market_data_sync_status`; React components never receive API keys and historical market data is not committed to the repository. Admin-only `market-data-refresh-ticker` can force refresh one ticker for cache maintenance.
+Investment Analyzer remains premium/staff only through `requirePremiumOrStaff`. Alpha Vantage and MASSIVE calls are server-side only and populate `market_price_history` plus `market_data_sync_status`; React components never receive API keys and historical market data is not committed to the repository. `MARKET_DATA_PROVIDER` selects `alpha_vantage` or `massive`; when omitted, MASSIVE is preferred if configured and Alpha Vantage remains the fallback. Admin-only `market-data-refresh-ticker` can force refresh one ticker for cache maintenance.
 
 ## Data sharing consent
 

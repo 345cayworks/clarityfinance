@@ -18,6 +18,15 @@
 - Netlify Functions enforce server-side gates through `netlify/functions/_access.ts`.
 - Premium server functions should use `requirePremiumOrStaff` when advisors/admins are permitted to access premium tools.
 
+## Market Data Secrets
+
+- Market data API keys are server-side environment variables only.
+- `MASSIVE_API_KEY` supports the preferred MASSIVE provider.
+- `ALPHA_VANTAGE_API_KEY` supports Alpha Vantage as fallback.
+- `MARKET_DATA_PROVIDER` supports `alpha_vantage` and `massive`; when omitted, MASSIVE is preferred if configured and Alpha Vantage is used otherwise.
+- Provider responses are cached in database tables such as `market_price_history`, `market_data_sync_status`, and `dividend_yield_cache`. Market data files and API keys must not be committed to the repository.
+- Dividend Calculator manual entry remains available when market data is unavailable.
+
 ## Advisor Data Access
 
 - Advisors can access advisor workflows only after account approval and activation.

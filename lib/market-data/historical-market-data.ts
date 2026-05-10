@@ -1,5 +1,6 @@
 import { sql } from "../db/neon";
-import { getMarketDataProvider } from "./provider";
+import { AlphaVantageProvider } from "./alpha-vantage";
+import { getConfiguredMarketDataProviderName, getMarketDataProvider } from "./provider";
 import type { DailyAdjustedRecord } from "./types";
 
 type MarketPriceHistoryRow = {
@@ -123,7 +124,9 @@ export async function isTickerCacheFresh(ticker: string) {
   return Date.now() - refreshedAt.getTime() < CACHE_FRESH_MS;
 }
 
-async function updateSyncStatus(ticker: string, status: string, latestDate: string | null, errorMessage: string | null) {
+const FRIENDLY_MARKET_DATA_ERROR = "Market data unavailable. Please try again later or enter values manually.";
+
+async function updateSyncStatus(ticker: string, source: string, status: string, latestDate: string | null, errorMessage: string | null) {
   await sql`
     INSERT INTO market_data_sync_status (
       ticker,
@@ -137,7 +140,7 @@ async function updateSyncStatus(ticker: string, status: string, latestDate: stri
     )
     VALUES (
       ${ticker},
-      'alpha_vantage',
+      ${source},
       ${status === "synced" ? new Date().toISOString() : null},
       ${latestDate},
       ${status},
@@ -215,20 +218,36 @@ async function storeDailySeries(ticker: string, series: DailyAdjustedRecord[]) {
 export async function refreshTickerDailyAdjustedSeries(ticker: string): Promise<DailyAdjustedRecord[]> {
   await ensureMarketPriceHistoryTables();
   const normalizedTicker = normalizeTicker(ticker);
+  const configuredProviderName = getConfiguredMarketDataProviderName();
 
   try {
     const providerSeries = await getMarketDataProvider().getDailyAdjustedSeries(normalizedTicker);
     const normalizedSeries = providerSeries
-      .map((record) => ({ ...record, ticker: normalizedTicker, source: record.source || "alpha_vantage" }))
+      .map((record) => ({ ...record, ticker: normalizedTicker, source: record.source || configuredProviderName }))
       .sort((a, b) => a.date.localeCompare(b.date));
     await storeDailySeries(normalizedTicker, normalizedSeries);
     const latestTradingDay = getLatestTradingDay(normalizedSeries);
-    await updateSyncStatus(normalizedTicker, "synced", latestTradingDay?.date ?? null, null);
+    await updateSyncStatus(normalizedTicker, normalizedSeries[0]?.source ?? configuredProviderName, "synced", latestTradingDay?.date ?? null, null);
     return normalizedSeries;
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Market data refresh failed.";
-    await updateSyncStatus(normalizedTicker, "error", null, message);
-    throw error;
+    if (configuredProviderName === "massive") {
+      try {
+        const fallbackSeries = await new AlphaVantageProvider().getDailyAdjustedSeries(normalizedTicker);
+        const normalizedSeries = fallbackSeries
+          .map((record) => ({ ...record, ticker: normalizedTicker, source: record.source || "alpha_vantage" }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+        await storeDailySeries(normalizedTicker, normalizedSeries);
+        const latestTradingDay = getLatestTradingDay(normalizedSeries);
+        await updateSyncStatus(normalizedTicker, "alpha_vantage", "synced", latestTradingDay?.date ?? null, null);
+        return normalizedSeries;
+      } catch {
+        await updateSyncStatus(normalizedTicker, configuredProviderName, "error", null, FRIENDLY_MARKET_DATA_ERROR);
+        throw new Error(FRIENDLY_MARKET_DATA_ERROR);
+      }
+    }
+
+    await updateSyncStatus(normalizedTicker, configuredProviderName, "error", null, FRIENDLY_MARKET_DATA_ERROR);
+    throw new Error(FRIENDLY_MARKET_DATA_ERROR);
   }
 }
 

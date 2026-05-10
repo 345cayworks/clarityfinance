@@ -66,7 +66,8 @@ export const handler: Handler = async (event) => {
     basedOnUserEnteredData: true,
     profileSnapshot: true,
     missingFieldsShownAsMissingData: true,
-    lenderVerificationRequired: true
+    lenderVerificationRequired: true,
+    rentRoomSecurityDepositExcludedFromProfit: true
   };
 
   await ensureReportMetadataColumns();
