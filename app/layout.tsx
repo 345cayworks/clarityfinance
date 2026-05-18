@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { IdentityCallbackHandler } from "@/components/auth/identity-callback-handler";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,7 +11,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-slate-50 text-slate-800 antialiased">{children}</body>
+      <body className="bg-slate-50 text-slate-800 antialiased">
+        <IdentityCallbackHandler />
+        {children}
+      </body>
     </html>
   );
 }
