@@ -8,18 +8,10 @@ import { handleAuthCallback } from "@/lib/auth/netlify-identity";
 
 type Status = "processing" | "error";
 
-function destinationForResult(type: string | undefined): Route {
-  switch (type) {
-    case "recovery":
-      return "/reset-password" as Route;
-    case "invite":
-      return "/reset-password?invited=1" as Route;
-    case "email_change":
-      return "/app/settings?email_changed=1" as Route;
-    case "confirmation":
-    default:
-      return "/login?confirmed=1" as Route;
-  }
+function forwardWithoutConsuming(hash: string): boolean {
+  const fragment = hash.startsWith("#") ? hash.slice(1) : hash;
+  const params = new URLSearchParams(fragment);
+  return params.has("recovery_token") || params.has("invite_token");
 }
 
 export default function AuthCallbackPage() {
@@ -28,14 +20,34 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     let cancelled = false;
+
+    // recovery_token / invite_token need a set-password step that
+    // /reset-password owns. Forward with the hash intact rather than
+    // consuming the token here.
+    if (typeof window !== "undefined" && forwardWithoutConsuming(window.location.hash)) {
+      router.replace(`/reset-password${window.location.hash}` as Route);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     (async () => {
+      const isEmailChange =
+        typeof window !== "undefined" &&
+        new URLSearchParams(
+          window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash
+        ).has("email_change_token");
       try {
-        const result = await handleAuthCallback();
+        await handleAuthCallback();
         if (cancelled) return;
         if (typeof window !== "undefined" && window.location.hash) {
           window.history.replaceState(null, "", window.location.pathname);
         }
-        router.replace(destinationForResult(result?.type));
+        router.replace(
+          isEmailChange
+            ? ("/app/settings?email_changed=1" as Route)
+            : ("/login?confirmed=1" as Route)
+        );
       } catch {
         if (!cancelled) setStatus("error");
       }

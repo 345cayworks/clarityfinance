@@ -23,18 +23,17 @@ function hashHasIdentityToken(hash: string): boolean {
   return TOKEN_KEYS.some((key) => params.has(key));
 }
 
-function destinationForResult(type: string | undefined): Route {
-  switch (type) {
-    case "recovery":
-      return "/reset-password" as Route;
-    case "invite":
-      return "/reset-password?invited=1" as Route;
-    case "email_change":
-      return "/app/settings?email_changed=1" as Route;
-    case "confirmation":
-    default:
-      return "/login?confirmed=1" as Route;
-  }
+// Recovery and invite both require the user to set a password, which
+// /reset-password is purpose-built to handle. We must NOT consume those
+// tokens here: /reset-password's own handler relies on
+// handleAuthCallback() returning the token type and does not depend on
+// a persisted session. So forward those links to /reset-password with
+// the hash intact and let that proven flow run. Only confirmation and
+// email_change (no set-password step) are safe to consume globally.
+function forwardWithoutConsuming(hash: string): boolean {
+  const fragment = hash.startsWith("#") ? hash.slice(1) : hash;
+  const params = new URLSearchParams(fragment);
+  return params.has("recovery_token") || params.has("invite_token");
 }
 
 /**
@@ -61,11 +60,24 @@ export function IdentityCallbackHandler() {
     let cancelled = false;
     setProcessing(true);
 
+    // recovery_token / invite_token: hand off to /reset-password with
+    // the hash preserved; do not consume the token here.
+    if (forwardWithoutConsuming(window.location.hash)) {
+      router.replace(`/reset-password${window.location.hash}` as Route);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     (async () => {
-      let destination: Route = "/login?confirm_error=1" as Route;
+      const isEmailChange = new URLSearchParams(
+        window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash
+      ).has("email_change_token");
+      let destination: Route = isEmailChange
+        ? ("/app/settings?email_changed=1" as Route)
+        : ("/login?confirmed=1" as Route);
       try {
-        const result = await handleAuthCallback();
-        destination = destinationForResult(result?.type);
+        await handleAuthCallback();
       } catch {
         destination = "/login?confirm_error=1" as Route;
       } finally {

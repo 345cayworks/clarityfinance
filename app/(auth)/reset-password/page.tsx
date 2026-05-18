@@ -26,7 +26,7 @@ export default function ResetPasswordPage() {
       try {
         const result = await handleAuthCallback();
         if (cancelled) return;
-        if (result?.type === "recovery") {
+        if (result?.type === "recovery" || result?.type === "invite") {
           setStatus("ready");
           return;
         }
