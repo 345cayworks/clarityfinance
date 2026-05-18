@@ -44,6 +44,11 @@ function LoginPageInner() {
   const [checkingExistingSession, setCheckingExistingSession] = useState(true);
 
   const searchString = searchParams.toString();
+  const confirmed = useMemo(() => new URLSearchParams(searchString).get("confirmed") === "1", [searchString]);
+  const confirmError = useMemo(
+    () => new URLSearchParams(searchString).get("confirm_error") === "1",
+    [searchString]
+  );
   const callbackUrl = useMemo(() => new URLSearchParams(searchString).get("callbackUrl"), [searchString]);
   const redirectOnSuccess = useMemo(
     () => getSafeCallbackUrl(callbackUrl),
@@ -163,6 +168,16 @@ function LoginPageInner() {
             </Link>
           </div>
         </div>
+        {confirmed && !error ? (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            Your email is confirmed. Sign in to continue.
+          </div>
+        ) : null}
+        {confirmError && !error ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            We couldn&apos;t confirm that link. It may have expired — sign in or request a new one.
+          </div>
+        ) : null}
         {error ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{error}</div>
         ) : null}
